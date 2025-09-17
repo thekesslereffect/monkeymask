@@ -94,7 +94,7 @@ MonkeyMask is a **production-ready** browser extension wallet for the Banano cry
 - **Manage Connections**: Click 🔗 to view and revoke connected sites
 - **Send BAN**: Send transactions to addresses or BNS names (e.g., username.ban)
 - **Approve Transactions**: Review and approve all dApp requests in secure popups
-- **Lock/Unlock**: Auto-locks after 30 minutes for security
+- **Lock/Unlock**: Auto-locks based on configurable timeout (default 15 minutes)
 - **Refresh Balances**: Click refresh to update account balances
 
 ### Using with dApps

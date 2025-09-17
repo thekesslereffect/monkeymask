@@ -1,5 +1,7 @@
 # MonkeyMask 🐒
 
+![MonkeyMask](monkeymask.png)
+
 **A secure, modern browser extension wallet for Banano cryptocurrency**
 
 MonkeyMask brings the power of Banano to your browser with a user-friendly interface and developer-friendly API. Built with security, usability, and developer experience in mind.
