@@ -31,6 +31,8 @@ interface ApprovalResult {
 
 class BackgroundService {
   private walletManager: WalletManager;
+  private lockTimer: NodeJS.Timeout | null = null;
+  private resetLockTimer: (() => Promise<void>) | null = null;
   private rpc: BananoRPC;
   private pendingApprovals: Map<string, any> = new Map();
   private approvalResolvers: Map<string, { resolve: Function; reject: Function }> = new Map();
@@ -161,6 +163,12 @@ class BackgroundService {
 
   private async handleMessage(request: any, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void): Promise<void> {
     try {
+      // Reset lock timer on any user activity (except for certain system messages)
+      if (this.resetLockTimer && !['GET_AUTO_LOCK_TIMEOUT', 'SET_AUTO_LOCK_TIMEOUT'].includes(request.type)) {
+        console.log('Background: Resetting timer due to message type:', request.type);
+        this.resetLockTimer();
+      }
+      
       switch (request.type) {
         case 'CREATE_WALLET':
           await this.handleCreateWallet(request, sendResponse);
@@ -1533,6 +1541,18 @@ class BackgroundService {
       await chrome.storage.local.set({ autoLockTimeout: timeout });
       
       console.log('Background: Auto-lock timeout set to', timeout / 1000 / 60, 'minutes');
+      console.log('Background: Stored timeout value:', timeout, 'ms');
+      
+      // Reset the timer with the new timeout value if wallet is unlocked
+      if (this.resetLockTimer && this.walletManager.isWalletUnlocked()) {
+        console.log('Background: Resetting lock timer with new timeout value');
+        
+        // Verify the value was stored correctly
+        const verifyResult = await chrome.storage.local.get(['autoLockTimeout']);
+        console.log('Background: Verification - stored value:', verifyResult.autoLockTimeout, 'ms');
+        
+        this.resetLockTimer();
+      }
       
       sendResponse({ success: true });
     } catch (error) {
@@ -1545,51 +1565,55 @@ class BackgroundService {
   }
 
   private setupAutoLock(): void {
-    let lockTimer: NodeJS.Timeout | null = null;
-    
     // Default to 15 minutes like Phantom, but make it configurable
     const getAutoLockTimeout = async (): Promise<number> => {
       try {
         const result = await chrome.storage.local.get(['autoLockTimeout']);
-        // Default to 15 minutes (15 * 60 * 1000 ms), with options: 1, 5, 15, 60 minutes
-        return result.autoLockTimeout || (15 * 60 * 1000);
+        const timeout = result.autoLockTimeout || (15 * 60 * 1000);
+        console.log('Background: Retrieved auto-lock timeout from storage:', timeout, 'ms (', timeout / 1000 / 60, 'minutes)');
+        return timeout;
       } catch (error) {
+        console.error('Background: Error retrieving auto-lock timeout, using default:', error);
         return 15 * 60 * 1000; // 15 minutes default
       }
     };
 
-    const resetLockTimer = async () => {
-      if (lockTimer) {
-        clearTimeout(lockTimer);
-        lockTimer = null;
+    this.resetLockTimer = async () => {
+      if (this.lockTimer) {
+        clearTimeout(this.lockTimer);
+        this.lockTimer = null;
+        console.log('Background: Cleared existing lock timer');
       }
       
       if (this.walletManager.isWalletUnlocked()) {
         const timeout = await getAutoLockTimeout();
-        lockTimer = setTimeout(() => {
+        console.log('Background: Setting new lock timer with timeout:', timeout, 'ms (', timeout / 1000 / 60, 'minutes)');
+        
+        this.lockTimer = setTimeout(() => {
           this.walletManager.lockWallet();
-          console.log('Wallet auto-locked due to inactivity');
+          console.log('Background: Wallet auto-locked due to inactivity');
           
           // Emit disconnect event to all connected sites
           this.emitProviderEvent('disconnect', null);
         }, timeout);
         
-        console.log(`Auto-lock timer set for ${timeout / 1000 / 60} minutes`);
+        console.log(`Background: Auto-lock timer set for ${timeout / 1000 / 60} minutes`);
+      } else {
+        console.log('Background: Wallet is locked, not setting auto-lock timer');
       }
     };
 
-    // Reset timer on any message (user activity)
-    chrome.runtime.onMessage.addListener(() => {
-      resetLockTimer();
-    });
-
     // Reset timer when extension popup is opened (user activity)
     chrome.action.onClicked.addListener(() => {
-      resetLockTimer();
+      if (this.resetLockTimer) {
+        this.resetLockTimer();
+      }
     });
 
     // Initial timer setup
-    resetLockTimer();
+    if (this.resetLockTimer) {
+      this.resetLockTimer();
+    }
   }
 }
 
