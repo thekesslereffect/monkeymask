@@ -117,10 +117,9 @@ export function WalletConnectButton({
           className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-[var(--border)] bg-[var(--panel)] hover:bg-[var(--elevated)] transition-colors"
         >
           <span className="inline-flex items-center gap-2 text-sm">
-            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+            {/* <span className="w-2 h-2 bg-green-500 rounded-full"></span> */}
             <span className="font-mono">{publicKey.slice(0, 6)}...{publicKey.slice(-6)}</span>
           </span>
-          <span className="text-xs muted">Disconnect</span>
         </button>
       </div>
     );

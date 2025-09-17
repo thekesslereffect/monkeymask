@@ -334,8 +334,8 @@ export const App: React.FC = () => {
       
       {currentScreen === 'approval' && pendingRequest && (
         <>
-          {/* If wallet is locked and we have a transaction/signing request, show unlock screen first */}
-          {!walletState.isUnlocked && (pendingRequest.type === 'sendTransaction' || pendingRequest.type === 'signMessage' || pendingRequest.type === 'signBlock') && (
+          {/* If wallet is locked, show unlock screen first for all request types */}
+          {!walletState.isUnlocked && (
             <UnlockScreen
               onWalletUnlocked={handleWalletUnlocked}
               showPendingRequest={true}
@@ -344,8 +344,8 @@ export const App: React.FC = () => {
             />
           )}
           
-          {/* Show approval screens only when wallet is unlocked or for connection requests */}
-          {(walletState.isUnlocked || pendingRequest.type === 'connect') && (
+          {/* Show approval screens only when wallet is unlocked */}
+          {walletState.isUnlocked && (
             <>
               {pendingRequest.type === 'connect' && (
                 <ConnectionApprovalScreen

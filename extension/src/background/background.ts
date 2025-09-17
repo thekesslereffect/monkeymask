@@ -204,7 +204,7 @@ class BackgroundService {
           break;
         
         case 'DISCONNECT_WALLET':
-          await this.handleDisconnectWallet(sendResponse);
+          await this.handleDisconnectWallet(request, sendResponse);
           break;
         
         case 'SIGN_BLOCK':
@@ -558,9 +558,16 @@ class BackgroundService {
         return;
       }
 
-      // Allow connection even when locked - get stored accounts
+      const { options = {}, origin } = request;
+      const { onlyIfTrusted = false } = options;
+
+      // Check if wallet is locked
+      const isWalletUnlocked = this.walletManager.isWalletUnlocked();
+      console.log('Background: Connect request, wallet unlocked:', isWalletUnlocked);
+
+      // Get accounts (from memory if unlocked, from storage if locked)
       let accounts;
-      if (this.walletManager.isWalletUnlocked()) {
+      if (isWalletUnlocked) {
         accounts = this.walletManager.getAccounts();
       } else {
         // Get accounts from storage when locked
@@ -574,9 +581,6 @@ class BackgroundService {
         ));
         return;
       }
-
-      const { options = {}, origin } = request;
-      const { onlyIfTrusted = false } = options;
 
       // Check if origin is already authorized
       if (this.isOriginAuthorized(origin)) {
@@ -698,12 +702,24 @@ class BackgroundService {
     }
   }
 
-  private async handleDisconnectWallet(sendResponse: (response: any) => void): Promise<void> {
+  private async handleDisconnectWallet(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
-      console.log('Background: Disconnect wallet request from dApp');
-      // For now, just acknowledge disconnection
+      console.log('Background: Disconnect wallet request from dApp:', request.origin);
+      
+      // Revoke permission for this origin
+      if (request.origin) {
+        this.permissions.delete(request.origin);
+        await this.savePermissions();
+        console.log('Background: Revoked permission for origin:', request.origin);
+      }
+      
+      // Emit disconnect event to all tabs from this origin
+      this.emitProviderEvent('disconnect', null, request.origin);
+      console.log('Background: Emitted disconnect event for origin:', request.origin);
+      
       sendResponse({ success: true });
     } catch (error) {
+      console.error('Background: Error disconnecting wallet:', error);
       sendResponse({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to disconnect'

@@ -60,6 +60,7 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [userDisconnected, setUserDisconnected] = useState(false);
 
   // Error handling
   const handleError = useCallback((err: unknown, defaultMessage: string) => {
@@ -114,6 +115,7 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
           setIsConnected(false);
           setPublicKey(null);
           setAccounts([]);
+          setUserDisconnected(false); // Reset user disconnect flag when extension disconnects
           onDisconnect?.();
         });
 
@@ -152,12 +154,25 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
     tryInitialize();
   }, [isInstalled, onConnect, onDisconnect, clearError]);
 
-  // Auto-connect on load
+  // Auto-connect on load (but not if user manually disconnected)
+  // Only auto-connect if the user has previously connected to this site
   useEffect(() => {
-    if (autoConnect && provider && !isConnected && isInstalled) {
-      connect();
+    if (autoConnect && provider && !isConnected && isInstalled && !userDisconnected) {
+      // Use a timeout to avoid the initialization issue
+      const timeoutId = setTimeout(() => {
+        if (provider && !isConnected && isInstalled && !userDisconnected) {
+          // Try to connect with onlyIfTrusted: true first (only if user previously connected)
+          provider.connect({ onlyIfTrusted: true }).catch(() => {
+            // If trusted connection fails, don't auto-connect
+            // This prevents auto-connect on first visit
+            console.log('No trusted connection found, skipping auto-connect');
+          });
+        }
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [autoConnect, provider, isConnected, isInstalled]);
+  }, [autoConnect, provider, isConnected, isInstalled, userDisconnected, handleError]);
 
   // Core actions
   const connect = useCallback(async (): Promise<void> => {
@@ -168,6 +183,7 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
 
     setIsConnecting(true);
     clearError();
+    setUserDisconnected(false); // Reset user disconnect flag when manually connecting
 
     try {
       await provider.connect({ onlyIfTrusted: false });
@@ -183,6 +199,7 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
     if (!provider) return;
 
     try {
+      setUserDisconnected(true); // Mark that user manually disconnected
       await provider.disconnect();
       // State will be updated via event listeners
     } catch (err: unknown) {
