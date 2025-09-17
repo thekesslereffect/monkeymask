@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef } from 'react';
 import { MonkeyMaskProvider as MonkeyMaskAPI, AccountInfo, Block, SignBlockResult } from '@/types/monkeymask';
 
 // Simplified context interface - only expose what developers need
@@ -62,6 +62,9 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
   const [accounts, setAccounts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [userDisconnected, setUserDisconnected] = useState(false);
+  const accountInfoCacheRef = useRef(new Map<string, { ts: number; data: AccountInfo }>());
+  const accountInfoInFlightRef = useRef(new Map<string, Promise<AccountInfo>>());
+  const ACCOUNT_INFO_TTL_MS = 5000;
 
   // Error handling
   const handleError = useCallback((err: unknown, defaultMessage: string) => {
@@ -93,17 +96,19 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
     setError(null);
   }, []);
 
-  // Initialize provider
+  // Initialize provider (guarded to avoid duplicate listeners/logs)
   useEffect(() => {
+    const initializedRef = { current: false } as { current: boolean };
+
     const initializeProvider = () => {
+      if (initializedRef.current) return;
       if (typeof window !== 'undefined' && window.banano) {
-        console.log('MonkeyMask detected');
+        initializedRef.current = true;
         setProvider(window.banano);
         setIsInstalled(true);
         
-        // Set up event listeners
+        // Set up event listeners (no noisy logs)
         window.banano.on('connect', (data: { publicKey: string; accounts?: string[] }) => {
-          console.log('MonkeyMask connected:', data.publicKey);
           setIsConnected(true);
           setPublicKey(data.publicKey);
           setAccounts(data.accounts || [data.publicKey]);
@@ -112,68 +117,61 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
         });
 
         window.banano.on('disconnect', () => {
-          console.log('MonkeyMask disconnected');
           setIsConnected(false);
           setPublicKey(null);
           setAccounts([]);
-          setUserDisconnected(false); // Reset user disconnect flag when extension disconnects
+          setUserDisconnected(false);
           onDisconnect?.();
         });
 
         window.banano.on('accountChanged', (newPublicKey: string) => {
-          console.log('Account changed:', newPublicKey);
           setPublicKey(newPublicKey);
-          // Update accounts list - in a real scenario, we might need to fetch this
           setAccounts([newPublicKey]);
           onConnect?.(newPublicKey);
         });
 
-        // Check if already connected
+        // Seed state if already connected
         if (window.banano.isConnected && window.banano.publicKey) {
           setIsConnected(true);
           setPublicKey(window.banano.publicKey);
           setAccounts([window.banano.publicKey]);
         }
       } else {
-        console.log('MonkeyMask not detected');
         setIsInstalled(false);
       }
     };
 
-    // Try to initialize with retries
+    // Try to initialize with retries (max 3) without spamming logs
     let retryCount = 0;
     const maxRetries = 3;
-    
     const tryInitialize = () => {
       initializeProvider();
-      if (!isInstalled && retryCount < maxRetries) {
+      if (!initializedRef.current && retryCount < maxRetries) {
         retryCount++;
-        setTimeout(tryInitialize, 1000);
+        setTimeout(tryInitialize, 500);
       }
     };
 
     tryInitialize();
-  }, [isInstalled, onConnect, onDisconnect, clearError]);
+  // Only run on mount; callbacks are stable by reference in this context
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-connect on load (but not if user manually disconnected)
   // Only auto-connect if the user has previously connected to this site
   useEffect(() => {
-    if (autoConnect && provider && !isConnected && isInstalled && !userDisconnected) {
-      // Use a timeout to avoid the initialization issue
+    if (autoConnect && provider && !userDisconnected) {
       const timeoutId = setTimeout(() => {
-        if (provider && !isConnected && isInstalled && !userDisconnected) {
-          // Try to connect with onlyIfTrusted: true first (only if user previously connected)
+        // Let injected provider's silent reconnection happen first (~500ms)
+        if (provider && !provider.isConnected) {
           provider.connect({ onlyIfTrusted: true }).catch(() => {
-            // If trusted connection fails, don't auto-connect
-            // This prevents auto-connect on first visit
-            console.log('No trusted connection found, skipping auto-connect');
+            // Silent fallback: skip logging
           });
         }
-      }, 100);
-      
+      }, 800);
       return () => clearTimeout(timeoutId);
     }
-  }, [autoConnect, provider, isConnected, isInstalled, userDisconnected, handleError]);
+  }, [autoConnect, provider, userDisconnected]);
 
   // Core actions
   const connect = useCallback(async (): Promise<void> => {
@@ -225,21 +223,6 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
     }
   }, [provider, handleError]);
 
-  const getBalance = useCallback(async (address?: string): Promise<string | null> => {
-    if (!provider) {
-      handleError(new Error('MonkeyMask not installed'), 'MonkeyMask extension not found');
-      return null;
-    }
-
-    try {
-      const balance = await provider.getBalance(address);
-      return balance;
-    } catch (err: unknown) {
-      handleError(err, 'Failed to get balance');
-      return null;
-    }
-  }, [provider, handleError]);
-
   const getAccountInfo = useCallback(async (address?: string): Promise<AccountInfo | null> => {
     if (!provider) {
       handleError(new Error('MonkeyMask not installed'), 'MonkeyMask extension not found');
@@ -247,13 +230,62 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
     }
 
     try {
-      const accountInfo = await provider.getAccountInfo(address);
-      return accountInfo;
+      const target = address || publicKey || '';
+      if (!target) return null;
+
+      const cached = accountInfoCacheRef.current.get(target);
+      if (cached && Date.now() - cached.ts < ACCOUNT_INFO_TTL_MS) {
+        return cached.data;
+      }
+
+      // Deduplicate concurrent requests
+      const existingPromise = accountInfoInFlightRef.current.get(target);
+      if (existingPromise) {
+        const data = await existingPromise;
+        return data;
+      }
+
+      const p = provider.getAccountInfo(target).then((data) => {
+        accountInfoCacheRef.current.set(target, { ts: Date.now(), data });
+        accountInfoInFlightRef.current.delete(target);
+        return data;
+      }).catch((e) => {
+        accountInfoInFlightRef.current.delete(target);
+        throw e;
+      });
+
+      accountInfoInFlightRef.current.set(target, p);
+      const data = await p;
+      return data;
     } catch (err: unknown) {
       handleError(err, 'Failed to get account info');
       return null;
     }
-  }, [provider, handleError]);
+  }, [provider, handleError, publicKey]);
+
+  const getBalance = useCallback(async (address?: string): Promise<string | null> => {
+    if (!provider) {
+      handleError(new Error('MonkeyMask not installed'), 'MonkeyMask extension not found');
+      return null;
+    }
+
+    try {
+      // Reuse account info cache to avoid duplicate calls and logs
+      const target = address || publicKey || '';
+      if (!target) return null;
+
+      const cached = accountInfoCacheRef.current.get(target);
+      if (cached && Date.now() - cached.ts < ACCOUNT_INFO_TTL_MS) {
+        return cached.data.balance;
+      }
+
+      const info = await getAccountInfo(target);
+      return info?.balance ?? null;
+    } catch (err: unknown) {
+      handleError(err, 'Failed to get balance');
+      return null;
+    }
+  }, [provider, handleError, publicKey, getAccountInfo]);
 
   const sendTransaction = useCallback(async (to: string, amount: string): Promise<string | null> => {
     if (!provider) {

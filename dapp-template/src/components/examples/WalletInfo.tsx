@@ -18,8 +18,7 @@ import { AccountInfo } from '@/types/monkeymask';
  * ```
  */
 export function WalletInfo() {
-  const { isConnected, publicKey, accounts, getBalance, getAccountInfo } = useMonkeyMask();
-  const [balance, setBalance] = useState<string | null>(null);
+  const { isConnected, publicKey, accounts, getAccountInfo } = useMonkeyMask();
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -28,11 +27,7 @@ export function WalletInfo() {
     
     setLoading(true);
     try {
-      const [balanceResult, accountInfoResult] = await Promise.all([
-        getBalance(),
-        getAccountInfo()
-      ]);
-      setBalance(balanceResult);
+      const accountInfoResult = await getAccountInfo();
       setAccountInfo(accountInfoResult);
     } catch (error) {
       console.error('Failed to fetch account data:', error);
@@ -40,13 +35,12 @@ export function WalletInfo() {
     } finally {
       setLoading(false);
     }
-  }, [isConnected, publicKey, getBalance, getAccountInfo]);
+  }, [isConnected, publicKey, getAccountInfo]);
 
   useEffect(() => {
     if (isConnected) {
       fetchAccountData();
     } else {
-      setBalance(null);
       setAccountInfo(null);
     }
   }, [isConnected, fetchAccountData]);
@@ -94,7 +88,7 @@ export function WalletInfo() {
           </label>
           <div className="flex items-center gap-2">
             <div className="font-mono text-sm bg-[var(--elevated)] p-2 rounded border border-[var(--border)] flex-1">
-              {loading ? 'Loading...' : balance ? `${balance} BAN` : 'No balance data'}
+              {loading ? 'Loading...' : accountInfo ? `${accountInfo.balance} BAN` : 'No balance data'}
             </div>
             <button
               onClick={fetchAccountData}

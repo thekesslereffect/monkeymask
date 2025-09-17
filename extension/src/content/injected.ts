@@ -449,13 +449,11 @@ class BananoProviderImpl implements BananoProvider {
       );
     }
     
-    console.log('BananoProvider: Getting balance for:', targetAddress);
-    
-    const result = await this.sendMessage('GET_BALANCE', {
+    console.log('BananoProvider: Getting balance (via account info) for:', targetAddress);
+    const result = await this.sendMessage('GET_ACCOUNT_INFO', {
       address: targetAddress
     });
-    
-    return result.balance;
+    return result.accountInfo?.balance || '0';
   }
 
   async getAccountInfo(address?: string): Promise<any> {

@@ -41,6 +41,8 @@ class BackgroundService {
   private transactionResults: Map<string, any> = new Map();
   private permissions: Map<string, OriginPermissions> = new Map();
   private connectedTabs: Map<number, string> = new Map(); // tabId -> origin
+  private accountInfoCache: Map<string, { accountInfo: any; ts: number }> = new Map();
+  private static readonly ACCOUNT_INFO_TTL_MS = 5000;
 
   constructor() {
     this.walletManager = WalletManager.getInstance();
@@ -513,12 +515,12 @@ class BackgroundService {
         ]) as any;
         
         if (preBalanceResult.success) {
-          // Store pending amounts for each address
+          // Store pending amounts for each address using standard RPC fields
           for (const address of addresses) {
             const balanceData = preBalanceResult.data?.balances[address];
-            if (balanceData?.receivable_decimal && parseFloat(balanceData.receivable_decimal) > 0) {
-              pendingAmounts[address] = balanceData.receivable_decimal;
-              console.log('Background: Found pending amount for', address, ':', balanceData.receivable_decimal);
+            if (balanceData?.pending && balanceData.pending !== '0') {
+              pendingAmounts[address] = BananoRPC.rawToBan(balanceData.pending);
+              console.log('Background: Found pending amount for', address, ':', pendingAmounts[address]);
             }
           }
         }
@@ -560,20 +562,10 @@ class BackgroundService {
       const updatedAccounts = accounts.map(account => {
         const balanceData = balanceResult.data?.balances[account.address];
         if (balanceData) {
-          // Always use our own rawToBan conversion for consistency
           account.balance = BananoRPC.rawToBan(balanceData.balance || '0');
-          console.log('Background: Converted raw balance', balanceData.balance, 'to', account.balance, 'BAN');
-          
-          // For pending, use receivable_decimal if available, otherwise convert from raw
-          let pendingAmount = '0';
-          if (balanceData.receivable_decimal && parseFloat(balanceData.receivable_decimal) > 0) {
-            pendingAmount = balanceData.receivable_decimal;
-          } else if (balanceData.receivable && balanceData.receivable !== '0') {
-            pendingAmount = BananoRPC.rawToBan(balanceData.receivable);
-          }
-          
+          const pendingRaw = balanceData.pending || '0';
+          const pendingAmount = BananoRPC.rawToBan(pendingRaw);
           (account as any).pending = pendingAmount;
-          
           if (parseFloat(pendingAmount) > 0) {
             console.log('Background: Account has pending balance:', pendingAmount);
           }
@@ -1249,23 +1241,29 @@ class BackgroundService {
         return;
       }
 
-      // Get balance from RPC
-      const balanceResult = await this.rpc.getAccountsBalances([address]);
-      
-      if (!balanceResult.success) {
+      // Serve from cache if fresh
+      const cached = this.accountInfoCache.get(address);
+      if (cached && (Date.now() - cached.ts) < BackgroundService.ACCOUNT_INFO_TTL_MS) {
+        sendResponse({ success: true, data: { balance: cached.accountInfo.balance } });
+        return;
+      }
+
+      // Fetch account info and derive balance
+      const infoResult = await this.rpc.getAccountInfo(address);
+      if (!infoResult.success) {
         sendResponse({ success: false, error: 'Failed to fetch balance' });
         return;
       }
 
-      const balanceData = balanceResult.data?.balances[address];
-      const balance = balanceData ? BananoRPC.rawToBan(balanceData.balance || '0') : '0';
-      
-      console.log('Background: Balance for', address, ':', balance);
-      
-      sendResponse({
-        success: true,
-        data: { balance: balance }
-      });
+      const rawBalance = (infoResult.data as any)?.balance || '0';
+      const rawPending = (infoResult.data as any)?.pending || '0';
+      const balance = BananoRPC.rawToBan(rawBalance);
+      const pending = BananoRPC.rawToBan(rawPending);
+
+      const accountInfo = { address, balance, pending, rawBalance, rawPending };
+      this.accountInfoCache.set(address, { accountInfo, ts: Date.now() });
+
+      sendResponse({ success: true, data: { balance } });
       
     } catch (error) {
       console.error('Background: Error getting balance:', error);
@@ -1286,29 +1284,36 @@ class BackgroundService {
         return;
       }
 
-      // Get full account info from RPC
-      const balanceResult = await this.rpc.getAccountsBalances([address]);
-      
-      if (!balanceResult.success) {
+      // Serve from cache if fresh
+      const cached = this.accountInfoCache.get(address);
+      if (cached && (Date.now() - cached.ts) < BackgroundService.ACCOUNT_INFO_TTL_MS) {
+        sendResponse({ success: true, data: { accountInfo: cached.accountInfo } });
+        return;
+      }
+
+      // Get full account info from RPC (includes raw balance/pending)
+      const infoResult = await this.rpc.getAccountInfo(address);
+      if (!infoResult.success) {
         sendResponse({ success: false, error: 'Failed to fetch account info' });
         return;
       }
 
-      const balanceData = balanceResult.data?.balances[address];
+      const rawBalance = (infoResult.data as any)?.balance || '0';
+      const rawPending = (infoResult.data as any)?.pending || '0';
       const accountInfo = {
-        address: address,
-        balance: balanceData ? BananoRPC.rawToBan(balanceData.balance || '0') : '0',
-        pending: (balanceData as any)?.receivable_decimal || '0',
-        rawBalance: balanceData?.balance || '0',
-        rawPending: (balanceData as any)?.receivable || '0'
+        address,
+        balance: BananoRPC.rawToBan(rawBalance),
+        pending: BananoRPC.rawToBan(rawPending),
+        rawBalance,
+        rawPending
       };
-      
+
+      // Cache it briefly to coalesce GET_BALANCE calls
+      this.accountInfoCache.set(address, { accountInfo, ts: Date.now() });
+
       console.log('Background: Account info for', address, ':', accountInfo);
-      
-      sendResponse({
-        success: true,
-        data: { accountInfo: accountInfo }
-      });
+
+      sendResponse({ success: true, data: { accountInfo } });
       
     } catch (error) {
       console.error('Background: Error getting account info:', error);

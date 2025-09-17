@@ -33,15 +33,10 @@ export function Providers({ children }: ProvidersProps) {
     <MonkeyMaskProvider
       config={{
         autoConnect: true,
-        onConnect: (publicKey) => {
-          console.log('Wallet connected:', publicKey);
-        },
-        onDisconnect: () => {
-          console.log('Wallet disconnected');
-        },
-        onError: (error) => {
-          console.error('Wallet error:', error);
-        },
+        // Keep callbacks silent to reduce console noise on reload
+        onConnect: () => {},
+        onDisconnect: () => {},
+        onError: () => {},
       }}
     >
       {children}

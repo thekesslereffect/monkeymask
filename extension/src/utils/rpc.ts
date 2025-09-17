@@ -106,16 +106,17 @@ export class BananoRPC {
    */
   static rawToBan(raw: string): string {
     try {
-      // 1 BAN = 10^29 raw
-      // Use JavaScript's number conversion for simplicity and precision
-      const rawNum = parseFloat(raw);
-      const banAmount = rawNum / Math.pow(10, 29);
-      
-      // Format to 4 decimal places and remove trailing zeros
-      const formatted = banAmount.toFixed(4).replace(/\.?0+$/, '');
-      
-      console.log('RPC: Converting raw', raw, 'to BAN:', formatted);
-      return formatted;
+      const RAW_PER_BAN = BigInt('100000000000000000000000000000'); // 10^29
+      const rawBig = BigInt(raw || '0');
+
+      const whole = rawBig / RAW_PER_BAN;
+      const frac = rawBig % RAW_PER_BAN;
+
+      // Render up to 6 fractional digits for UI without floating errors
+      let fracStr = frac.toString().padStart(29, '0').slice(0, 6);
+      fracStr = fracStr.replace(/0+$/, '');
+
+      return fracStr ? `${whole.toString()}.${fracStr}` : whole.toString();
     } catch (error) {
       console.error('Error converting raw to BAN:', error);
       return '0';

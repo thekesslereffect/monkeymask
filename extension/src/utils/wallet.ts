@@ -1,15 +1,28 @@
 const bananojs = require('@bananocoin/bananojs');
+// Configure bananojs once at module load
+try {
+  bananojs.setBananodeApiUrl('https://kaliumapi.appditto.com/api');
+  if (bananojs.BananodeApi && typeof bananojs.BananodeApi.setUseRateLimit === 'function') {
+    bananojs.BananodeApi.setUseRateLimit(true);
+  }
+} catch {}
 import nacl from 'tweetnacl';
 import * as bip39 from 'bip39';
 import CryptoJS from 'crypto-js';
 import { blake2b } from 'blakejs';
 import { Account, StoredWallet } from '../types/wallet';
+import { BananoRPC } from './rpc';
 
 export class WalletManager {
   private static instance: WalletManager;
   private accounts: Account[] = [];
   private isUnlocked = false;
   private currentSeed: string | null = null;
+  private rpc: BananoRPC;
+
+  constructor() {
+    this.rpc = new BananoRPC();
+  }
 
   static getInstance(): WalletManager {
     if (!WalletManager.instance) {
@@ -356,11 +369,11 @@ export class WalletManager {
     try {
       console.log('WalletManager: Signing block for account:', accountAddress);
       
-      // Use bananojs to sign the block
-      const signature = await bananojs.signHash(account.privateKey, block);
+      // Use BananoUtil to sign the block structure
+      const signature = await bananojs.BananoUtil.getSignature(account.privateKey, block);
       
-      // Add work (proof of work) - for now use a placeholder
-      // In a real implementation, this would be computed or fetched from a work server
+      // Add work (proof of work). For now, use zeroed work bytes placeholder.
+      // Consider integrating a remote work server for production.
       const work = '0000000000000000';
       
       const signedBlock = {
@@ -399,9 +412,6 @@ export class WalletManager {
       
       // Get the account index for seed derivation
       const accountIndex = this.accounts.indexOf(account);
-      
-      // Set the API URL for bananojs
-      bananojs.setBananodeApiUrl('https://kaliumapi.appditto.com/api');
       
       // Use bananojs to send the withdrawal
       const result = await bananojs.sendBananoWithdrawalFromSeed(
@@ -643,13 +653,19 @@ export class WalletManager {
       // Use bananojs to receive pending deposits
       console.log('WalletManager: Calling receiveBananoDepositsForSeed for account index:', accountIndex);
       
-      // Set the API URL for bananojs
-      bananojs.setBananodeApiUrl('https://kaliumapi.appditto.com/api');
-      
+      // Determine representative for receive (required by bananojs DepositUtil)
+      let representative = 'ban_1ka1ium4pfue3uxtntqkkksy3c3s5xy3q3xr8usayqp2yz3h2msc8jqm7yxs';
+      try {
+        const info = await this.rpc.getAccountInfo(accountAddress);
+        if (info.success && (info.data as any)?.representative) {
+          representative = (info.data as any).representative;
+        }
+      } catch {}
+
       const receivedHashes = await bananojs.receiveBananoDepositsForSeed(
         this.currentSeed!,
         accountIndex,
-        accountAddress
+        representative
       );
       
       console.log('WalletManager: Received deposits result:', receivedHashes);
