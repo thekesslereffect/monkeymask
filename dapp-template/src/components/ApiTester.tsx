@@ -31,6 +31,15 @@ export function ApiTester() {
   const [sendToAddress, setSendToAddress] = useState('');
   const [sendAmount, setSendAmount] = useState('0.01');
   const [bnsName, setBnsName] = useState('');
+  const [bnsResolutionStatus, setBnsResolutionStatus] = useState<string | null>(null);
+
+  // Helper function to check if input looks like a BNS name
+  const isBNSName = (input: string): boolean => {
+    const parts = input.split('.');
+    if (parts.length !== 2) return false;
+    const [domain, tld] = parts;
+    return ['ban', 'jtv', 'mictest'].includes(tld) && /^[a-zA-Z0-9_-]+$/.test(domain);
+  };
 
   const addResult = (method: string, success: boolean, result?: unknown, error?: string) => {
     const newResult: ApiResult = {
@@ -57,6 +66,26 @@ export function ApiTester() {
           addResult(methodName, false, null, (error as Error)?.message || 'Unknown error');
     } finally {
       setLoading(null);
+    }
+  };
+
+  // Handle address input with BNS resolution
+  const handleAddressInput = async (value: string) => {
+    setSendToAddress(value);
+    setBnsResolutionStatus(null);
+
+    if (value && isBNSName(value)) {
+      setBnsResolutionStatus('🔄 Resolving BNS name...');
+      try {
+        const resolvedAddress = await resolveBNS(value);
+        if (resolvedAddress) {
+          setBnsResolutionStatus(`✅ Resolved to: ${resolvedAddress.slice(0, 12)}...${resolvedAddress.slice(-8)}`);
+          // Update the address field with the resolved address
+          setSendToAddress(resolvedAddress);
+        }
+      } catch (error) {
+        setBnsResolutionStatus(`❌ Failed to resolve: ${(error as Error)?.message || 'Unknown error'}`);
+      }
     }
   };
 
@@ -192,10 +221,18 @@ export function ApiTester() {
             <input
               type="text"
               value={sendToAddress}
-              onChange={(e) => setSendToAddress(e.target.value)}
+              onChange={(e) => handleAddressInput(e.target.value)}
               className="w-full px-3 py-2 border border-neutral-800 rounded-lg bg-neutral-950 text-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-700 font-mono text-sm"
               placeholder="ban_1... or username.ban"
             />
+            {bnsResolutionStatus && (
+              <div className="mt-2 text-xs text-neutral-400">
+                {bnsResolutionStatus}
+              </div>
+            )}
+            <p className="text-xs text-neutral-500 mt-1">
+              Supports BNS names: .ban, .jtv, .mictest domains
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">
@@ -212,7 +249,24 @@ export function ApiTester() {
             />
           </div>
           <button
-            onClick={() => executeMethod('sendTransaction', () => sendTransaction(sendToAddress, sendAmount))}
+            onClick={() => executeMethod('sendTransaction', async () => {
+              // Resolve address if it's a BNS name, otherwise use as-is
+              let finalAddress = sendToAddress;
+              if (isBNSName(sendToAddress)) {
+                const resolved = await resolveBNS(sendToAddress);
+                if (!resolved) {
+                  throw new Error('Failed to resolve BNS name');
+                }
+                finalAddress = resolved;
+              }
+              
+              // Validate that we have a valid Banano address
+              if (!finalAddress.startsWith('ban_')) {
+                throw new Error('Please enter a valid Banano address (starts with ban_) or BNS name');
+              }
+              
+              return sendTransaction(finalAddress, sendAmount);
+            })}
             disabled={loading === 'sendTransaction' || !sendToAddress.trim() || !sendAmount}
             className="px-4 py-2 bg-neutral-800 text-neutral-100 rounded-lg hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

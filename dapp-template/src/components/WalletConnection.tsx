@@ -39,14 +39,30 @@ export function WalletConnection() {
   }
 
   if (error) {
+    const isExtensionContextError = error.includes('Extension connection lost') || 
+                                   error.includes('Extension context invalidated') ||
+                                   error.includes('refresh the page');
+    
     return (
       <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="text-2xl">⚠️</div>
+            <div className="text-2xl">{isExtensionContextError ? '🔄' : '⚠️'}</div>
             <div>
-              <h3 className="text-lg font-semibold text-neutral-100">Connection Error</h3>
+              <h3 className="text-lg font-semibold text-neutral-100">
+                {isExtensionContextError ? 'Extension Connection Lost' : 'Connection Error'}
+              </h3>
               <p className="text-neutral-400 mt-1">{error}</p>
+              {isExtensionContextError && (
+                <div className="mt-3 space-x-2">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-3 py-1 text-sm bg-neutral-700 text-neutral-100 rounded hover:bg-neutral-600 transition-colors"
+                  >
+                    🔄 Refresh Page
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           <button

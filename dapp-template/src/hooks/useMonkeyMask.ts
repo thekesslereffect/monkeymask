@@ -38,6 +38,7 @@ export interface UseMonkeyMaskReturn {
   clearError: () => void;
   refreshBalance: () => Promise<void>;
   refreshAccountInfo: () => Promise<void>;
+  checkConnection: () => Promise<boolean>;
   
   // Provider info
   isMonkeyMaskInstalled: boolean;
@@ -69,53 +70,100 @@ export function useMonkeyMask(): UseMonkeyMaskReturn {
     
     const errorMessage = (err as Error)?.message || defaultMessage;
     
-    setError(errorMessage);
+    // Check for extension context invalidation
+    if (errorMessage.includes('Extension context invalidated') || 
+        errorMessage.includes('context invalidated') ||
+        errorMessage.includes('message port closed') ||
+        errorMessage.includes('Attempting to use a disconnected port object')) {
+      setError('Extension connection lost. Please refresh the page and try again.');
+      // Reset provider state but keep the extension as "installed"
+      setIsConnected(false);
+      setPublicKey(null);
+      setAccounts([]);
+      setBalance(null);
+      setAccountInfo(null);
+    } else {
+      setError(errorMessage);
+    }
+    
     setLastError(err instanceof Error ? err as ProviderError : new Error(errorMessage) as ProviderError);
     
     return null;
   }, []);
 
-  // Initialize provider
+  // Initialize provider with retry logic
   useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 3;
+    
     const initializeProvider = () => {
-      if (typeof window !== 'undefined' && window.banano) {
-        setProvider(window.banano);
-        setIsMonkeyMaskInstalled(true);
-        
-        // Set up event listeners
-        window.banano.on('connect', (data: { publicKey: string; accounts?: string[] }) => {
-          console.log('MonkeyMask connected:', data);
-          setIsConnected(true);
-          setPublicKey(data.publicKey);
-          if (data.accounts) {
-            setAccounts(data.accounts);
+      try {
+        if (typeof window !== 'undefined' && window.banano) {
+          console.log('MonkeyMask provider found, initializing...');
+          setProvider(window.banano);
+          setIsMonkeyMaskInstalled(true);
+          clearError(); // Clear any previous connection errors
+          
+          // Set up event listeners with error handling
+          try {
+            window.banano.on('connect', (data: { publicKey: string; accounts?: string[] }) => {
+              console.log('MonkeyMask connected:', data);
+              setIsConnected(true);
+              setPublicKey(data.publicKey);
+              if (data.accounts) {
+                setAccounts(data.accounts);
+              }
+              clearError();
+            });
+
+            window.banano.on('disconnect', () => {
+              console.log('MonkeyMask disconnected');
+              setIsConnected(false);
+              setPublicKey(null);
+              setAccounts([]);
+              setBalance(null);
+              setAccountInfo(null);
+            });
+
+            window.banano.on('accountChanged', (newPublicKey: string) => {
+              console.log('MonkeyMask account changed:', newPublicKey);
+              setPublicKey(newPublicKey);
+              setBalance(null); // Clear balance to trigger refresh
+              setAccountInfo(null); // Clear account info to trigger refresh
+            });
+          } catch (eventError) {
+            console.warn('Error setting up event listeners:', eventError);
           }
-          clearError();
-        });
 
-        window.banano.on('disconnect', () => {
-          console.log('MonkeyMask disconnected');
-          setIsConnected(false);
-          setPublicKey(null);
-          setAccounts([]);
-          setBalance(null);
-          setAccountInfo(null);
-        });
-
-        window.banano.on('accountChanged', (newPublicKey: string) => {
-          console.log('MonkeyMask account changed:', newPublicKey);
-          setPublicKey(newPublicKey);
-          setBalance(null); // Clear balance to trigger refresh
-          setAccountInfo(null); // Clear account info to trigger refresh
-        });
-
-        // Check initial connection state
-        if (window.banano.isConnected && window.banano.publicKey) {
-          setIsConnected(true);
-          setPublicKey(window.banano.publicKey);
+          // Check initial connection state safely
+          try {
+            if (window.banano.isConnected && window.banano.publicKey) {
+              console.log('Initial connection state detected');
+              setIsConnected(true);
+              setPublicKey(window.banano.publicKey);
+            }
+          } catch (stateError) {
+            console.warn('Error checking initial connection state:', stateError);
+          }
+          
+          console.log('MonkeyMask provider initialized successfully');
+        } else {
+          setIsMonkeyMaskInstalled(false);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.log(`MonkeyMask not found, retry ${retryCount}/${maxRetries}`);
+            setTimeout(initializeProvider, 1000);
+          } else {
+            console.log('MonkeyMask not found after maximum retries');
+          }
         }
-      } else {
+      } catch (error) {
+        console.error('Error initializing MonkeyMask provider:', error);
         setIsMonkeyMaskInstalled(false);
+        if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(initializeProvider, 1000);
+        }
       }
     };
 
@@ -125,19 +173,36 @@ export function useMonkeyMask(): UseMonkeyMaskReturn {
     // Also listen for the initialization event
     const handleInitialized = () => {
       console.log('MonkeyMask initialized event received');
+      retryCount = 0; // Reset retry count on explicit initialization
       initializeProvider();
     };
 
     window.addEventListener('banano#initialized', handleInitialized);
 
-    // Fallback: try again after a delay
-    const timeout = setTimeout(initializeProvider, 1000);
-
     return () => {
       window.removeEventListener('banano#initialized', handleInitialized);
-      clearTimeout(timeout);
     };
   }, [clearError]);
+
+  // Check connection health
+  const checkConnection = useCallback(async (): Promise<boolean> => {
+    if (!provider) return false;
+    
+    try {
+      // Try a simple operation to test if the extension context is still valid
+      const accounts = await provider.getAccounts();
+      return Array.isArray(accounts);
+    } catch (error) {
+      console.log('Connection check failed:', error);
+      const errorMessage = (error as Error)?.message || '';
+      if (errorMessage.includes('Extension context invalidated') || 
+          errorMessage.includes('context invalidated') ||
+          errorMessage.includes('message port closed')) {
+        handleError(error, 'Extension connection lost');
+      }
+      return false;
+    }
+  }, [provider, handleError]);
 
   // Connect wallet
   const connect = useCallback(async (onlyIfTrusted = false): Promise<ConnectResult | null> => {
@@ -314,6 +379,7 @@ export function useMonkeyMask(): UseMonkeyMaskReturn {
     clearError,
     refreshBalance,
     refreshAccountInfo,
+    checkConnection,
     
     // Provider info
     isMonkeyMaskInstalled,
