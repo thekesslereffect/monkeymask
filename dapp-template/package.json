@@ -1,0 +1,46 @@
+{
+  "name": "monkeymask-dapp-template",
+  "version": "1.0.0",
+  "description": "A modern Next.js template for building dApps with MonkeyMask Banano wallet integration",
+  "private": true,
+  "keywords": ["banano", "monkeymask", "dapp", "wallet", "nextjs", "typescript", "template"],
+  "author": "MonkeyMask Team",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next out dist"
+  },
+  "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "next": "15.5.3"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.3",
+    "@eslint/eslintrc": "^3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/monkeymask-dapp-template.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/monkeymask-dapp-template/issues"
+  },
+  "homepage": "https://github.com/your-org/monkeymask-dapp-template#readme"
+}
