@@ -7,7 +7,7 @@ MonkeyMask brings the power of Banano to your browser with a user-friendly inter
 ## 🌟 Features
 
 - **🔐 Secure Wallet Management**: HD wallet generation, encrypted local storage, and configurable auto-lock
-- **🌐 dApp Integration**: Modern API compatible with Ethereum (EIP-1193) and Solana (Phantom) patterns
+- **🌐 dApp Integration**: Modern API following Solana wallet adapter and Phantom wallet patterns
 - **🔓 Smart Locking**: Stay connected to dApps even when locked - unlock automatically for transactions
 - **🎯 User-Friendly**: Intuitive popup interface with transaction approval flows
 - **🛠️ Developer Ready**: Complete dApp template and comprehensive documentation
@@ -161,9 +161,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **Banano Community** for the amazing cryptocurrency and ecosystem
-- **Ethereum EIP-1193** for wallet provider standards
-- **Phantom Wallet** for UX inspiration
-- **MetaMask** for pioneering browser wallet architecture
+- **Solana Wallet Adapter** for the clean wallet integration patterns
+- **Phantom Wallet** for the excellent UX and API design inspiration
+- **Solana Ecosystem** for pioneering user-friendly wallet standards
 
 ---
 
