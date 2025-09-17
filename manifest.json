@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "MonkeyMask - Banano Wallet",
+  "version": "0.1.0",
+  "description": "Browser extension wallet for Banano cryptocurrency",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.banano.cc/*",
+    "https://*.bananorpc.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "MonkeyMask"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
