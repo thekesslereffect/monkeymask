@@ -15,6 +15,7 @@ export interface MonkeyMaskProvider {
   
   // Signing operations
   signMessage(message: string, encoding?: 'utf8' | 'hex'): Promise<SignMessageResult>;
+  verifySignedMessage(message: string, signature: string, publicKey: string, encoding?: 'utf8' | 'hex'): Promise<boolean>;
   signBlock(block: Block): Promise<SignBlockResult>;
   
   // Transactions

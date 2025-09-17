@@ -17,10 +17,12 @@ import { useMonkeyMask } from '@/providers';
  * ```
  */
 export function SignMessage() {
-  const { isConnected, signMessage } = useMonkeyMask();
+  const { isConnected, publicKey, signMessage, verifySignedMessage } = useMonkeyMask();
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
+  const [isValid, setIsValid] = useState<boolean | null>(null);
+  const [serverValid, setServerValid] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSign = async (e: React.FormEvent) => {
@@ -30,11 +32,46 @@ export function SignMessage() {
     setLoading(true);
     setError(null);
     setSignature(null);
+    setIsValid(null);
+    setServerValid(null);
 
     try {
+      // Use the signMessage from context which handles the provider call
       const result = await signMessage(message);
       if (result) {
         setSignature(result);
+        
+        // Client-side verification (extension-based)
+        const valid = await verifySignedMessage(message, result, publicKey || undefined);
+        setIsValid(valid === true);
+        
+        // Server-side verification (more secure)
+        // For now, let's use the publicKey from context - we'll need to ensure it's hex format
+        try {
+          const response = await fetch('/api/verify-signature', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message,
+              signature: result,
+              publicKey: publicKey, // This should be the hex public key
+              origin: window.location.origin
+            }),
+          });
+          
+          if (response.ok) {
+            const serverResult = await response.json();
+            setServerValid(serverResult.valid);
+          } else {
+            console.error('Server verification failed:', response.statusText);
+            setServerValid(false);
+          }
+        } catch (serverError) {
+          console.error('Server verification error:', serverError);
+          setServerValid(null); // null indicates server verification unavailable
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signing failed');
@@ -45,6 +82,8 @@ export function SignMessage() {
 
   const clearResults = () => {
     setSignature(null);
+    setIsValid(null);
+    setServerValid(null);
     setError(null);
     setMessage('');
   };
@@ -128,6 +167,22 @@ export function SignMessage() {
               </label>
               <div className="text-xs font-mono bg-[var(--panel)] p-2 rounded border border-[var(--border)] break-all">
                 {signature}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium muted mb-1">
+                Extension Verified:
+              </label>
+              <div className="text-xs font-mono bg-[var(--panel)] p-2 rounded border border-[var(--border)]">
+                {isValid === null ? 'Verifying...' : isValid ? 'true' : 'false'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium muted mb-1">
+                Server Verified:
+              </label>
+              <div className="text-xs font-mono bg-[var(--panel)] p-2 rounded border border-[var(--border)]">
+                {serverValid === null ? 'Verifying...' : serverValid ? 'true' : 'false'}
               </div>
             </div>
           </div>

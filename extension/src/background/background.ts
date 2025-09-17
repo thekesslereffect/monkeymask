@@ -1,4 +1,6 @@
 import { WalletManager } from '../utils/wallet';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const bananojs = require('@bananocoin/bananojs');
 import { BananoRPC } from '../utils/rpc';
 import { WalletRequest, Account } from '../types/wallet';
 
@@ -79,6 +81,45 @@ class BackgroundService {
     }
   }
 
+  private async handleVerifySignedMessage(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      const { message, signature, publicKey, display = 'utf8', origin } = request;
+      console.log('Background: Verify message request:', { message, signature, publicKey, display, origin });
+      
+      if (!message || !signature || !publicKey) {
+        sendResponse(this.createStandardError(
+          'message, signature and publicKey are required',
+          PROVIDER_ERRORS.INVALID_PARAMS.code
+        ));
+        return;
+      }
+
+      // Use WalletManager for verification with domain separation
+      try {
+        // Build the same domain-separated message bytes as in signing
+        const messageBytes = this.getPrefixedMessageBytes(message, display, origin || 'unknown');
+        console.log('Background: Built prefixed message bytes for verification');
+        console.log('Background: Verification prefix string:', `MonkeyMask Signed Message:\nOrigin: ${origin || 'unknown'}\nMessage: ${message}`);
+        console.log('Background: Verification bytes length:', messageBytes.length);
+        console.log('Background: Verification bytes hex:', Array.from(messageBytes, byte => byte.toString(16).padStart(2, '0')).join(''));
+        
+        const isValid = await this.walletManager.verifySignedMessage(publicKey, messageBytes, signature, message, origin || 'unknown');
+        console.log('Background: Verification result:', isValid);
+        
+        sendResponse({ success: true, data: { valid: isValid } });
+      } catch (verifyError) {
+        console.error('Background: Verification failed:', verifyError);
+        sendResponse({ success: true, data: { valid: false } });
+      }
+    } catch (error) {
+      console.error('Background: Error verifying signed message:', error);
+      sendResponse(this.createStandardError(
+        'Failed to verify signed message',
+        PROVIDER_ERRORS.INTERNAL_ERROR.code
+      ));
+    }
+  }
+
   private async savePermissions(): Promise<void> {
     try {
       const stored: StoredPermissions = {};
@@ -142,6 +183,21 @@ class BackgroundService {
       code,
       data
     };
+  }
+
+  private getPrefixedMessageBytes(message: string, display: 'utf8' | 'hex', origin: string): Uint8Array {
+    const encoder = new TextEncoder();
+    const prefix = encoder.encode(`MonkeyMask Signed Message:\nOrigin: ${origin}\nMessage: `);
+    let messageBytes: Uint8Array;
+    if (display === 'hex') {
+      messageBytes = Buffer.from(message, 'hex');
+    } else { // utf8
+      messageBytes = encoder.encode(message);
+    }
+    const combined = new Uint8Array(prefix.length + messageBytes.length);
+    combined.set(prefix, 0);
+    combined.set(messageBytes, prefix.length);
+    return combined;
   }
 
   private emitProviderEvent(event: string, data: any, targetOrigin?: string): void {
@@ -237,6 +293,10 @@ class BackgroundService {
         
         case 'SIGN_MESSAGE':
           await this.handleSignMessage(request, sendResponse);
+          break;
+
+        case 'VERIFY_SIGNED_MESSAGE':
+          await this.handleVerifySignedMessage(request, sendResponse);
           break;
         
         case 'GET_PENDING_APPROVAL':
@@ -538,6 +598,72 @@ class BackgroundService {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to update balances'
       });
+    }
+  }
+
+  /**
+   * Optimistically subtract the sent amount from the sender's balance in memory
+   * to provide instant UI feedback. This is reconciled later by a real refresh.
+   */
+  private updateBalanceOptimistically(fromAddress: string, amountBan: string): void {
+    try {
+      if (!this.walletManager.isWalletUnlocked()) {
+        return;
+      }
+
+      const accounts = this.walletManager.getAccounts();
+      const sender = accounts.find(acc => acc.address === fromAddress);
+      if (!sender) {
+        return;
+      }
+
+      const currentBalance = parseFloat(sender.balance) || 0;
+      const sentAmount = parseFloat(amountBan) || 0;
+      const newBalance = Math.max(0, currentBalance - sentAmount);
+
+      sender.balance = newBalance.toString();
+      console.log('Background: Optimistically updated balance from', currentBalance, 'to', newBalance, 'BAN');
+    } catch (error) {
+      console.warn('Background: Failed to update balance optimistically:', error);
+    }
+  }
+
+  /**
+   * Refresh balances without needing a sendResponse callback. Fire-and-forget.
+   */
+  private async updateBalancesAsync(): Promise<void> {
+    try {
+      if (!this.walletManager.isWalletUnlocked()) {
+        return;
+      }
+
+      const accounts = this.walletManager.getAccounts();
+      const addresses = accounts.map(acc => acc.address);
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Balance fetch timeout')), 10000);
+      });
+
+      const balanceResult = await Promise.race([
+        this.rpc.getAccountsBalances(addresses),
+        timeoutPromise
+      ]) as any;
+
+      if (!balanceResult?.success) {
+        throw new Error(balanceResult?.error || 'Unknown balance fetch error');
+      }
+
+      const updatedAccounts = accounts.map(account => {
+        const balanceData = balanceResult.data?.balances[account.address];
+        if (balanceData) {
+          account.balance = BananoRPC.rawToBan(balanceData.balance || '0');
+        }
+        return account;
+      });
+      // No explicit setter needed; objects are mutated in place
+      console.log('Background: updateBalancesAsync completed');
+    } catch (error) {
+      console.warn('Background: updateBalancesAsync failed:', error);
     }
   }
 
@@ -1001,6 +1127,10 @@ class BackgroundService {
         
         // Execute the transaction after approval
         console.log('Background: Transaction approved, executing:', requestId);
+
+        // Optimistic UI update: subtract immediately for fast feedback
+        this.updateBalanceOptimistically(fromAddress, amount);
+
         const transactionHash = await this.walletManager.sendBanano(fromAddress, toAddress, amount);
         
         // Store transaction result
@@ -1010,13 +1140,12 @@ class BackgroundService {
           block: { type: 'send', fromAddress, toAddress, amount }
         });
         
-        // Update balances after successful transaction
-        try {
-          console.log('Background: Updating balances after dApp transaction...');
-          await this.handleUpdateBalances(() => {});
-        } catch (balanceError) {
-          console.warn('Background: Failed to update balances after transaction:', balanceError);
-        }
+        // Kick off non-blocking balance refresh (do not await)
+        setTimeout(() => {
+          this.updateBalancesAsync().catch(err => {
+            console.warn('Background: post dApp tx refresh failed:', err);
+          });
+        }, 0);
         
         sendResponse({
           success: true,
@@ -1031,16 +1160,18 @@ class BackgroundService {
       } else {
         // This is an extension request - execute immediately without approval
         console.log('Background: Extension transaction request - executing immediately');
-        
+
+        // Optimistic UI update
+        this.updateBalanceOptimistically(fromAddress, amount);
+
         const transactionHash = await this.walletManager.sendBanano(fromAddress, toAddress, amount);
         
-        // Update balances after successful transaction
-        try {
-          console.log('Background: Updating balances after extension transaction...');
-          await this.handleUpdateBalances(() => {});
-        } catch (balanceError) {
-          console.warn('Background: Failed to update balances after transaction:', balanceError);
-        }
+        // Fire-and-forget refresh
+        setTimeout(() => {
+          this.updateBalancesAsync().catch(err => {
+            console.warn('Background: post extension tx refresh failed:', err);
+          });
+        }, 0);
         
         sendResponse({
           success: true,
@@ -1292,6 +1423,9 @@ class BackgroundService {
       }
 
       const { message, display = 'utf8', publicKey, origin } = request;
+      console.log('Background: Request publicKey:', publicKey);
+      console.log('Background: Request message:', message);
+      console.log('Background: Request display:', display);
       
       if (!message || !publicKey) {
         sendResponse(this.createStandardError(
@@ -1312,22 +1446,25 @@ class BackgroundService {
 
       // At this point, approval was already handled above, so proceed with signing
       console.log('Background: Message signing approved, performing signature');
-      
-      // For now, simulate message signing
-      // In a real implementation, this would use the account's private key
-      const mockSignature = Array.from({ length: 64 }, (_, i) => 
-        ((i + message.length) % 256).toString(16).padStart(2, '0')
-      ).join('');
-      
-      sendResponse({
-        success: true,
-        data: {
-          signature: mockSignature,
-          publicKey: publicKey
-        }
-      });
-      
-      console.log('Background: Message signed successfully');
+
+      try {
+        // Allow both address and publicKey here; WalletManager resolves internally
+        const signatureHex = await this.walletManager.signMessage(publicKey, message, display, origin);
+        sendResponse({
+          success: true,
+          data: {
+            signature: signatureHex,
+            publicKey
+          }
+        });
+        console.log('Background: Message signed successfully');
+      } catch (signError) {
+        console.error('Background: Real message signing failed:', signError);
+        sendResponse(this.createStandardError(
+          'Failed to sign message',
+          PROVIDER_ERRORS.INTERNAL_ERROR.code
+        ));
+      }
       
     } catch (error) {
       console.error('Background: Error signing message:', error);

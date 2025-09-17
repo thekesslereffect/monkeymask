@@ -22,7 +22,8 @@ interface MonkeyMaskContextType {
   
   // Transaction methods
   sendTransaction: (to: string, amount: string) => Promise<string | null>;
-  signMessage: (message: string) => Promise<string | null>;
+  signMessage: (message: string, encoding?: 'utf8' | 'hex') => Promise<string | null>;
+  verifySignedMessage: (message: string, signatureHex: string, publicKey?: string, encoding?: 'utf8' | 'hex') => Promise<boolean | null>;
   signBlock: (block: Block) => Promise<SignBlockResult | null>;
   sendBlock: (block: Block) => Promise<string | null>;
   
@@ -291,7 +292,7 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
     }
   }, [provider, publicKey, handleError]);
 
-  const signMessage = useCallback(async (message: string): Promise<string | null> => {
+  const signMessage = useCallback(async (message: string, encoding: 'utf8' | 'hex' = 'utf8'): Promise<string | null> => {
     if (!provider) {
       handleError(new Error('MonkeyMask not installed'), 'MonkeyMask extension not found');
       return null;
@@ -305,11 +306,35 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
     }
 
     try {
-      const result = await provider.signMessage(message);
+      const result = await provider.signMessage(message, encoding);
       // Convert Uint8Array to hex string for easier handling
       return Array.from(result.signature, byte => byte.toString(16).padStart(2, '0')).join('');
     } catch (err: unknown) {
       handleError(err, 'Failed to sign message');
+      return null;
+    }
+  }, [provider, publicKey, handleError]);
+
+  const verifySignedMessage = useCallback(async (message: string, signatureHex: string, publicKeyParam?: string, encoding: 'utf8' | 'hex' = 'utf8'): Promise<boolean | null> => {
+    if (!provider) {
+      handleError(new Error('MonkeyMask not installed'), 'MonkeyMask extension not found');
+      return null;
+    }
+
+    // Use provided publicKey or fall back to connected account's publicKey
+    const keyToUse = publicKeyParam || publicKey;
+    if (!keyToUse) {
+      handleError(new Error('No account selected'), 'Please connect your wallet first');
+      return null;
+    }
+
+    try {
+      console.log('dApp: Calling verifySignedMessage with:', { message, signatureHex, keyToUse, encoding });
+      const isValid = await provider.verifySignedMessage(message, signatureHex, keyToUse, encoding);
+      console.log('dApp: Verification result:', isValid);
+      return isValid;
+    } catch (err: unknown) {
+      handleError(err, 'Failed to verify signed message');
       return null;
     }
   }, [provider, publicKey, handleError]);
@@ -390,6 +415,7 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
     // Transaction methods
     sendTransaction,
     signMessage,
+    verifySignedMessage,
     signBlock,
     sendBlock,
     

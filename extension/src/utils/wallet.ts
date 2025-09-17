@@ -1,6 +1,8 @@
 const bananojs = require('@bananocoin/bananojs');
+import nacl from 'tweetnacl';
 import * as bip39 from 'bip39';
 import CryptoJS from 'crypto-js';
+import { blake2b } from 'blakejs';
 import { Account, StoredWallet } from '../types/wallet';
 
 export class WalletManager {
@@ -476,6 +478,149 @@ export class WalletManager {
   }
 
   /**
+   * Sign an arbitrary message (currently supports UTF-8 messages)
+   * Returns signature as hex string
+   */
+  async signMessage(publicKeyOrAddress: string, message: string, display: 'utf8' | 'hex' = 'utf8', origin?: string): Promise<string> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet is locked');
+    }
+
+    console.log('WalletManager: Signing message for publicKeyOrAddress:', publicKeyOrAddress);
+    console.log('WalletManager: Available accounts:', this.accounts.map(acc => ({ address: acc.address, publicKey: acc.publicKey })));
+
+    // Find account by public key or address
+    const account = this.getAccountByIdentifier(publicKeyOrAddress);
+    console.log('WalletManager: Found account:', account ? { address: account.address, publicKey: account.publicKey } : 'null');
+    
+    if (!account) {
+      throw new Error('Account not found for provided public key');
+    }
+
+    // Build domain-separated message bytes (must match verification format)
+    const enc = new TextEncoder();
+    const prefix = enc.encode(`MonkeyMask Signed Message:\nOrigin: ${origin || ''}\nMessage: `);
+    const messageBytes = display === 'hex' ? hexToUint8(message) : enc.encode(message);
+    const bytes = concatUint8(prefix, messageBytes);
+    
+    console.log('WalletManager: Signing with prefix string:', `MonkeyMask Signed Message:\nOrigin: ${origin || ''}\nMessage: ${message}`);
+    console.log('WalletManager: Signing bytes length:', bytes.length);
+    console.log('WalletManager: Signing bytes hex:', uint8ToHex(bytes));
+
+    // Use BananoUtil.signMessage for UTF-8 messages
+    if (display === 'utf8' && bananojs.BananoUtil && typeof bananojs.BananoUtil.signMessage === 'function') {
+      console.log('WalletManager: Using BananoUtil.signMessage');
+      try {
+        // Use the domain-separated message string
+        const messageToSign = `MonkeyMask Signed Message:\nOrigin: ${origin || ''}\nMessage: ${message}`;
+        console.log('WalletManager: Signing message string:', messageToSign);
+        
+        const signature = await bananojs.BananoUtil.signMessage(account!.privateKey, messageToSign);
+        console.log('WalletManager: BananoUtil signature result type:', typeof signature);
+        console.log('WalletManager: BananoUtil signature result:', signature);
+        
+        // Convert to string if it's not already
+        const signatureStr = typeof signature === 'string' ? signature : String(signature);
+        console.log('WalletManager: Final signature string:', signatureStr.substring(0, 20) + '...');
+        return signatureStr;
+      } catch (error) {
+        console.error('WalletManager: BananoUtil.signMessage error:', error);
+        throw error; // Don't fall back, we want to see the error
+      }
+    }
+
+    // Local Ed25519 signing (tweetnacl)
+    const priv = hexToUint8(account.privateKey);
+    const pub = hexToUint8(account.publicKey);
+    
+    console.log('WalletManager: Signing with private key length:', priv.length);
+    console.log('WalletManager: Signing with public key hex:', account.publicKey);
+    console.log('WalletManager: Signing with public key length:', pub.length);
+    
+    if (priv.length !== 32 || pub.length !== 32) {
+      throw new Error('Invalid key lengths for Ed25519');
+    }
+    
+    // For tweetnacl, we need to use the private key seed directly
+    // Let's try using blake2b hash of the message instead of raw bytes
+    const hashedMessage = blake2b(bytes, undefined, 32);
+    console.log('WalletManager: Hashed message bytes:', uint8ToHex(hashedMessage));
+    
+    // Try using the correct tweetnacl format
+    // tweetnacl.sign.detached expects a 64-byte secret key (seed + public key)
+    try {
+      const secretKey = new Uint8Array(64);
+      secretKey.set(priv, 0);
+      secretKey.set(pub, 32);
+      
+      console.log('WalletManager: About to sign with nacl.sign.detached');
+      const sig = nacl.sign.detached(hashedMessage, secretKey);
+      const sigHex = uint8ToHex(sig);
+      console.log('WalletManager: Generated signature hex:', sigHex.substring(0, 20) + '...');
+      return sigHex;
+    } catch (error) {
+      console.error('WalletManager: Signing error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify a signed message using Ed25519
+   */
+  async verifySignedMessage(publicKeyOrAddress: string, messageBytes: Uint8Array, signatureHex: string, message?: string, origin?: string): Promise<boolean> {
+    console.log('WalletManager: Verifying signature for publicKeyOrAddress:', publicKeyOrAddress);
+    
+    // Find account by public key or address
+    const account = this.getAccountByIdentifier(publicKeyOrAddress);
+    if (!account) {
+      console.log('WalletManager: Account not found for verification');
+      return false;
+    }
+
+    try {
+      console.log('WalletManager: Using public key hex:', account.publicKey);
+      console.log('WalletManager: Signature hex:', signatureHex.substring(0, 20) + '...');
+      
+      // Use BananoUtil.verifyMessage if available
+      if (bananojs.BananoUtil && typeof bananojs.BananoUtil.verifyMessage === 'function') {
+        console.log('WalletManager: Using BananoUtil.verifyMessage');
+        
+        // Build the same domain-separated message string as in signing
+        const messageToVerify = `MonkeyMask Signed Message:\nOrigin: ${origin || 'unknown'}\nMessage: ${message}`;
+        console.log('WalletManager: Verifying message string:', messageToVerify);
+        
+        const isValid = bananojs.BananoUtil.verifyMessage(account.publicKey, messageToVerify, signatureHex);
+        console.log('WalletManager: BananoUtil verification result:', isValid);
+        return isValid;
+      }
+      
+      // Fallback to tweetnacl verification
+      const publicKeyBytes = hexToUint8(account.publicKey);
+      const signatureBytes = hexToUint8(signatureHex);
+      
+      console.log('WalletManager: Using tweetnacl fallback verification');
+      console.log('WalletManager: Public key bytes length:', publicKeyBytes.length);
+      console.log('WalletManager: Signature bytes length:', signatureBytes.length);
+      
+      if (publicKeyBytes.length !== 32 || signatureBytes.length !== 64) {
+        console.log('WalletManager: Invalid key or signature length');
+        return false;
+      }
+
+      // Hash the message bytes the same way as in signing
+      const hashedMessage = blake2b(messageBytes, undefined, 32);
+      console.log('WalletManager: Verification hashed message bytes:', uint8ToHex(hashedMessage));
+      
+      const isValid = nacl.sign.detached.verify(hashedMessage, signatureBytes, publicKeyBytes);
+      console.log('WalletManager: tweetnacl verification result:', isValid);
+      return isValid;
+    } catch (error) {
+      console.error('WalletManager: Verification error:', error);
+      return false;
+    }
+  }
+
+  /**
    * Auto-receive pending transactions for an account using real bananojs
    */
   async autoReceivePending(accountAddress: string, pendingAmount?: string): Promise<string[]> {
@@ -531,4 +676,35 @@ export class WalletManager {
     await chrome.storage.local.remove(['wallet']);
     this.lockWallet();
   }
+
+  /**
+   * Find an account by address or public key (identifier may be ban_... or hex pubkey)
+   */
+  getAccountByIdentifier(identifier: string): Account | undefined {
+    return this.accounts.find(acc => acc.address === identifier || acc.publicKey === identifier);
+  }
+}
+
+// --------- local utils ---------
+function hexToUint8(hex: string): Uint8Array {
+  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+  if (clean.length % 2 !== 0) throw new Error('Invalid hex');
+  const out = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(clean.substr(i * 2, 2), 16);
+  }
+  return out;
+}
+function uint8ToHex(arr: Uint8Array): string {
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function concatUint8(...parts: Uint8Array[]): Uint8Array {
+  const len = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(len);
+  let off = 0;
+  for (const p of parts) {
+    out.set(p, off);
+    off += p.length;
+  }
+  return out;
 }

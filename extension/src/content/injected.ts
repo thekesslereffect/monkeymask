@@ -313,7 +313,7 @@ class BananoProviderImpl implements BananoProvider {
     return [...this.connectedAccounts]; // Return a copy
   }
 
-  async signMessage(message: Uint8Array | string, display?: 'utf8' | 'hex'): Promise<{ signature: Uint8Array; publicKey: string }> {
+  async signMessage(message: Uint8Array | string, display: 'utf8' | 'hex' = 'utf8'): Promise<{ signature: Uint8Array; publicKey: string }> {
     if (!this._isConnected) {
       throw this.createProviderError(
         'Not connected to MonkeyMask',
@@ -341,7 +341,7 @@ class BananoProviderImpl implements BananoProvider {
       
       const result = await this.sendMessage('SIGN_MESSAGE', {
         message: messageToSign,
-        display: display || 'utf8',
+        display,
         publicKey: this._publicKey
       });
       
@@ -364,6 +364,17 @@ class BananoProviderImpl implements BananoProvider {
         PROVIDER_ERRORS.INTERNAL_ERROR.code
       );
     }
+  }
+
+  async verifySignedMessage(message: string, signature: string, publicKey: string, display: 'utf8' | 'hex' = 'utf8'): Promise<boolean> {
+    const result = await this.sendMessage('VERIFY_SIGNED_MESSAGE', {
+      message,
+      signature,
+      publicKey,
+      display,
+      origin: window.location.origin
+    });
+    return !!result.valid;
   }
 
   async signBlock(block: any): Promise<any> {
