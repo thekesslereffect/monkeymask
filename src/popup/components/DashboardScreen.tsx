@@ -13,6 +13,7 @@ interface DashboardScreenProps {
   onWalletLocked: () => void;
   onSendRequest: (account: Account) => void;
   onConnectedSites?: () => void;
+  onSettings?: () => void;
 }
 
 // Format balance to show up to 4 decimal places, removing trailing zeros
@@ -22,7 +23,7 @@ const formatBalance = (balance: string): string => {
   return num.toFixed(4).replace(/\.?0+$/, '');
 };
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked, onSendRequest, onConnectedSites }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked, onSendRequest, onConnectedSites, onSettings }) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -208,6 +209,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
                 title="Connected sites"
               >
                 <span className="text-lg">🔗</span>
+              </button>
+            )}
+            {onSettings && (
+              <button
+                onClick={onSettings}
+                className="p-2 hover:bg-banano-600 rounded-lg transition-colors"
+                title="Settings"
+              >
+                <span className="text-lg">⚙️</span>
               </button>
             )}
             <button

@@ -255,6 +255,14 @@ class BackgroundService {
           await this.handleCheckConnection(request, sendResponse);
           break;
         
+        case 'GET_AUTO_LOCK_TIMEOUT':
+          await this.handleGetAutoLockTimeout(sendResponse);
+          break;
+        
+        case 'SET_AUTO_LOCK_TIMEOUT':
+          await this.handleSetAutoLockTimeout(request, sendResponse);
+          break;
+        
         default:
           sendResponse({ success: false, error: 'Unknown request type' });
       }
@@ -1440,25 +1448,94 @@ class BackgroundService {
     }
   }
 
+  private async handleGetAutoLockTimeout(sendResponse: (response: any) => void): Promise<void> {
+    try {
+      const result = await chrome.storage.local.get(['autoLockTimeout']);
+      const timeout = result.autoLockTimeout || (15 * 60 * 1000); // 15 minutes default
+      
+      sendResponse({
+        success: true,
+        data: {
+          timeout: timeout,
+          minutes: timeout / 1000 / 60
+        }
+      });
+    } catch (error) {
+      console.error('Background: Error getting auto-lock timeout:', error);
+      sendResponse(this.createStandardError(
+        'Failed to get auto-lock timeout',
+        PROVIDER_ERRORS.INTERNAL_ERROR.code
+      ));
+    }
+  }
+
+  private async handleSetAutoLockTimeout(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      const { timeout } = request;
+      
+      if (!timeout || typeof timeout !== 'number' || timeout < 60000) { // Minimum 1 minute
+        sendResponse(this.createStandardError(
+          'Invalid timeout. Minimum is 1 minute (60000 ms)',
+          PROVIDER_ERRORS.INVALID_PARAMS.code
+        ));
+        return;
+      }
+      
+      await chrome.storage.local.set({ autoLockTimeout: timeout });
+      
+      console.log('Background: Auto-lock timeout set to', timeout / 1000 / 60, 'minutes');
+      
+      sendResponse({ success: true });
+    } catch (error) {
+      console.error('Background: Error setting auto-lock timeout:', error);
+      sendResponse(this.createStandardError(
+        'Failed to set auto-lock timeout',
+        PROVIDER_ERRORS.INTERNAL_ERROR.code
+      ));
+    }
+  }
+
   private setupAutoLock(): void {
     let lockTimer: NodeJS.Timeout | null = null;
-    const LOCK_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+    
+    // Default to 15 minutes like Phantom, but make it configurable
+    const getAutoLockTimeout = async (): Promise<number> => {
+      try {
+        const result = await chrome.storage.local.get(['autoLockTimeout']);
+        // Default to 15 minutes (15 * 60 * 1000 ms), with options: 1, 5, 15, 60 minutes
+        return result.autoLockTimeout || (15 * 60 * 1000);
+      } catch (error) {
+        return 15 * 60 * 1000; // 15 minutes default
+      }
+    };
 
-    const resetLockTimer = () => {
+    const resetLockTimer = async () => {
       if (lockTimer) {
         clearTimeout(lockTimer);
+        lockTimer = null;
       }
       
       if (this.walletManager.isWalletUnlocked()) {
+        const timeout = await getAutoLockTimeout();
         lockTimer = setTimeout(() => {
           this.walletManager.lockWallet();
           console.log('Wallet auto-locked due to inactivity');
-        }, LOCK_TIMEOUT);
+          
+          // Emit disconnect event to all connected sites
+          this.emitProviderEvent('disconnect', null);
+        }, timeout);
+        
+        console.log(`Auto-lock timer set for ${timeout / 1000 / 60} minutes`);
       }
     };
 
     // Reset timer on any message (user activity)
     chrome.runtime.onMessage.addListener(() => {
+      resetLockTimer();
+    });
+
+    // Reset timer when extension popup is opened (user activity)
+    chrome.action.onClicked.addListener(() => {
       resetLockTimer();
     });
 

@@ -10,9 +10,10 @@ import { TransactionConfirmationScreen } from './components/TransactionConfirmat
 import { ConnectionApprovalScreen } from './components/ConnectionApprovalScreen';
 import { SigningApprovalScreen } from './components/SigningApprovalScreen';
 import { ConnectedSitesScreen } from './components/ConnectedSitesScreen';
+import { SettingsScreen } from './components/SettingsScreen';
 import './styles.css';
 
-export type Screen = 'welcome' | 'create' | 'import' | 'unlock' | 'dashboard' | 'send' | 'approval' | 'confirmation' | 'connected-sites';
+export type Screen = 'welcome' | 'create' | 'import' | 'unlock' | 'dashboard' | 'send' | 'approval' | 'confirmation' | 'connected-sites' | 'settings';
 
 interface Account {
   address: string;
@@ -311,6 +312,7 @@ export const App: React.FC = () => {
           onWalletLocked={handleWalletLocked}
           onSendRequest={handleSendRequest}
           onConnectedSites={() => setCurrentScreen('connected-sites')}
+          onSettings={() => setCurrentScreen('settings')}
         />
       )}
       
@@ -352,6 +354,12 @@ export const App: React.FC = () => {
       
       {currentScreen === 'connected-sites' && (
         <ConnectedSitesScreen
+          onBack={handleBackToDashboard}
+        />
+      )}
+      
+      {currentScreen === 'settings' && (
+        <SettingsScreen
           onBack={handleBackToDashboard}
         />
       )}
