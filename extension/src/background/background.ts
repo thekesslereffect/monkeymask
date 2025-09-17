@@ -540,15 +540,25 @@ class BackgroundService {
     try {
       console.log('Background: Connect wallet request from dApp, origin:', request.origin);
       
-      if (!this.walletManager.isWalletUnlocked()) {
+      // Check if wallet is initialized first
+      const isInitialized = await this.walletManager.isWalletInitialized();
+      if (!isInitialized) {
         sendResponse(this.createStandardError(
-          'Wallet is locked. Please unlock first.',
+          'Wallet not initialized',
           PROVIDER_ERRORS.DISCONNECTED.code
         ));
         return;
       }
 
-      const accounts = this.walletManager.getAccounts();
+      // Allow connection even when locked - get stored accounts
+      let accounts;
+      if (this.walletManager.isWalletUnlocked()) {
+        accounts = this.walletManager.getAccounts();
+      } else {
+        // Get accounts from storage when locked
+        accounts = await this.walletManager.getStoredAccounts();
+      }
+
       if (accounts.length === 0) {
         sendResponse(this.createStandardError(
           'No accounts available',
@@ -839,10 +849,16 @@ class BackgroundService {
     try {
       console.log('Background: Send transaction request:', request);
       
-      if (!this.walletManager.isWalletUnlocked()) {
-        sendResponse({ success: false, error: 'Wallet is locked' });
+      // Check if wallet is initialized first
+      const isInitialized = await this.walletManager.isWalletInitialized();
+      if (!isInitialized) {
+        sendResponse(this.createStandardError(
+          'Wallet not initialized',
+          PROVIDER_ERRORS.DISCONNECTED.code
+        ));
         return;
       }
+
 
       const { fromAddress, toAddress, amount, origin } = request;
       
@@ -864,26 +880,40 @@ class BackgroundService {
         return;
       }
 
-      // Check balance
-      const accounts = this.walletManager.getAccounts();
+      // Check balance - use stored accounts if wallet is locked
+      let accounts;
+      const isWalletUnlocked = this.walletManager.isWalletUnlocked();
+      
+      if (isWalletUnlocked) {
+        accounts = this.walletManager.getAccounts();
+      } else {
+        // Wallet is locked, use stored accounts for validation
+        accounts = await this.walletManager.getStoredAccounts();
+      }
+      
       const account = accounts.find(acc => acc.address === fromAddress);
       if (!account) {
         sendResponse({ success: false, error: 'Account not found' });
         return;
       }
 
-      const currentBalance = parseFloat(account.balance) || 0;
-      if (numAmount > currentBalance) {
-        sendResponse({ success: false, error: 'Insufficient balance' });
-        return;
+      // Only check balance if wallet is unlocked (we have current balance data)
+      if (isWalletUnlocked) {
+        const currentBalance = parseFloat(account.balance) || 0;
+        if (numAmount > currentBalance) {
+          sendResponse({ success: false, error: 'Insufficient balance' });
+          return;
+        }
       }
+      // If wallet is locked, skip balance check - it will be checked again after unlock
 
       // Check if this is a dApp request (has origin) or extension request (no origin)
       const isDAppRequest = origin && origin !== 'chrome-extension://' + chrome.runtime.id;
       
       if (isDAppRequest) {
         // This is a dApp request - require approval
-        console.log('Background: dApp transaction request - requiring approval from:', origin);
+        const walletIsLocked = !this.walletManager.isWalletUnlocked();
+        console.log('Background: dApp transaction request - requiring approval from:', origin, 'wallet locked:', walletIsLocked);
         
         // Create approval request
         const requestId = 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(7);
@@ -900,14 +930,15 @@ class BackgroundService {
         const approvalPromise = new Promise((resolve, reject) => {
           this.approvalResolvers.set(requestId, { resolve, reject });
           
-          // Timeout after 5 minutes
+          // Longer timeout if wallet is locked (user needs to unlock + approve)
+          const timeoutMs = walletIsLocked ? 10 * 60 * 1000 : 5 * 60 * 1000; // 10 min vs 5 min
           setTimeout(() => {
             if (this.approvalResolvers.has(requestId)) {
               this.approvalResolvers.delete(requestId);
               this.pendingApprovals.delete(requestId);
               reject(new Error('User approval timeout'));
             }
-          }, 5 * 60 * 1000);
+          }, timeoutMs);
         });
 
         console.log('Background: dApp transaction queued for approval:', requestId);
@@ -920,7 +951,29 @@ class BackgroundService {
         }
 
         // Wait for user approval
-        await approvalPromise;
+        let approvalResult;
+        try {
+          approvalResult = await approvalPromise as ApprovalResult;
+        } catch (error) {
+          console.error('Background: Transaction approval failed:', error);
+          sendResponse(this.createStandardError(
+            error instanceof Error && error.message.includes('timeout') 
+              ? 'Transaction approval timed out' 
+              : 'Transaction request failed',
+            PROVIDER_ERRORS.USER_REJECTED.code
+          ));
+          return;
+        }
+
+        // Check if user actually approved the transaction
+        if (!approvalResult || !approvalResult.approved) {
+          console.log('Background: User rejected the transaction');
+          sendResponse(this.createStandardError(
+            'User rejected the transaction request',
+            PROVIDER_ERRORS.USER_REJECTED.code
+          ));
+          return;
+        }
         
         // Execute the transaction after approval
         console.log('Background: Transaction approved, executing:', requestId);
@@ -1035,11 +1088,6 @@ class BackgroundService {
     try {
       console.log('Background: Get balance request for:', request.address);
       
-      if (!this.walletManager.isWalletUnlocked()) {
-        sendResponse({ success: false, error: 'Wallet is locked' });
-        return;
-      }
-
       const { address } = request;
       if (!address) {
         sendResponse({ success: false, error: 'Address is required' });
@@ -1077,11 +1125,6 @@ class BackgroundService {
     try {
       console.log('Background: Get account info request for:', request.address);
       
-      if (!this.walletManager.isWalletUnlocked()) {
-        sendResponse({ success: false, error: 'Wallet is locked' });
-        return;
-      }
-
       const { address } = request;
       if (!address) {
         sendResponse({ success: false, error: 'Address is required' });
@@ -1160,10 +1203,66 @@ class BackgroundService {
     try {
       console.log('Background: Sign message request from origin:', request.origin);
       
-      if (!this.walletManager.isWalletUnlocked()) {
+      // Check if wallet is initialized first
+      const isInitialized = await this.walletManager.isWalletInitialized();
+      if (!isInitialized) {
         sendResponse(this.createStandardError(
-          'Wallet is locked',
+          'Wallet not initialized',
           PROVIDER_ERRORS.DISCONNECTED.code
+        ));
+        return;
+      }
+
+      // Check if wallet is locked for extended timeout
+      const walletIsLocked = !this.walletManager.isWalletUnlocked();
+      console.log('Background: Sign message request, wallet locked:', walletIsLocked);
+      
+      // Create approval request
+      const signRequestId = 'signMessage_' + Date.now() + '_' + Math.random().toString(36).substring(7);
+      const signApprovalRequest = {
+        id: signRequestId,
+        origin: request.origin,
+        type: 'signMessage',
+        data: request
+      };
+      
+      this.pendingApprovals.set(signRequestId, signApprovalRequest);
+      
+      const signApprovalPromise = new Promise<ApprovalResult>((resolve, reject) => {
+        this.approvalResolvers.set(signRequestId, { resolve, reject });
+        
+        // Longer timeout if wallet is locked (user needs to unlock + approve)
+        const timeoutMs = walletIsLocked ? 10 * 60 * 1000 : 5 * 60 * 1000; // 10 min vs 5 min
+        setTimeout(() => {
+          if (this.approvalResolvers.has(signRequestId)) {
+            this.approvalResolvers.delete(signRequestId);
+            this.pendingApprovals.delete(signRequestId);
+            reject(new Error('Approval request timeout'));
+          }
+        }, timeoutMs);
+      });
+
+      // Open popup for approval/unlock
+      await chrome.action.openPopup();
+
+      try {
+        const approvalResult = await signApprovalPromise as ApprovalResult;
+        if (!approvalResult.approved) {
+          sendResponse(this.createStandardError(
+            'User rejected the message signing request',
+            PROVIDER_ERRORS.USER_REJECTED.code
+          ));
+          return;
+        }
+        
+        console.log('Background: Message signing approved, proceeding with execution');
+      } catch (error) {
+        console.error('Background: Message signing approval failed:', error);
+        sendResponse(this.createStandardError(
+          error instanceof Error && error.message.includes('timeout') 
+            ? 'Message signing approval timed out' 
+            : 'Message signing request failed',
+          PROVIDER_ERRORS.USER_REJECTED.code
         ));
         return;
       }
@@ -1187,84 +1286,24 @@ class BackgroundService {
         return;
       }
 
-      // Create signing approval request
-      console.log('Background: Creating message signing approval request for:', origin);
+      // At this point, approval was already handled above, so proceed with signing
+      console.log('Background: Message signing approved, performing signature');
       
-      const requestId = 'sign_message_' + Date.now() + '_' + Math.random().toString(36).substring(7);
-      const approvalRequest = {
-        id: requestId,
-        origin: origin,
-        type: 'signMessage',
-        data: { 
-          message,
-          display,
-          publicKey,
-          origin
+      // For now, simulate message signing
+      // In a real implementation, this would use the account's private key
+      const mockSignature = Array.from({ length: 64 }, (_, i) => 
+        ((i + message.length) % 256).toString(16).padStart(2, '0')
+      ).join('');
+      
+      sendResponse({
+        success: true,
+        data: {
+          signature: mockSignature,
+          publicKey: publicKey
         }
-      };
-
-      // Store the request and set up promise for approval
-      this.pendingApprovals.set(requestId, approvalRequest);
-      
-      const approvalPromise = new Promise((resolve, reject) => {
-        this.approvalResolvers.set(requestId, { resolve, reject });
-        
-        // Timeout after 5 minutes
-        setTimeout(() => {
-          if (this.approvalResolvers.has(requestId)) {
-            this.approvalResolvers.delete(requestId);
-            this.pendingApprovals.delete(requestId);
-            reject(new Error('User approval timeout'));
-          }
-        }, 5 * 60 * 1000);
       });
-
-      console.log('Background: Message signing request queued for approval:', requestId);
       
-      // Open popup for approval
-      try {
-        await chrome.action.openPopup();
-      } catch (error) {
-        console.log('Popup might already be open');
-      }
-
-      try {
-        // Wait for user approval
-        const approvalResult = await approvalPromise as ApprovalResult;
-        
-        if (approvalResult && approvalResult.approved) {
-          // User approved - perform the actual signing
-          console.log('Background: Message signing approved, performing signature');
-          
-          // For now, simulate message signing
-          // In a real implementation, this would use the account's private key
-          const mockSignature = Array.from({ length: 64 }, (_, i) => 
-            ((i + message.length) % 256).toString(16).padStart(2, '0')
-          ).join('');
-          
-          sendResponse({
-            success: true,
-            data: {
-              signature: mockSignature,
-              publicKey: publicKey
-            }
-          });
-          
-          console.log('Background: Message signed successfully');
-        } else {
-          // User rejected
-          sendResponse(this.createStandardError(
-            'User rejected the signing request',
-            PROVIDER_ERRORS.USER_REJECTED.code
-          ));
-        }
-      } catch (error) {
-        console.error('Background: Message signing approval failed:', error);
-        sendResponse(this.createStandardError(
-          error instanceof Error ? error.message : 'Message signing request failed',
-          PROVIDER_ERRORS.USER_REJECTED.code
-        ));
-      }
+      console.log('Background: Message signed successfully');
       
     } catch (error) {
       console.error('Background: Error signing message:', error);
@@ -1322,8 +1361,8 @@ class BackgroundService {
       this.approvalResolvers.delete(requestId);
       this.pendingApprovals.delete(requestId);
       
-      // Resolve with rejection
-      resolver.resolve({ approved: false });
+      // Reject the promise to indicate user rejection
+      resolver.reject(new Error('User rejected the request'));
       
       sendResponse({ success: true });
     } else {
@@ -1393,15 +1432,25 @@ class BackgroundService {
 
       console.log('Background: Checking connection for origin:', origin);
       
-      if (!this.walletManager.isWalletUnlocked()) {
+      // Check if wallet is initialized first
+      const isInitialized = await this.walletManager.isWalletInitialized();
+      if (!isInitialized) {
         sendResponse(this.createStandardError(
-          'Wallet is locked',
+          'Wallet not initialized',
           PROVIDER_ERRORS.DISCONNECTED.code
         ));
         return;
       }
 
-      const accounts = this.walletManager.getAccounts();
+      // Allow checking connection even when locked - get stored accounts
+      let accounts;
+      if (this.walletManager.isWalletUnlocked()) {
+        accounts = this.walletManager.getAccounts();
+      } else {
+        // Get accounts from storage when locked
+        accounts = await this.walletManager.getStoredAccounts();
+      }
+
       if (accounts.length === 0) {
         sendResponse(this.createStandardError(
           'No accounts available',

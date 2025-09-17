@@ -2,9 +2,25 @@ import React, { useState } from 'react';
 
 interface UnlockScreenProps {
   onWalletUnlocked: () => void;
+  showPendingRequest?: boolean;
+  pendingRequestType?: string;
+  onReject?: () => void;
 }
 
-export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked }) => {
+const getActionText = (requestType?: string): string => {
+  switch (requestType) {
+    case 'sendTransaction':
+      return 'send a transaction';
+    case 'signMessage':
+      return 'sign a message';
+    case 'signBlock':
+      return 'sign a block';
+    default:
+      return 'continue';
+  }
+};
+
+export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked, showPendingRequest, pendingRequestType, onReject }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,10 +53,22 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked }) 
       <div className="flex-1 flex flex-col justify-center items-center px-6">
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">
+            {showPendingRequest ? 'Unlock Required' : 'Welcome Back'}
+          </h1>
           <p className="text-banano-100 text-sm">
-            Enter your password to unlock MonkeyMask
+            {showPendingRequest 
+              ? `Unlock your wallet to ${getActionText(pendingRequestType)}`
+              : 'Enter your password to unlock MonkeyMask'
+            }
           </p>
+          {showPendingRequest && (
+            <div className="mt-3 p-3 bg-white/10 rounded-lg border border-white/20">
+              <p className="text-white text-xs font-medium">
+                🔐 A dApp is requesting to {getActionText(pendingRequestType)}
+              </p>
+            </div>
+          )}
         </div>
         
         <form onSubmit={handleUnlock} className="w-full max-w-xs space-y-4">
@@ -69,6 +97,17 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked }) 
           >
             {loading ? 'Unlocking...' : 'Unlock'}
           </button>
+          
+          {showPendingRequest && onReject && (
+            <button
+              type="button"
+              onClick={onReject}
+              disabled={loading}
+              className="w-full bg-transparent text-white hover:bg-white/10 disabled:opacity-50 font-medium py-2 px-6 rounded-lg transition-colors duration-200 border border-white/30"
+            >
+              Reject Request
+            </button>
+          )}
         </form>
       </div>
       

@@ -19,6 +19,7 @@ export interface MonkeyMaskProvider {
   
   // Transactions
   sendTransaction(from: string, to: string, amount: string): Promise<TransactionResult>;
+  sendBlock(block: Block): Promise<string>;
   
   // BNS resolution
   resolveBNS(bnsName: string): Promise<string>;
@@ -55,8 +56,6 @@ export interface AccountInfo {
   pending: string;
   rawBalance: string;
   rawPending: string;
-  representative?: string;
-  blockCount?: number;
 }
 
 export interface SignMessageResult {

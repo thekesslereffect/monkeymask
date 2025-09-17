@@ -223,14 +223,23 @@ class BananoProviderImpl implements BananoProvider {
         ...params
       }, '*');
       
-      // Timeout after 30 seconds
+      // Dynamic timeout based on request type
+      let timeoutMs = 30000; // Default 30 seconds
+      
+      // Longer timeout for transaction/signing operations that may require user approval
+      if (type === 'SEND_TRANSACTION' || type === 'SIGN_MESSAGE' || type === 'SIGN_BLOCK' || type === 'SEND_BLOCK') {
+        timeoutMs = 15 * 60 * 1000; // 15 minutes for approval operations
+      } else if (type === 'CONNECT_WALLET') {
+        timeoutMs = 5 * 60 * 1000; // 5 minutes for connection
+      }
+      
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
           const error = this.createProviderError('Request timeout', PROVIDER_ERRORS.INTERNAL_ERROR.code);
           reject(error);
         }
-      }, 30000);
+      }, timeoutMs);
     });
   }
 

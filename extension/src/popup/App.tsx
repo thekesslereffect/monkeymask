@@ -172,9 +172,17 @@ export const App: React.FC = () => {
   };
 
   const handleWalletUnlocked = () => {
-    console.log('App: Wallet unlocked, going to dashboard');
+    console.log('App: Wallet unlocked');
     setWalletState(prev => ({ ...prev, isUnlocked: true }));
-    setCurrentScreen('dashboard');
+    
+    // If we have a pending request, go to approval screen, otherwise go to dashboard
+    if (pendingRequest) {
+      console.log('App: Wallet unlocked with pending request, going to approval screen');
+      setCurrentScreen('approval');
+    } else {
+      console.log('App: Wallet unlocked, going to dashboard');
+      setCurrentScreen('dashboard');
+    }
   };
 
   const handleWalletLocked = () => {
@@ -326,28 +334,43 @@ export const App: React.FC = () => {
       
       {currentScreen === 'approval' && pendingRequest && (
         <>
-          {pendingRequest.type === 'connect' && (
-            <ConnectionApprovalScreen
-              request={pendingRequest}
-              onApprove={handleApproveConnection}
-              onReject={handleRejectTransaction}
+          {/* If wallet is locked and we have a transaction/signing request, show unlock screen first */}
+          {!walletState.isUnlocked && (pendingRequest.type === 'sendTransaction' || pendingRequest.type === 'signMessage' || pendingRequest.type === 'signBlock') && (
+            <UnlockScreen
+              onWalletUnlocked={handleWalletUnlocked}
+              showPendingRequest={true}
+              pendingRequestType={pendingRequest.type}
+              onReject={() => handleRejectTransaction(pendingRequest.id)}
             />
           )}
           
-          {(pendingRequest.type === 'signMessage' || pendingRequest.type === 'signBlock') && (
-            <SigningApprovalScreen
-              request={pendingRequest}
-              onApprove={handleApproveTransaction}
-              onReject={handleRejectTransaction}
-            />
-          )}
-          
-          {pendingRequest.type === 'sendTransaction' && (
-            <TransactionApprovalScreen
-              request={pendingRequest}
-              onApprove={handleApproveTransaction}
-              onReject={handleRejectTransaction}
-            />
+          {/* Show approval screens only when wallet is unlocked or for connection requests */}
+          {(walletState.isUnlocked || pendingRequest.type === 'connect') && (
+            <>
+              {pendingRequest.type === 'connect' && (
+                <ConnectionApprovalScreen
+                  request={pendingRequest}
+                  onApprove={handleApproveConnection}
+                  onReject={handleRejectTransaction}
+                />
+              )}
+              
+              {(pendingRequest.type === 'signMessage' || pendingRequest.type === 'signBlock') && (
+                <SigningApprovalScreen
+                  request={pendingRequest}
+                  onApprove={handleApproveTransaction}
+                  onReject={handleRejectTransaction}
+                />
+              )}
+              
+              {pendingRequest.type === 'sendTransaction' && (
+                <TransactionApprovalScreen
+                  request={pendingRequest}
+                  onApprove={handleApproveTransaction}
+                  onReject={handleRejectTransaction}
+                />
+              )}
+            </>
           )}
         </>
       )}

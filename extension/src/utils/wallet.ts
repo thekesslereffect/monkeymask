@@ -219,7 +219,13 @@ export class WalletManager {
       isInitialized: true
     };
 
-    await chrome.storage.local.set({ wallet: walletData });
+    // Also store account addresses separately for connection purposes (non-sensitive data)
+    const accountAddresses = accounts.map(acc => acc.address);
+
+    await chrome.storage.local.set({ 
+      wallet: walletData,
+      accountAddresses: accountAddresses 
+    });
     
     // Keep the wallet unlocked after saving (important for new wallet creation)
     this.accounts = accounts;
@@ -292,6 +298,36 @@ export class WalletManager {
       throw new Error('Wallet is locked');
     }
     return this.accounts;
+  }
+
+  /**
+   * Get stored account addresses without unlocking (for connection purposes)
+   */
+  async getStoredAccounts(): Promise<Account[]> {
+    const walletData = await this.loadWallet();
+    if (!walletData || !walletData.isInitialized) {
+      return [];
+    }
+
+    try {
+      // We need to decrypt just enough to get addresses, but not private keys
+      // For now, let's store addresses separately in a non-sensitive way
+      // This is a simplified approach - in production you might want to derive addresses from public keys
+      const result = await chrome.storage.local.get(['accountAddresses']);
+      const storedAddresses = result.accountAddresses || [];
+      
+      // Return basic account objects with just addresses (no sensitive data)
+      return storedAddresses.map((address: string, index: number) => ({
+        address,
+        privateKey: '', // Empty for security
+        publicKey: '', // Empty for security  
+        balance: '0',
+        name: `Account ${index + 1}`
+      }));
+    } catch (error) {
+      console.error('Failed to get stored accounts:', error);
+      return [];
+    }
   }
 
   /**
