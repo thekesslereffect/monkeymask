@@ -280,14 +280,14 @@ export const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-gradient-to-br from-banano-400 to-banano-600">
+      <div className="flex items-center justify-center h-full bg-background">
         <div className="text-white text-lg font-semibold">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-gray-50">
+    <div className="h-full bg-background">
       {currentScreen === 'welcome' && (
         <WelcomeScreen
           onCreateWallet={() => setCurrentScreen('create')}
@@ -317,10 +317,16 @@ export const App: React.FC = () => {
       
       {currentScreen === 'dashboard' && (
         <DashboardScreen
-          onWalletLocked={handleWalletLocked}
           onSendRequest={handleSendRequest}
-          onConnectedSites={() => setCurrentScreen('connected-sites')}
-          onSettings={() => setCurrentScreen('settings')}
+          onNavigate={(screen) => {
+            if (screen === 'ConnectedSitesScreen') {
+              setCurrentScreen('connected-sites');
+            } else if (screen === 'SettingsScreen') {
+              setCurrentScreen('settings');
+            } else if (screen === 'UnlockScreen') {
+              handleWalletLocked();
+            }
+          }}
         />
       )}
       

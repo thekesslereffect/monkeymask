@@ -67,14 +67,13 @@ export const ImportWalletScreen: React.FC<ImportWalletScreenProps> = ({
             <Icon icon="lucide:arrow-left" className="text-2xl" />
           </button>
         }
-        showInfoButton={true}
-        onInfoClick={() => console.log('Info clicked')}
+        rightElement={<div className="w-5"></div>}
       />
 
       {/* Main Content */}
-      <ContentContainer>
+      <ContentContainer className="!justify-start">
         {/* Monkey Emoji */}
-        <div className="text-center mb-12">
+        <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
           <picture>
             <source srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.webp" type="image/webp" />
             <img 

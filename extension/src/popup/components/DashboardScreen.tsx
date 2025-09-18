@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { bnsResolver } from '../../utils/bns';
-import { Header, Card, Button, IconButton, Alert, ContentContainer, Footer, Separator } from './ui';
+import { Header, Card, Button, IconButton, ContentContainer, Footer, Separator, Drawer } from './ui';
 import { Icon } from '@iconify/react';
 
 interface Account {
@@ -12,10 +12,8 @@ interface Account {
 }
 
 interface DashboardScreenProps {
-  onWalletLocked: () => void;
   onSendRequest: (account: Account) => void;
-  onConnectedSites?: () => void;
-  onSettings?: () => void;
+  onNavigate?: (screen: string) => void;
 }
 
 // Format balance to show up to 4 decimal places, removing trailing zeros
@@ -29,7 +27,7 @@ const formatBalance = (balance: string): string => {
   return num.toFixed(4).replace(/\.?0+$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked, onSendRequest, onConnectedSites, onSettings }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,  onNavigate }) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -125,6 +123,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
         chrome.runtime.sendMessage({ type: 'UPDATE_BALANCES' }),
         timeoutPromise
       ]) as any;
+
       
       console.log('Dashboard: Balance update response:', response);
       
@@ -139,15 +138,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
       // Don't show error to user, just log it
     } finally {
       setRefreshing(false);
-    }
-  };
-
-  const handleLockWallet = async () => {
-    try {
-      await chrome.runtime.sendMessage({ type: 'LOCK_WALLET' });
-      onWalletLocked();
-    } catch (error) {
-      console.error('Failed to lock wallet:', error);
     }
   };
 
@@ -178,18 +168,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
     }
   };
 
-  const copyAddress = async (address: string) => {
-    try {
-      await navigator.clipboard.writeText(address);
-    } catch (error) {
-      console.error('Failed to copy address:', error);
-    }
-  };
-
-  const formatAddress = (address: string, ban: boolean = true) => {
-    return `${ban ? 'ban_' : ''}${address.slice(4, 8)}...${address.slice(-4)}`;
-  };
-
   const handleViewOnCreeper = (hash: string) => {
     window.open(`https://creeper.banano.cc/hash/${hash}`, '_blank');
   };
@@ -207,45 +185,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
       {/* Header */}
       <Header 
         title=""
-        leftElement={
-          <div className="flex items-center h-full gap-2">
-            {/* account icon */}
-            <div className="h-7 w-7 rounded-full bg-primary"></div>
-            {/* account name */}
-            <span className="text-primary text-md">
-              {/* if bns name use that, else use account name */}
-              {accounts[0].bnsNames && accounts[0].bnsNames.length > 0 ? accounts[0].bnsNames[0] : formatAddress(accounts[0].address, false)}
-            </span>
-            <button
-              onClick={() => copyAddress(accounts[0].address)}
-              className="text-tertiary hover:text-primary/80 text-lg"
-              title="Copy address"
-            >
-              <Icon icon="lucide:copy" />
-            </button>
-          </div>
-        }
+        leftElement={<Drawer onNavigate={onNavigate} />}
         rightElement={
-          <div className="flex items-center space-x-2">
-            {onConnectedSites && (
-              <IconButton
-                onClick={onConnectedSites}
-                icon={<span className="text-2xl">
-                  <Icon icon="lucide:link" />
-                </span>}
-                title="Connected sites"
-              />
-            )}
-            {onSettings && (
-              <IconButton
-                onClick={onSettings}
-                icon={
-                <span className="text-2xl">
-                  <Icon icon="lucide:settings" />
-                </span>}
-                title="Settings"
-              />
-            )}
+          <div className="">
             <IconButton
               onClick={refreshBalances}
               disabled={refreshing}
@@ -255,13 +197,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
                 </span>
               }
               title="Refresh balances"
-            />
-            <IconButton
-              onClick={handleLockWallet}
-              icon={<span className="text-2xl">
-                <Icon icon="lucide:lock" />
-              </span>}
-              title="Lock wallet"
             />
           </div>
         }
@@ -332,6 +267,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
             
           </div>
 
+
           {/* History */}
           <Card label="History" hintText="See More" hintOnClick={() => console.log('See More')} className="w-full">
            
@@ -363,7 +299,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
       
       </ContentContainer>
       <Footer element={
-          <div className="flex items-center w-full h-full justify-around">
+          <div className="flex items-center w-full h-full justify-between">
             <button onClick={() => console.log('Home')} className="text-text-primary hover:text-primary transition-colors">
               <Icon icon="lucide:home" className="text-2xl" />
             </button>

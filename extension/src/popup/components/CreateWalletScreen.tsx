@@ -91,14 +91,13 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
               <Icon icon="lucide:arrow-left" className="text-2xl" />
             </button>
           }
-          showInfoButton={true}
-          onInfoClick={() => console.log('Info clicked')}
+          rightElement={<div className="w-5"></div>}
         />
 
         {/* Main Content */}
-        <ContentContainer>
+        <ContentContainer className="!justify-start">
           {/* Monkey Emoji */}
-          <div className="text-center mb-12">
+          <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
             <picture>
               <source srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.webp" type="image/webp" />
               <img 
@@ -175,14 +174,13 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
               <Icon icon="lucide:arrow-left" className="text-2xl" />
             </button>
           }
-          showInfoButton={true}
-          onInfoClick={() => console.log('Info clicked')}
+          rightElement={<div className="w-5"></div>}
         />
 
         {/* Main Content */}
-        <ContentContainer>
+        <ContentContainer className="!justify-start">
           {/* Monkey Emoji */}
-          <div className="text-center mb-12">
+          <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
             <picture>
               <source srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.webp" type="image/webp" />
               <img 
@@ -196,7 +194,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
           </div>
 
           {/* Seed Phrase Display */}
-          <div className="w-full mb-6">            
+          <div className="w-full">            
             <Card label="Mnemonic" hintText={`What's this?`} hintTooltip={'This is your seed phrase. It is used to recover your wallet if you forget your password.'}>
               <div className="grid grid-cols-4 gap-2 font-mono text-sm text-secondary-foreground">
                 {seed.split(' ').map((word, index) => (
@@ -248,14 +246,13 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
               <Icon icon="lucide:arrow-left" className="text-2xl" />
             </button>
           }
-          showInfoButton={true}
-          onInfoClick={() => console.log('Info clicked')}
-        />
+          rightElement={<div className="w-5"></div>}
+        />  
 
         {/* Main Content */}
-        <ContentContainer>
+        <ContentContainer className="!justify-start">
           {/* Monkey Emoji */}
-          <div className="text-center mb-12">
+          <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
             <picture>
               <source srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.webp" type="image/webp" />
               <img 
@@ -273,6 +270,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             <Input
               label="Seed Phrase"
               value={seedConfirm}
+              type="password"
               onChange={(e) => setSeedConfirm(e.target.value)}
               placeholder="Enter your seed phrase..."
               required
