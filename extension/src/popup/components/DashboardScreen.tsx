@@ -13,7 +13,7 @@ interface Account {
 
 interface DashboardScreenProps {
   onSendRequest: (account: Account) => void;
-  onNavigate?: (screen: string) => void;
+  onQRRequest?: (account: Account) => void;
 }
 
 // Format balance to show up to 4 decimal places, removing trailing zeros
@@ -27,7 +27,7 @@ const formatBalance = (balance: string): string => {
   return num.toFixed(4).replace(/\.?0+$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,  onNavigate }) => {
+export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest, onQRRequest }) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -141,33 +141,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,
     }
   };
 
-  const handleReceivePending = async () => {
-    if (accounts.length === 0) return;
-    
-    setRefreshing(true);
-    try {
-      console.log('Dashboard: Receiving pending transactions...');
-      
-      const response = await chrome.runtime.sendMessage({
-        type: 'RECEIVE_PENDING',
-        address: accounts[0].address
-      });
-      
-      if (response.success) {
-        console.log('Dashboard: Received', response.data.received, 'pending transactions');
-        
-        // Refresh balances after receiving
-        await refreshBalances();
-      } else {
-        console.warn('Dashboard: Failed to receive pending:', response.error);
-      }
-    } catch (error) {
-      console.error('Dashboard: Error receiving pending:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const handleViewOnCreeper = (hash: string) => {
     window.open(`https://creeper.banano.cc/hash/${hash}`, '_blank');
   };
@@ -185,7 +158,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,
       {/* Header */}
       <Header 
         title=""
-        leftElement={<Drawer onNavigate={onNavigate} />}
+        leftElement={<Drawer />}
         rightElement={
           <div className="">
             <IconButton
@@ -225,8 +198,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,
                 variant="secondary"
                 size="lg"
                 className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
-                onClick={() => {console.log('Receive')}}
-                disabled={refreshing || accounts.length === 0}
+                onClick={() => onQRRequest && accounts.length > 0 && onQRRequest(accounts[0])}
+                disabled={accounts.length === 0}
               >
                 <Icon icon="lucide:qr-code" className="text-2xl mb-1" />
                 <span className="text-xs">Receive</span>

@@ -1,19 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { WelcomeScreen } from './components/WelcomeScreen';
-import { CreateWalletScreen } from './components/CreateWalletScreen';
-import { ImportWalletScreen } from './components/ImportWalletScreen';
-import { UnlockScreen } from './components/UnlockScreen';
-import { DashboardScreen } from './components/DashboardScreen';
-import { SendScreen } from './components/SendScreen';
-import { TransactionApprovalScreen } from './components/TransactionApprovalScreen';
-import { TransactionConfirmationScreen } from './components/TransactionConfirmationScreen';
-import { ConnectionApprovalScreen } from './components/ConnectionApprovalScreen';
-import { SigningApprovalScreen } from './components/SigningApprovalScreen';
-import { ConnectedSitesScreen } from './components/ConnectedSitesScreen';
-import { SettingsScreen } from './components/SettingsScreen';
+import { RouterProvider, useRouter, useNavigation } from './hooks/useRouter';
+import { Router } from './components/Router';
 import './styles.css';
-
-export type Screen = 'welcome' | 'create' | 'import' | 'unlock' | 'dashboard' | 'send' | 'approval' | 'confirmation' | 'connected-sites' | 'settings';
 
 interface Account {
   address: string;
@@ -38,16 +26,26 @@ interface TransactionResult {
   };
 }
 
+// Main App wrapper with router provider
 export const App: React.FC = () => {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
+  return (
+    <RouterProvider initialRoute="welcome">
+      <AppContent />
+    </RouterProvider>
+  );
+};
+
+// App content that uses the router
+const AppContent: React.FC = () => {
+  const router = useRouter();
+  const navigation = useNavigation();
+  
   const [walletState, setWalletState] = useState<WalletState>({
     isInitialized: false,
     isUnlocked: false
   });
   const [loading, setLoading] = useState(true);
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [pendingRequest, setPendingRequest] = useState<any>(null);
-  const [transactionResult, setTransactionResult] = useState<TransactionResult | null>(null);
 
   useEffect(() => {
     console.log('App: useEffect triggered - initializing...');
@@ -70,7 +68,7 @@ export const App: React.FC = () => {
     
     // Check for pending requests when the popup becomes visible
     const handleVisibilityChange = () => {
-      if (!document.hidden && currentScreen !== 'approval') {
+      if (!document.hidden && router.currentRoute !== 'approval') {
         console.log('App: Popup became visible, checking for pending requests...');
         checkPendingRequests();
       }
@@ -84,7 +82,7 @@ export const App: React.FC = () => {
       const maxAttempts = 3; // Reduced to 3 attempts
       
       const poll = () => {
-        if (attempts < maxAttempts && currentScreen !== 'approval') {
+        if (attempts < maxAttempts && router.currentRoute !== 'approval') {
           console.log(`App: Polling for pending requests (attempt ${attempts + 1}/${maxAttempts})`);
           checkPendingRequests();
           attempts++;
@@ -102,10 +100,10 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Track screen changes for debugging
+  // Track route changes for debugging
   useEffect(() => {
-    console.log('App: Screen changed to:', currentScreen);
-  }, [currentScreen]);
+    console.log('App: Route changed to:', router.currentRoute);
+  }, [router.currentRoute]);
 
   const checkPendingRequests = async () => {
     try {
@@ -116,7 +114,7 @@ export const App: React.FC = () => {
       if (response.success && response.data) {
         console.log('App: Found pending request:', response.data);
         setPendingRequest(response.data);
-        setCurrentScreen('approval');
+        router.push('approval', { pendingRequest: response.data });
         console.log('App: Switched to approval screen');
       } else {
         console.log('App: No pending requests found');
@@ -129,24 +127,24 @@ export const App: React.FC = () => {
   const checkWalletState = async () => {
     try {
       console.log('App: Checking wallet state...');
-      console.log('App: Current screen before wallet state check:', currentScreen);
+      console.log('App: Current route before wallet state check:', router.currentRoute);
       const response = await chrome.runtime.sendMessage({ type: 'GET_WALLET_STATE' });
       console.log('App: Wallet state response:', response);
       
       if (response.success) {
         setWalletState(response.data);
         
-        // Only set the screen if we don't have a pending approval request
-        if (currentScreen !== 'approval') {
+        // Only set the route if we don't have a pending approval request
+        if (router.currentRoute !== 'approval') {
           if (response.data.isUnlocked) {
             console.log('App: Wallet is unlocked, going to dashboard');
-            setCurrentScreen('dashboard');
+            router.replace('dashboard');
           } else if (response.data.isInitialized) {
             console.log('App: Wallet is initialized but locked, going to unlock');
-            setCurrentScreen('unlock');
+            router.replace('unlock');
           } else {
             console.log('App: Wallet not initialized, going to welcome');
-            setCurrentScreen('welcome');
+            router.replace('welcome');
           }
         } else {
           console.log('App: Keeping approval screen active, not overriding');
@@ -162,13 +160,13 @@ export const App: React.FC = () => {
   const handleWalletCreated = () => {
     console.log('App: Wallet created, setting state and going to dashboard');
     setWalletState(prev => ({ ...prev, isInitialized: true, isUnlocked: true }));
-    setCurrentScreen('dashboard');
+    navigation.goToDashboard();
   };
 
   const handleWalletImported = () => {
     console.log('App: Wallet imported, setting state and going to dashboard');
     setWalletState(prev => ({ ...prev, isInitialized: true, isUnlocked: true }));
-    setCurrentScreen('dashboard');
+    navigation.goToDashboard();
   };
 
   const handleWalletUnlocked = () => {
@@ -178,36 +176,21 @@ export const App: React.FC = () => {
     // If we have a pending request, go to approval screen, otherwise go to dashboard
     if (pendingRequest) {
       console.log('App: Wallet unlocked with pending request, going to approval screen');
-      setCurrentScreen('approval');
+      router.push('approval', { pendingRequest });
     } else {
       console.log('App: Wallet unlocked, going to dashboard');
-      setCurrentScreen('dashboard');
+      navigation.goToDashboard();
     }
   };
 
   const handleWalletLocked = () => {
     setWalletState(prev => ({ ...prev, isUnlocked: false }));
-    setCurrentScreen('unlock');
-  };
-
-  const handleSendRequest = (account: Account) => {
-    setSelectedAccount(account);
-    setCurrentScreen('send');
+    router.replace('unlock');
   };
 
   const handleSendComplete = (result: { success: boolean; hash?: string; error?: string; block?: any }) => {
     console.log('Transaction result:', result);
-    setTransactionResult(result);
-    setCurrentScreen('confirmation');
-  };
-
-  const handleBackToDashboard = () => {
-    setCurrentScreen('dashboard');
-  };
-
-  const handleCloseConfirmation = () => {
-    setTransactionResult(null);
-    setCurrentScreen('dashboard');
+    navigation.goToConfirmation(result);
   };
 
   const handleApproveTransaction = async (requestId: string) => {
@@ -231,18 +214,17 @@ export const App: React.FC = () => {
       
       if (resultResponse.success && resultResponse.data) {
         console.log('App: Got transaction result:', resultResponse.data);
-        setTransactionResult(resultResponse.data);
         setPendingRequest(null);
-        setCurrentScreen('confirmation');
+        navigation.goToConfirmation(resultResponse.data);
       } else {
         console.log('App: No transaction result found, going to dashboard');
         setPendingRequest(null);
-        setCurrentScreen('dashboard');
+        navigation.goToDashboard();
       }
     } catch (error) {
       console.error('Failed to approve transaction:', error);
       setPendingRequest(null);
-      setCurrentScreen('dashboard');
+      navigation.goToDashboard();
     }
   };
 
@@ -253,7 +235,7 @@ export const App: React.FC = () => {
         requestId 
       });
       setPendingRequest(null);
-      setCurrentScreen('dashboard');
+      navigation.goToDashboard();
     } catch (error) {
       console.error('Failed to reject transaction:', error);
     }
@@ -270,11 +252,11 @@ export const App: React.FC = () => {
       
       // Connection requests don't need result checking, just go back to dashboard
       setPendingRequest(null);
-      setCurrentScreen('dashboard');
+      navigation.goToDashboard();
     } catch (error) {
       console.error('Failed to approve connection:', error);
       setPendingRequest(null);
-      setCurrentScreen('dashboard');
+      navigation.goToDashboard();
     }
   };
 
@@ -288,117 +270,17 @@ export const App: React.FC = () => {
 
   return (
     <div className="h-full bg-background">
-      {currentScreen === 'welcome' && (
-        <WelcomeScreen
-          onCreateWallet={() => setCurrentScreen('create')}
-          onImportWallet={() => setCurrentScreen('import')}
-        />
-      )}
-      
-      {currentScreen === 'create' && (
-        <CreateWalletScreen
-          onWalletCreated={handleWalletCreated}
-          onBack={() => setCurrentScreen('welcome')}
-        />
-      )}
-      
-      {currentScreen === 'import' && (
-        <ImportWalletScreen
-          onWalletImported={handleWalletImported}
-          onBack={() => setCurrentScreen('welcome')}
-        />
-      )}
-      
-      {currentScreen === 'unlock' && (
-        <UnlockScreen
-          onWalletUnlocked={handleWalletUnlocked}
-        />
-      )}
-      
-      {currentScreen === 'dashboard' && (
-        <DashboardScreen
-          onSendRequest={handleSendRequest}
-          onNavigate={(screen) => {
-            if (screen === 'ConnectedSitesScreen') {
-              setCurrentScreen('connected-sites');
-            } else if (screen === 'SettingsScreen') {
-              setCurrentScreen('settings');
-            } else if (screen === 'UnlockScreen') {
-              handleWalletLocked();
-            }
-          }}
-        />
-      )}
-      
-      {currentScreen === 'send' && selectedAccount && (
-        <SendScreen
-          account={selectedAccount}
-          onBack={handleBackToDashboard}
-          onSendComplete={handleSendComplete}
-        />
-      )}
-      
-      {currentScreen === 'approval' && pendingRequest && (
-        <>
-          {/* If wallet is locked, show unlock screen first for all request types */}
-          {!walletState.isUnlocked && (
-            <UnlockScreen
-              onWalletUnlocked={handleWalletUnlocked}
-              showPendingRequest={true}
-              pendingRequestType={pendingRequest.type}
-              onReject={() => handleRejectTransaction(pendingRequest.id)}
-            />
-          )}
-          
-          {/* Show approval screens only when wallet is unlocked */}
-          {walletState.isUnlocked && (
-            <>
-              {pendingRequest.type === 'connect' && (
-                <ConnectionApprovalScreen
-                  request={pendingRequest}
-                  onApprove={handleApproveConnection}
-                  onReject={handleRejectTransaction}
-                />
-              )}
-              
-              {(pendingRequest.type === 'signMessage' || pendingRequest.type === 'signBlock') && (
-                <SigningApprovalScreen
-                  request={pendingRequest}
-                  onApprove={handleApproveTransaction}
-                  onReject={handleRejectTransaction}
-                />
-              )}
-              
-              {pendingRequest.type === 'sendTransaction' && (
-                <TransactionApprovalScreen
-                  request={pendingRequest}
-                  onApprove={handleApproveTransaction}
-                  onReject={handleRejectTransaction}
-                />
-              )}
-            </>
-          )}
-        </>
-      )}
-      
-      {currentScreen === 'connected-sites' && (
-        <ConnectedSitesScreen
-          onBack={handleBackToDashboard}
-        />
-      )}
-      
-      {currentScreen === 'settings' && (
-        <SettingsScreen
-          onBack={handleBackToDashboard}
-        />
-      )}
-      
-      {currentScreen === 'confirmation' && transactionResult && (
-        <TransactionConfirmationScreen
-          result={transactionResult}
-          onClose={handleCloseConfirmation}
-        />
-      )}
+      <Router
+        walletState={walletState}
+        onWalletCreated={handleWalletCreated}
+        onWalletImported={handleWalletImported}
+        onWalletUnlocked={handleWalletUnlocked}
+        onWalletLocked={handleWalletLocked}
+        onSendComplete={handleSendComplete}
+        onApproveTransaction={handleApproveTransaction}
+        onRejectTransaction={handleRejectTransaction}
+        onApproveConnection={handleApproveConnection}
+      />
     </div>
   );
 };

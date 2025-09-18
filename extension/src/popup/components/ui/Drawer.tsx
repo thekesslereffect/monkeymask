@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Icon } from '@iconify/react';
+import { useNavigation } from '../../hooks/useRouter';
 
 interface Account {
   address: string;
@@ -11,13 +12,12 @@ interface Account {
 
 interface DrawerProps {
   className?: string;
-  onNavigate?: (screen: string) => void;
 }
 
 export const Drawer: React.FC<DrawerProps> = ({
-  className = '',
-  onNavigate
+  className = ''
 }) => {
+  const navigation = useNavigation();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,21 +65,17 @@ export const Drawer: React.FC<DrawerProps> = ({
   const handleConnectedSites = () => {
     // Close drawer first, then navigate after animation
     setIsOpen(false);
-    if (onNavigate) {
-      setTimeout(() => {
-        onNavigate('ConnectedSitesScreen');
-      }, 300); // Match the transition duration
-    }
+    setTimeout(() => {
+      navigation.goToConnectedSites();
+    }, 300); // Match the transition duration
   };
 
   const handleSettings = () => {
     // Close drawer first, then navigate after animation
     setIsOpen(false);
-    if (onNavigate) {
-      setTimeout(() => {
-        onNavigate('SettingsScreen');
-      }, 300); // Match the transition duration
-    }
+    setTimeout(() => {
+      navigation.goToSettings();
+    }, 300); // Match the transition duration
   };
 
   const handleLockWallet = async () => {
@@ -88,9 +84,7 @@ export const Drawer: React.FC<DrawerProps> = ({
     setTimeout(async () => {
       try {
         await chrome.runtime.sendMessage({ type: 'LOCK_WALLET' });
-        if (onNavigate) {
-          onNavigate('UnlockScreen');
-        }
+        navigation.replace('unlock');
       } catch (error) {
         console.error('Failed to lock wallet:', error);
       }

@@ -214,7 +214,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
               size="lg"
               className="w-full"
             >
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center gap-2">
                 <Icon icon="lucide:copy" className="text-2xl" />
                 {seedCopied ? 'Copied!' : 'Copy to Clipboard'}
               </div>

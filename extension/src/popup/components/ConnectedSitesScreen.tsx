@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ContentContainer } from './ui';
+import { useNavigation } from '../hooks/useRouter';
 
 interface ConnectedSite {
   origin: string;
@@ -8,11 +9,8 @@ interface ConnectedSite {
   lastUsed: number;
 }
 
-interface ConnectedSitesScreenProps {
-  onBack: () => void;
-}
-
-export const ConnectedSitesScreen: React.FC<ConnectedSitesScreenProps> = ({ onBack }) => {
+export const ConnectedSitesScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [connectedSites, setConnectedSites] = useState<ConnectedSite[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,7 +74,7 @@ export const ConnectedSitesScreen: React.FC<ConnectedSitesScreenProps> = ({ onBa
         <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-t-xl p-6 text-white">
           <div className="flex items-center mb-4">
             <button
-              onClick={onBack}
+              onClick={() => navigation.goBack()}
               className="text-white hover:text-yellow-200 mr-4"
             >
               ← Back

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ContentContainer } from './ui';
+import { useNavigation } from '../hooks/useRouter';
 
-interface SettingsScreenProps {
-  onBack: () => void;
-}
-
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
+export const SettingsScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [autoLockTimeout, setAutoLockTimeout] = useState<number>(15); // minutes
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -74,7 +72,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-t-xl p-6 text-white">
           <div className="flex items-center mb-4">
             <button
-              onClick={onBack}
+              onClick={() => navigation.goBack()}
               className="text-white hover:text-yellow-200 mr-4"
             >
               ← Back

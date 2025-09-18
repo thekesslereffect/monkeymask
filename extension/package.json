@@ -9,9 +9,11 @@
   },
   "dependencies": {
     "@bananocoin/bananojs": "^2.8.6",
+    "@types/qrcode": "^1.5.5",
     "bip39": "^3.1.0",
     "blakejs": "^1.2.1",
     "crypto-js": "^4.1.1",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

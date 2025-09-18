@@ -276,11 +276,7 @@ class BackgroundService {
         case 'SEND_TRANSACTION':
           await this.handleSendTransaction(request, sendResponse);
           break;
-        
-        case 'RECEIVE_PENDING':
-          await this.handleReceivePending(request, sendResponse);
-          break;
-        
+
         case 'GET_BALANCE':
           await this.handleGetBalance(request, sendResponse);
           break;
@@ -1190,43 +1186,6 @@ class BackgroundService {
       sendResponse({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to send transaction'
-      });
-    }
-  }
-
-  private async handleReceivePending(request: any, sendResponse: (response: any) => void): Promise<void> {
-    try {
-      console.log('Background: Receive pending request for:', request.address);
-      
-      if (!this.walletManager.isWalletUnlocked()) {
-        sendResponse({ success: false, error: 'Wallet is locked' });
-        return;
-      }
-
-      const { address } = request;
-      if (!address) {
-        sendResponse({ success: false, error: 'Address is required' });
-        return;
-      }
-
-      // Auto-receive pending transactions
-      const receivedHashes = await this.walletManager.autoReceivePending(address);
-      
-      sendResponse({
-        success: true,
-        data: { 
-          received: receivedHashes.length,
-          hashes: receivedHashes
-        }
-      });
-      
-      console.log('Background: Received', receivedHashes.length, 'pending transactions for', address);
-      
-    } catch (error) {
-      console.error('Background: Error receiving pending:', error);
-      sendResponse({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to receive pending'
       });
     }
   }
