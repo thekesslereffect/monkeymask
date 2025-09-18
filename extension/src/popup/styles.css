@@ -2,37 +2,142 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  * {
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  
+  :root {
+    /* Dark theme colors */
+    --background: 0 0% 13%;
+    --foreground: 0, 0%, 95%;
+    --card: 0 0% 16%;
+    --card-foreground: 0 0% 46%;
+    --popover: 0 0% 19%;
+    --popover-foreground: 0 0% 46%;
+    --primary: 0 0% 95%;
+    --primary-foreground: 0 0% 19%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0, 0%, 95%;
+    --tertiary: 0 0% 46%;
+    --tertiary-foreground: 0 0% 95%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 46%;
+    --bars: 0 0% 16%;
+    --bars-foreground: 0 0% 46%;
+    --bars-border: 0 0% 21%;
+    --bars-icon: 0 0% 35%;
+    --bars-icon-active: 0 0% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 46%;
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 0 0% 95%;
+    --radius: 0.5rem;    
+  }
+}
+
 @layer components {
+  .header {
+    @apply border-b;
+    background-color: hsl(var(--bars));
+    color: hsl(var(--bars-foreground));
+    border-color: hsl(var(--bars-border));
+  }
+
+  .footer {
+    @apply border-t;
+    background-color: hsl(var(--bars));
+    color: hsl(var(--bars-foreground));
+    border-color: hsl(var(--bars-border));
+  }
+
+  .icon-button {
+    @apply p-2 rounded-lg transition-colors;
+    color: hsl(var(--bars-icon));
+  }
+
+  .icon-button:hover {
+    color: hsl(var(--bars-icon-active));
+    background-color: hsl(var(--bars) / 0.5);
+  }
+
   .btn {
     @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
   }
   
   .btn-primary {
-    @apply btn bg-banano-500 hover:bg-banano-600 text-white focus:ring-banano-400;
+    @apply btn;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+  
+  .btn-primary:hover {
+    background-color: hsl(var(--primary) / 0.9);
+  }
+  
+  .btn-primary:focus {
+    --tw-ring-color: hsl(var(--ring));
   }
   
   .btn-secondary {
-    @apply btn bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400;
+    @apply btn;
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+  }
+  
+  .btn-secondary:hover {
+    background-color: hsl(var(--secondary) / 0.8);
+  }
+  
+  .btn-secondary:focus {
+    --tw-ring-color: hsl(var(--ring));
   }
   
   .btn-danger {
-    @apply btn bg-red-500 hover:bg-red-600 text-white focus:ring-red-400;
+    @apply btn;
+    background-color: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
   }
   
-  .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-banano-400 focus:border-transparent;
+  .btn-danger:hover {
+    background-color: hsl(var(--destructive) / 0.9);
+  }
+  
+  .btn-danger:focus {
+    --tw-ring-color: hsl(var(--destructive));
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4;
+    @apply rounded-lg shadow-sm p-4;
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--card-foreground));
   }
   
-  .text-banano {
-    @apply text-banano-600;
+  
+  /* Utility classes for common patterns */
+  .bg-background {
+    background-color: hsl(var(--background));
   }
   
-  .bg-banano {
-    @apply bg-banano-500;
+  .text-foreground {
+    color: hsl(var(--foreground));
+  }
+  
+  
+  .bg-muted {
+    background-color: hsl(var(--muted));
+  }
+  
+  .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
+  }
+  
+  .border-border {
+    border-color: hsl(var(--border));
   }
 }
 
@@ -42,15 +147,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+  background: #2A2A2A;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #5A5A5A;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: #5A5A5A;
 }

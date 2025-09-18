@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { bnsResolver } from '../../utils/bns';
+import { Header, Card, Button, IconButton, Alert, ContentContainer, Footer } from './ui';
 
 interface Account {
   address: string;
@@ -187,7 +188,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-gray-600">Loading accounts...</div>
+        <div className="text-text-secondary">Loading accounts...</div>
       </div>
     );
   }
@@ -195,110 +196,106 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="bg-banano-500 p-4 text-white">
-        <div className="flex items-center justify-between">
+      <Header 
+        title="MonkeyMask"
+        leftElement={
           <div className="flex items-center">
             <span className="text-2xl mr-2">🐒</span>
-            <h1 className="text-lg font-semibold">MonkeyMask</h1>
           </div>
+        }
+        rightElement={
           <div className="flex items-center space-x-2">
             {onConnectedSites && (
-              <button
+              <IconButton
                 onClick={onConnectedSites}
-                className="p-2 hover:bg-banano-600 rounded-lg transition-colors"
+                icon={<span className="text-lg">🔗</span>}
                 title="Connected sites"
-              >
-                <span className="text-lg">🔗</span>
-              </button>
+              />
             )}
             {onSettings && (
-              <button
+              <IconButton
                 onClick={onSettings}
-                className="p-2 hover:bg-banano-600 rounded-lg transition-colors"
+                icon={<span className="text-lg">⚙️</span>}
                 title="Settings"
-              >
-                <span className="text-lg">⚙️</span>
-              </button>
+              />
             )}
-            <button
+            <IconButton
               onClick={refreshBalances}
               disabled={refreshing}
-              className="p-2 hover:bg-banano-600 rounded-lg transition-colors"
+              icon={
+                <span className={`text-lg ${refreshing ? 'animate-spin' : ''}`}>
+                  🔄
+                </span>
+              }
               title="Refresh balances"
-            >
-              <span className={`text-lg ${refreshing ? 'animate-spin' : ''}`}>
-                🔄
-              </span>
-            </button>
-            <button
+            />
+            <IconButton
               onClick={handleLockWallet}
-              className="p-2 hover:bg-banano-600 rounded-lg transition-colors"
+              icon={<span className="text-lg">🔒</span>}
               title="Lock wallet"
-            >
-              <span className="text-lg">🔒</span>
-            </button>
+            />
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Account List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pt-14">
         {error && (
           <div className="p-4">
-            <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+            <Alert variant="destructive">
               {error}
-            </div>
+            </Alert>
           </div>
         )}
 
         {resolvingBNS && (
-          <div className="p-4 text-center text-blue-600 text-sm">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <div className="p-4 text-center text-primary text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto mb-2"></div>
             Resolving BNS names...
           </div>
         )}
 
         <div className="p-4 space-y-3">
           {accounts.map((account, index) => (
-            <div key={account.address} className="card hover:shadow-md transition-shadow">
+            <Card key={account.address} hover>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-gray-800">{account.name}</h3>
+                <h3 className="font-medium text-text-primary">{account.name}</h3>
                 <div className="text-right">
-                  <div className="text-lg font-semibold text-banano-600">
+                  <div className="text-lg font-semibold text-primary">
                     {formatBalance(account.balance)} BAN
                   </div>
                   {account.pending && parseFloat(account.pending) > 0 && (
-                    <div className="text-sm text-orange-600 font-medium">
+                    <div className="text-sm text-accent-foreground font-medium">
                       +{formatBalance(account.pending)} BAN pending
                     </div>
                   )}
                 </div>
               </div>
               
-              <div className="flex items-center justify-between text-sm text-gray-600">
+              <div className="flex items-center justify-between text-sm text-text-secondary">
                 <div className="flex-1">
                   <span className="font-mono">{formatAddress(account.address)}</span>
                   {account.bnsNames && account.bnsNames.length > 0 && (
-                    <div className="text-xs text-banano-600 font-medium mt-1">
+                    <div className="text-xs text-primary font-medium mt-1">
                       🌐 {account.bnsNames.join(', ')}
                     </div>
                   )}
                 </div>
                 <button
                   onClick={() => copyAddress(account.address)}
-                  className="text-banano-600 hover:text-banano-700 ml-2"
+                  className="text-primary hover:text-primary/80 ml-2"
                   title="Copy address"
                 >
                   📋
                 </button>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
 
         {accounts.length === 0 && !error && (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center text-gray-500">
+            <div className="text-center text-text-secondary">
               <div className="text-4xl mb-2">🙈</div>
               <p>No accounts found</p>
             </div>
@@ -306,31 +303,36 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
         )}
       </div>
 
-      {/* Footer */}
-      <div className="border-t border-gray-200 p-4">
+
+      <div className="p-4 pb-18">
         <div className="flex justify-center space-x-4">
-          <button 
-            className="btn-primary flex-1 py-3"
+          <Button 
+            variant="primary"
+            size="lg"
+            className="flex-1"
             onClick={() => accounts.length > 0 && onSendRequest(accounts[0])}
             disabled={accounts.length === 0}
           >
             Send
-          </button>
-          <button 
-            className="btn-secondary flex-1 py-3"
+          </Button>
+          <Button 
+            variant="secondary"
+            size="lg"
+            className="flex-1"
             onClick={handleReceivePending}
             disabled={refreshing || accounts.length === 0}
           >
             {refreshing ? 'Receiving...' : 'Receive'}
-          </button>
+          </Button>
         </div>
         
         <div className="text-center mt-3">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-tertiary">
             Phase 3: Transaction Support Active
           </p>
         </div>
       </div>
+      <Footer icons={[]} />
     </div>
   );
 };

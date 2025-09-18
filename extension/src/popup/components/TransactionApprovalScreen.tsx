@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ContentContainer } from './ui';
 
 interface TransactionRequest {
   id: string;
@@ -127,9 +128,9 @@ export const TransactionApprovalScreen: React.FC<TransactionApprovalScreenProps>
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 overflow-y-auto">
+      <ContentContainer className="justify-start overflow-y-auto">
         {renderTransactionDetails()}
-      </div>
+      </ContentContainer>
 
       {/* Actions */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">

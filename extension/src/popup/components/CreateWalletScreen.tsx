@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Header, Input, Button, Alert, Footer, ContentContainer, Card } from './ui';
+import { Icon } from '@iconify/react';
 
 interface CreateWalletScreenProps {
   onWalletCreated: () => void;
@@ -67,6 +69,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
     }
   };
 
+
   const handleSeedConfirm = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -79,183 +82,223 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
 
   if (step === 'password') {
     return (
-      <div className="h-full flex flex-col">
-        <div className="bg-banano-500 p-4 text-white">
-          <div className="flex items-center">
-            <button onClick={onBack} className="mr-3 text-white hover:text-banano-100">
-              ←
+      <div className="h-full flex flex-col bg-background">
+        {/* Header */}
+        <Header 
+          title="MonKeyMask"
+          leftElement={
+            <button onClick={onBack} className="text-text-primary hover:text-primary transition-colors">
+              <Icon icon="mdi:arrow-left" className="text-2xl" />
             </button>
-            <h2 className="text-lg font-semibold">Create New Wallet</h2>
-          </div>
-        </div>
+          }
+          showInfoButton={true}
+          onInfoClick={() => console.log('Info clicked')}
+        />
 
-        <div className="flex-1 p-6">
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">Set Password</h3>
-            <p className="text-gray-600 text-sm">
-              Choose a strong password to protect your wallet. This password will be used to encrypt your private keys locally.
-            </p>
-          </div>
-
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="Enter password"
-                required
-                minLength={8}
+        {/* Main Content */}
+        <ContentContainer>
+          {/* Monkey Emoji */}
+          <div className="text-center mb-12">
+            <picture>
+              <source srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.webp" type="image/webp" />
+              <img 
+                src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.gif" 
+                alt="🙈" 
+                width="128" 
+                height="128"
+                className="mx-auto"
               />
+            </picture>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handlePasswordSubmit} className="w-full max-w-xs space-y-4">
+            <div>
+            <Input
+              label="Password"
+              hintText="What's this?"
+              hintTooltip="This password will be used to encrypt your private keys locally."
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              required
+              minLength={8}
+              size="lg"
+              variant="secondary"
+            />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="input"
-                placeholder="Confirm password"
-                required
-              />
+
+            <Input
+              label="Confirm Password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm password"
+              required
+              size="lg"
+              variant="secondary"
+            />
             </div>
 
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+              <Alert variant="destructive">
                 {error}
-              </div>
+              </Alert>
             )}
 
-            <button
+            <Button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full"
+              variant="primary"
+              size="lg"
+              className="w-full"
             >
-              {loading ? 'Creating Wallet...' : 'Create Wallet'}
-            </button>
+              {loading ? 'Creating Wallet...' : 'Confirm'}
+            </Button>
           </form>
-        </div>
+        </ContentContainer>
+        <Footer icons={[]} />
       </div>
     );
   }
 
   if (step === 'seed') {
     return (
-      <div className="h-full flex flex-col">
-        <div className="bg-banano-500 p-4 text-white">
-          <h2 className="text-lg font-semibold">Backup Your Seed Phrase</h2>
-        </div>
+      <div className="h-full flex flex-col bg-background">
+        {/* Header */}
+        <Header 
+          title="MonKeyMask"
+          leftElement={
+            <button onClick={() => setStep('password')} className="text-text-primary hover:text-primary transition-colors">
+              <Icon icon="mdi:arrow-left" className="text-2xl" />
+            </button>
+          }
+          showInfoButton={true}
+          onInfoClick={() => console.log('Info clicked')}
+        />
 
-        <div className="flex-1 p-6">
-          <div className="mb-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center mb-2">
-                <span className="text-red-600 text-lg mr-2">⚠️</span>
-                <span className="font-semibold text-red-800">Important!</span>
-              </div>
-              <p className="text-red-700 text-sm">
-                Write down your seed phrase and store it safely. This is the only way to recover your wallet if you lose access.
-              </p>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4 border-2 border-dashed border-gray-300">
-              <p className="text-sm text-gray-600 mb-2 font-medium">Your Seed Phrase:</p>
-              <div className="bg-white p-3 rounded border font-mono text-sm break-all">
-                {seed}
-              </div>
-              <button
-                onClick={copySeedToClipboard}
-                className="mt-2 text-sm text-banano-600 hover:text-banano-700"
-              >
-                {seedCopied ? '✅ Copied!' : '📋 Copy to Clipboard'}
-              </button>
-            </div>
+        {/* Main Content */}
+        <ContentContainer>
+          {/* Monkey Emoji */}
+          <div className="text-center mb-12">
+            <picture>
+              <source srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.webp" type="image/webp" />
+              <img 
+                src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.gif" 
+                alt="🙈" 
+                width="128" 
+                height="128"
+                className="mx-auto"
+              />
+            </picture>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-start space-x-2 text-sm text-gray-600">
-              <span>•</span>
-              <span>Store this seed phrase in a safe place</span>
-            </div>
-            <div className="flex items-start space-x-2 text-sm text-gray-600">
-              <span>•</span>
-              <span>Never share it with anyone</span>
-            </div>
-            <div className="flex items-start space-x-2 text-sm text-gray-600">
-              <span>•</span>
-              <span>MonkeyMask will never ask for your seed phrase</span>
-            </div>
+          {/* Seed Phrase Display */}
+          <div className="w-full max-w-xs mb-6">            
+            <Card label="Mnemonic" hintText={`What's this?`} hintTooltip={'This is your seed phrase. It is used to recover your wallet if you forget your password.'}>
+              <div className="grid grid-cols-4 gap-2 font-mono text-sm text-secondary-foreground">
+                {seed.split(' ').map((word, index) => (
+                  <span key={index}>
+                    {word}
+                  </span>
+                ))}
+              </div>
+            
+            </Card>
           </div>
 
-          <button
-            onClick={handleSeedBackup}
-            className="btn-primary w-full mt-6"
-          >
-            I've Saved My Seed Phrase
-          </button>
-        </div>
+          <div className="w-full space-y-3">
+            <Button
+              onClick={copySeedToClipboard}
+              variant="secondary"
+              size="lg"
+              className="w-full"
+            >
+              <div className="flex items-center justify-center">
+                <Icon icon="mdi:content-copy" className="text-2xl" />
+                {seedCopied ? 'Copied!' : 'Copy to Clipboard'}
+              </div>
+            </Button>
+            
+            <Button
+              onClick={handleSeedBackup}
+              variant="primary"
+              size="lg"
+              className="w-full"
+            >
+              Next
+            </Button>
+          </div>
+        </ContentContainer>
+        <Footer icons={[]} />
       </div>
     );
   }
 
   if (step === 'confirm') {
     return (
-      <div className="h-full flex flex-col">
-        <div className="bg-banano-500 p-4 text-white">
-          <h2 className="text-lg font-semibold">Confirm Seed Phrase</h2>
-        </div>
+      <div className="h-full flex flex-col bg-background">
+        {/* Header */}
+        <Header 
+          title="MonKeyMask"
+          leftElement={
+            <button onClick={() => setStep('seed')} className="text-text-primary hover:text-primary transition-colors">
+              <Icon icon="mdi:arrow-left" className="text-2xl" />
+            </button>
+          }
+          showInfoButton={true}
+          onInfoClick={() => console.log('Info clicked')}
+        />
 
-        <div className="flex-1 p-6">
-          <div className="mb-6">
-            <p className="text-gray-600 text-sm">
-              Please enter your seed phrase to confirm you've saved it correctly.
-            </p>
+        {/* Main Content */}
+        <ContentContainer>
+          {/* Monkey Emoji */}
+          <div className="text-center mb-12">
+            <picture>
+              <source srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.webp" type="image/webp" />
+              <img 
+                src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.gif" 
+                alt="🙈" 
+                width="128" 
+                height="128"
+                className="mx-auto"
+              />
+            </picture>
           </div>
 
-          <form onSubmit={handleSeedConfirm} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Seed Phrase
-              </label>
-              <textarea
-                value={seedConfirm}
-                onChange={(e) => setSeedConfirm(e.target.value)}
-                className="input h-24 resize-none font-mono text-sm"
-                placeholder="Enter your seed phrase..."
-                required
-              />
-            </div>
+          {/* Form */}
+          <form onSubmit={handleSeedConfirm} className="w-full max-w-xs space-y-4">
+            <Input
+              label="Seed Phrase"
+              value={seedConfirm}
+              onChange={(e) => setSeedConfirm(e.target.value)}
+              placeholder="Enter your seed phrase..."
+              required
+              size="lg"
+              variant="secondary"
+              className="font-mono text-sm"
+            />
 
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+              <Alert variant="destructive">
                 {error}
-              </div>
+              </Alert>
             )}
 
-            <div className="flex space-x-3">
-              <button
-                type="button"
-                onClick={() => setStep('seed')}
-                className="btn-secondary flex-1"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                className="btn-primary flex-1"
-              >
-                Confirm & Create
-              </button>
-            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              className="w-full"
+            >
+              Confirm & Create
+            </Button>
           </form>
-        </div>
+        </ContentContainer>
+        <Footer icons={[]} />
       </div>
     );
   }

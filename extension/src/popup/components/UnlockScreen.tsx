@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Header, Input, Button, Alert, Footer, ContentContainer } from './ui';
 
 interface UnlockScreenProps {
   onWalletUnlocked: () => void;
@@ -49,73 +50,79 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked, sh
   };
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-banano-400 to-banano-600">
-      <div className="flex-1 flex flex-col justify-center items-center px-6">
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold text-white mb-2">
-            {showPendingRequest ? 'Unlock Required' : 'Welcome Back'}
-          </h1>
-          <p className="text-banano-100 text-sm">
-            {showPendingRequest 
-              ? `Unlock your wallet to ${getActionText(pendingRequestType)}`
-              : 'Enter your password to unlock MonkeyMask'
-            }
-          </p>
-          {showPendingRequest && (
-            <div className="mt-3 p-3 bg-white/10 rounded-lg border border-white/20">
-              <p className="text-white text-xs font-medium">
-                🔐 A dApp is requesting to {getActionText(pendingRequestType)}
-              </p>
-            </div>
-          )}
+    <div className="h-full flex flex-col bg-background">
+      {/* Header */}
+      <Header 
+        title="MonKeyMask" 
+        showInfoButton={true}
+        onInfoClick={() => console.log('Info clicked')}
+      />
+      
+
+      {/* Main Content */}
+      <ContentContainer>
+        {/* Monkey Emoji */}
+        <div className="text-center mb-12">
+          <picture>
+            <source srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.webp" type="image/webp" />
+            <img 
+              src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/512.gif" 
+              alt="🙈" 
+              width="128" 
+              height="128"
+              className="mx-auto"
+            />
+          </picture>
         </div>
         
+        {/* Form */}
         <form onSubmit={handleUnlock} className="w-full max-w-xs space-y-4">
-          <div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-white/50"
-              placeholder="Enter password"
-              required
-              autoFocus
-            />
-          </div>
+          <Input
+            label="Unlock"
+            hintText="Forget?"
+            hintTooltip="You're out of luck! You'll have to reimport your seed phrase."
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
+            required
+            autoFocus
+            variant="secondary"
+            size="lg"
+            className="text-center"
+          />
 
           {error && (
-            <div className="text-red-200 text-sm bg-red-500/20 p-3 rounded-lg border border-red-300/30">
+            <Alert variant="destructive">
               {error}
-            </div>
+            </Alert>
           )}
 
-          <button
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-white text-banano-600 hover:bg-gray-50 disabled:opacity-50 font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg"
+            variant="primary"
+            size="lg"
+            className="w-full"
           >
             {loading ? 'Unlocking...' : 'Unlock'}
-          </button>
+          </Button>
           
           {showPendingRequest && onReject && (
-            <button
+            <Button
               type="button"
               onClick={onReject}
               disabled={loading}
-              className="w-full bg-transparent text-white hover:bg-white/10 disabled:opacity-50 font-medium py-2 px-6 rounded-lg transition-colors duration-200 border border-white/30"
+              variant="secondary"
+              size="md"
+              className="w-full"
             >
               Reject Request
-            </button>
+            </Button>
           )}
         </form>
-      </div>
-      
-      <div className="p-4 text-center">
-        <p className="text-banano-100 text-xs">
-          Your keys are encrypted and stored locally
-        </p>
-      </div>
+      </ContentContainer>
+      <Footer icons={[]} />
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ContentContainer } from './ui';
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -87,7 +88,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <ContentContainer className="justify-start p-6">
           {/* Auto-Lock Settings */}
           <div className="mb-8">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
@@ -156,7 +157,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
               </span>
             </div>
           </div>
-        </div>
+        </ContentContainer>
       </div>
     </div>
   );

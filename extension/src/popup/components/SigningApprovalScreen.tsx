@@ -1,4 +1,5 @@
 import React from 'react';
+import { ContentContainer } from './ui';
 
 interface SigningApprovalScreenProps {
   request: {
@@ -53,7 +54,7 @@ export const SigningApprovalScreen: React.FC<SigningApprovalScreenProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <ContentContainer className="justify-start p-6">
           {/* Site Info */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="flex items-center mb-3">
@@ -131,7 +132,7 @@ export const SigningApprovalScreen: React.FC<SigningApprovalScreenProps> = ({
               Sign
             </button>
           </div>
-        </div>
+        </ContentContainer>
       </div>
     </div>
   );

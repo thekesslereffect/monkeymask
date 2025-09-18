@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { bnsResolver } from '../../utils/bns';
+import { ContentContainer, Header } from './ui';
+import { Icon } from '@iconify/react';
 
 interface Account {
   address: string;
@@ -136,17 +138,17 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onBack, onSendC
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="bg-banano-500 p-4 text-white">
-        <div className="flex items-center">
-          <button onClick={onBack} className="mr-3 text-white hover:text-banano-100">
-            ←
+      <Header
+        title="Send BAN"
+        leftElement={
+          <button onClick={onBack} className="text-text-primary hover:text-primary transition-colors">
+            <Icon icon="mdi:arrow-left" className="text-2xl" />
           </button>
-          <h2 className="text-lg font-semibold">Send BAN</h2>
-        </div>
-      </div>
+        }
+      />
 
       {/* Content */}
-      <div className="flex-1 p-6">
+      <ContentContainer className="justify-start">
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-2">From Account</h3>
           <div className="bg-gray-50 p-4 rounded-lg border">
@@ -243,7 +245,7 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onBack, onSendC
             </button>
           </div>
         </form>
-      </div>
+      </ContentContainer>
     </div>
   );
 };

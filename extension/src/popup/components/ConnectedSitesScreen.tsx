@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ContentContainer } from './ui';
 
 interface ConnectedSite {
   origin: string;
@@ -89,7 +90,7 @@ export const ConnectedSitesScreen: React.FC<ConnectedSitesScreenProps> = ({ onBa
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <ContentContainer className="justify-start p-6">
           {connectedSites.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-6xl mb-4">🌐</div>
@@ -153,7 +154,7 @@ export const ConnectedSitesScreen: React.FC<ConnectedSitesScreenProps> = ({ onBa
               ))}
             </div>
           )}
-        </div>
+        </ContentContainer>
       </div>
     </div>
   );

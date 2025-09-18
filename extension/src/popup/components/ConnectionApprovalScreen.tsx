@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ContentContainer } from './ui';
 
 interface ConnectionApprovalScreenProps {
   request: {
@@ -64,7 +65,7 @@ export const ConnectionApprovalScreen: React.FC<ConnectionApprovalScreenProps> =
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <ContentContainer className="justify-start p-6">
           {/* Site Info */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="flex items-center mb-3">
@@ -149,7 +150,7 @@ export const ConnectionApprovalScreen: React.FC<ConnectionApprovalScreenProps> =
               Connect ({selectedAccounts.length})
             </button>
           </div>
-        </div>
+        </ContentContainer>
       </div>
     </div>
   );
