@@ -36,7 +36,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         </div>
         
         {/* Buttons */}
-        <div className="w-full max-w-xs space-y-4">
+        <div className="w-full space-y-4">
           <Button
             onClick={onCreateWallet}
             variant="primary"
@@ -56,7 +56,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           </Button>
         </div>
       </ContentContainer>
-      <Footer icons={[]} />
+      <Footer />
     </div>
   );
 };

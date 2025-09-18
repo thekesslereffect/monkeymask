@@ -28,7 +28,19 @@ export const Button: React.FC<ButtonProps> = ({
     lg: 'px-6 py-4 text-lg'
   };
   
-  const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
+  // Check if className contains padding overrides
+  const hasPaddingOverride = className.includes('p-') || className.includes('px-') || className.includes('py-');
+  
+  // If custom padding is provided, exclude size padding
+  const finalSizeClasses = hasPaddingOverride ? sizeClasses[size].replace(/px-\d+|py-\d+/g, '').trim() : sizeClasses[size];
+  
+  // Combine classes with proper precedence: base -> variant -> size -> custom className
+  const classes = [
+    baseClasses,
+    variantClasses[variant],
+    finalSizeClasses,
+    className
+  ].filter(Boolean).join(' ');
   
   return (
     <button className={classes} {...props}>

@@ -142,7 +142,7 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onBack, onSendC
         title="Send BAN"
         leftElement={
           <button onClick={onBack} className="text-text-primary hover:text-primary transition-colors">
-            <Icon icon="mdi:arrow-left" className="text-2xl" />
+            <Icon icon="lucide:arrow-left" className="text-2xl" />
           </button>
         }
       />

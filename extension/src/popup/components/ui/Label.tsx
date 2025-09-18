@@ -5,12 +5,14 @@ interface LabelProps {
   hintText?: string;
   hintTooltip?: string;
   className?: string;
+  hintOnClick?: () => void;
 }
 
 export const Label: React.FC<LabelProps> = ({
   children,
   hintText,
   hintTooltip,
+  hintOnClick,
   className = ''
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -44,19 +46,19 @@ export const Label: React.FC<LabelProps> = ({
       <div className="text-xl text-tertiary">
         {children}
       </div>
-      {hintText && hintTooltip && (
+      {hintText && (
         <div className="relative">
           <span
             ref={hintRef}
             className="text-xs text-tertiary cursor-help hover:text-foreground transition-colors duration-200"
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
-            onClick={() => setShowTooltip(!showTooltip)}
+            onClick={() => {hintOnClick?.()}}
           >
             {hintText}
           </span>
           
-          {showTooltip && (
+          {showTooltip && hintTooltip && (
             <div
               ref={tooltipRef}
               className="absolute right-0 top-6 z-50 w-64 p-3 bg-background border border-border rounded-lg shadow-lg text-sm text-foreground"

@@ -64,7 +64,7 @@ export const ImportWalletScreen: React.FC<ImportWalletScreenProps> = ({
         title="MonKeyMask"
         leftElement={
           <button onClick={onBack} className="text-text-primary hover:text-primary transition-colors">
-            <Icon icon="mdi:arrow-left" className="text-2xl" />
+            <Icon icon="lucide:arrow-left" className="text-2xl" />
           </button>
         }
         showInfoButton={true}
@@ -88,12 +88,13 @@ export const ImportWalletScreen: React.FC<ImportWalletScreenProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleImport} className="w-full max-w-xs space-y-4">
+        <form onSubmit={handleImport} className="w-full space-y-4">
           <Input
             label="Seed Phrase"
             hintText="What's this?"
             hintTooltip="Your seed phrase is a series of 12-24 words that can be used to recover your wallet. Keep it safe and never share it with anyone."
             value={seed}
+            type="password"
             onChange={(e) => setSeed(e.target.value)}
             placeholder="Enter your seed phrase..."
             required
@@ -144,7 +145,7 @@ export const ImportWalletScreen: React.FC<ImportWalletScreenProps> = ({
           </Button>
         </form>
       </ContentContainer>
-      <Footer icons={[]} />
+      <Footer />
     </div>
   );
 };

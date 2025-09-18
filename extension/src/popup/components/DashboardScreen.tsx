@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { bnsResolver } from '../../utils/bns';
-import { Header, Card, Button, IconButton, Alert, ContentContainer, Footer } from './ui';
+import { Header, Card, Button, IconButton, Alert, ContentContainer, Footer, Separator } from './ui';
+import { Icon } from '@iconify/react';
 
 interface Account {
   address: string;
@@ -18,10 +19,14 @@ interface DashboardScreenProps {
 }
 
 // Format balance to show up to 4 decimal places, removing trailing zeros
+// if balance is greater than 100,000 add K, if greater than 1,000,000 add M, if greater than 1,000,000,000 add B
+// add commas to the balance
 const formatBalance = (balance: string): string => {
   const num = parseFloat(balance);
   if (isNaN(num)) return '0';
-  return num.toFixed(4).replace(/\.?0+$/, '');
+  if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+  if (num >= 100000) return (num / 100000).toFixed(2) + 'K';
+  return num.toFixed(4).replace(/\.?0+$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked, onSendRequest, onConnectedSites, onSettings }) => {
@@ -181,8 +186,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
     }
   };
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 10)}...${address.slice(-6)}`;
+  const formatAddress = (address: string, ban: boolean = true) => {
+    return `${ban ? 'ban_' : ''}${address.slice(4, 8)}...${address.slice(-4)}`;
+  };
+
+  const handleViewOnCreeper = (hash: string) => {
+    window.open(`https://creeper.banano.cc/hash/${hash}`, '_blank');
   };
 
   if (loading) {
@@ -194,13 +203,26 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col font-semibold">
       {/* Header */}
       <Header 
-        title="MonkeyMask"
+        title=""
         leftElement={
-          <div className="flex items-center">
-            <span className="text-2xl mr-2">🐒</span>
+          <div className="flex items-center h-full gap-2">
+            {/* account icon */}
+            <div className="h-7 w-7 rounded-full bg-primary"></div>
+            {/* account name */}
+            <span className="text-primary text-md">
+              {/* if bns name use that, else use account name */}
+              {accounts[0].bnsNames && accounts[0].bnsNames.length > 0 ? accounts[0].bnsNames[0] : formatAddress(accounts[0].address, false)}
+            </span>
+            <button
+              onClick={() => copyAddress(accounts[0].address)}
+              className="text-tertiary hover:text-primary/80 text-lg"
+              title="Copy address"
+            >
+              <Icon icon="lucide:copy" />
+            </button>
           </div>
         }
         rightElement={
@@ -208,14 +230,19 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
             {onConnectedSites && (
               <IconButton
                 onClick={onConnectedSites}
-                icon={<span className="text-lg">🔗</span>}
+                icon={<span className="text-2xl">
+                  <Icon icon="lucide:link" />
+                </span>}
                 title="Connected sites"
               />
             )}
             {onSettings && (
               <IconButton
                 onClick={onSettings}
-                icon={<span className="text-lg">⚙️</span>}
+                icon={
+                <span className="text-2xl">
+                  <Icon icon="lucide:settings" />
+                </span>}
                 title="Settings"
               />
             )}
@@ -223,116 +250,134 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onWalletLocked
               onClick={refreshBalances}
               disabled={refreshing}
               icon={
-                <span className={`text-lg ${refreshing ? 'animate-spin' : ''}`}>
-                  🔄
+                <span className={`text-2xl ${refreshing ? 'animate-spin' : ''}`}>
+                  <Icon icon="lucide:refresh-cw" />
                 </span>
               }
               title="Refresh balances"
             />
             <IconButton
               onClick={handleLockWallet}
-              icon={<span className="text-lg">🔒</span>}
+              icon={<span className="text-2xl">
+                <Icon icon="lucide:lock" />
+              </span>}
               title="Lock wallet"
             />
           </div>
         }
       />
 
-      {/* Account List */}
-      <div className="flex-1 overflow-y-auto pt-14">
-        {error && (
-          <div className="p-4">
-            <Alert variant="destructive">
-              {error}
-            </Alert>
-          </div>
-        )}
+    <ContentContainer className="!justify-start !overflow-y-auto">
 
-        {resolvingBNS && (
-          <div className="p-4 text-center text-primary text-sm">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto mb-2"></div>
-            Resolving BNS names...
+      {/* Balance */}
+        <div className="flex flex-col items-center gap-2 h-full min-h-36 justify-center">
+          <div className="text-5xl text-primary">
+            {formatBalance(accounts[0].balance)}
+            {/* {formatBalance("19420.69")} */}
           </div>
-        )}
-
-        <div className="p-4 space-y-3">
-          {accounts.map((account, index) => (
-            <Card key={account.address} hover>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-text-primary">{account.name}</h3>
-                <div className="text-right">
-                  <div className="text-lg font-semibold text-primary">
-                    {formatBalance(account.balance)} BAN
-                  </div>
-                  {account.pending && parseFloat(account.pending) > 0 && (
-                    <div className="text-sm text-accent-foreground font-medium">
-                      +{formatBalance(account.pending)} BAN pending
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm text-text-secondary">
-                <div className="flex-1">
-                  <span className="font-mono">{formatAddress(account.address)}</span>
-                  {account.bnsNames && account.bnsNames.length > 0 && (
-                    <div className="text-xs text-primary font-medium mt-1">
-                      🌐 {account.bnsNames.join(', ')}
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => copyAddress(account.address)}
-                  className="text-primary hover:text-primary/80 ml-2"
-                  title="Copy address"
-                >
-                  📋
-                </button>
-              </div>
-            </Card>
-          ))}
+          <div className="text-xl text-tertiary">
+            {/* convert balance to fiat selection */}
+            {/* implement fiat conversion */}
+            ${formatBalance("1919.19")}
+          </div>
         </div>
 
-        {accounts.length === 0 && !error && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center text-text-secondary">
-              <div className="text-4xl mb-2">🙈</div>
-              <p>No accounts found</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-
-      <div className="p-4 pb-18">
-        <div className="flex justify-center space-x-4">
-          <Button 
-            variant="primary"
-            size="lg"
-            className="flex-1"
-            onClick={() => accounts.length > 0 && onSendRequest(accounts[0])}
-            disabled={accounts.length === 0}
-          >
-            Send
-          </Button>
-          <Button 
-            variant="secondary"
-            size="lg"
-            className="flex-1"
-            onClick={handleReceivePending}
-            disabled={refreshing || accounts.length === 0}
-          >
-            {refreshing ? 'Receiving...' : 'Receive'}
-          </Button>
-        </div>
+        {/* Core Buttons */}
         
-        <div className="text-center mt-3">
-          <p className="text-xs text-tertiary">
-            Phase 3: Transaction Support Active
-          </p>
-        </div>
-      </div>
-      <Footer icons={[]} />
+          <div className="grid grid-cols-4 gap-4 w-full">
+            {/* QR Code */}
+            <Button 
+                variant="secondary"
+                size="lg"
+                className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
+                onClick={() => {console.log('Receive')}}
+                disabled={refreshing || accounts.length === 0}
+              >
+                <Icon icon="lucide:qr-code" className="text-2xl mb-1" />
+                <span className="text-xs">Receive</span>
+            </Button>
+            {/* Send */}
+            <Button 
+              variant="secondary"
+              size="lg"
+              className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
+              onClick={() => accounts.length > 0 && onSendRequest(accounts[0])}
+              disabled={accounts.length === 0}
+            >
+              <Icon icon="lucide:send" className="text-2xl mb-1" />
+              <span className="text-xs">Send</span>
+            </Button>
+            {/* Faucet */}
+            <Button 
+              variant="secondary"
+              size="lg"
+              className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
+              onClick={() => {console.log('Faucet')}}
+              disabled={accounts.length === 0}
+            >
+              <Icon icon="lucide:droplet" className="text-2xl mb-1" />
+              <span className="text-xs">Faucet</span>
+            </Button>
+            {/* Buy */}
+            <Button 
+              variant="secondary"
+              size="lg"
+              className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
+              onClick={() => {console.log('Buy')}}
+              disabled={accounts.length === 0}
+            >
+              <Icon icon="lucide:dollar-sign" className="text-2xl mb-1" />
+              <span className="text-xs">Buy</span>
+            </Button>
+            
+          </div>
+
+          {/* History */}
+          <Card label="History" hintText="See More" hintOnClick={() => console.log('See More')} className="w-full">
+           
+              {/* list of transactions. use mock data array for now */}
+              {[...Array(10)].map((_, i) => (
+                <>
+                <button key={i} className="flex justify-between items-center w-full hover:bg-tertiary/10 cursor-pointer transition-colors rounded-lg p-2 text-tertiary" onClick={() => handleViewOnCreeper('1234567890')}>
+                  <div className="flex items-center gap-2">
+                    <Icon icon={i % 2 === 0 ? "lucide:arrow-up-right" : "lucide:arrow-down-left"} 
+                          className={i % 2 === 0 ? "text-destructive" : "text-primary"} />
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm">{i % 2 === 0 ? "Sent" : "Received"}</span>
+                      <span className="text-xs">ban_1abc...xyz</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm">{(Math.random() * 100).toFixed(2)} BAN</span>
+                    <span className="text-xs">2 hours ago</span>
+                  </div>
+                </button>
+                {i !== 9 && (
+                <Separator className="w-full my-2" />
+                )}
+                </>
+              ))}
+              
+          
+          </Card>
+      
+      </ContentContainer>
+      <Footer element={
+          <div className="flex items-center w-full h-full justify-around">
+            <button onClick={() => console.log('Home')} className="text-text-primary hover:text-primary transition-colors">
+              <Icon icon="lucide:home" className="text-2xl" />
+            </button>
+            <button onClick={() => console.log('NFTs')} className="text-text-primary hover:text-primary transition-colors">
+              <Icon icon="lucide:layout-grid" className="text-2xl" />
+            </button>
+            <button onClick={() => console.log('History')} className="text-text-primary hover:text-primary transition-colors">
+              <Icon icon="lucide:clock" className="text-2xl" />
+            </button>
+            <button onClick={() => console.log('Explore')} className="text-text-primary hover:text-primary transition-colors">
+              <Icon icon="lucide:compass" className="text-2xl" />
+            </button>
+          </div>
+        }/>
     </div>
   );
 };

@@ -88,7 +88,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
           title="MonKeyMask"
           leftElement={
             <button onClick={onBack} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="mdi:arrow-left" className="text-2xl" />
+              <Icon icon="lucide:arrow-left" className="text-2xl" />
             </button>
           }
           showInfoButton={true}
@@ -112,7 +112,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
           </div>
 
           {/* Form */}
-          <form onSubmit={handlePasswordSubmit} className="w-full max-w-xs space-y-4">
+          <form onSubmit={handlePasswordSubmit} className="w-full space-y-4">
             <div>
             <Input
               label="Password"
@@ -159,7 +159,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </Button>
           </form>
         </ContentContainer>
-        <Footer icons={[]} />
+        <Footer />
       </div>
     );
   }
@@ -172,7 +172,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
           title="MonKeyMask"
           leftElement={
             <button onClick={() => setStep('password')} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="mdi:arrow-left" className="text-2xl" />
+              <Icon icon="lucide:arrow-left" className="text-2xl" />
             </button>
           }
           showInfoButton={true}
@@ -196,7 +196,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
           </div>
 
           {/* Seed Phrase Display */}
-          <div className="w-full max-w-xs mb-6">            
+          <div className="w-full mb-6">            
             <Card label="Mnemonic" hintText={`What's this?`} hintTooltip={'This is your seed phrase. It is used to recover your wallet if you forget your password.'}>
               <div className="grid grid-cols-4 gap-2 font-mono text-sm text-secondary-foreground">
                 {seed.split(' ').map((word, index) => (
@@ -217,7 +217,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
               className="w-full"
             >
               <div className="flex items-center justify-center">
-                <Icon icon="mdi:content-copy" className="text-2xl" />
+                <Icon icon="lucide:copy" className="text-2xl" />
                 {seedCopied ? 'Copied!' : 'Copy to Clipboard'}
               </div>
             </Button>
@@ -232,7 +232,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </Button>
           </div>
         </ContentContainer>
-        <Footer icons={[]} />
+        <Footer />
       </div>
     );
   }
@@ -245,7 +245,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
           title="MonKeyMask"
           leftElement={
             <button onClick={() => setStep('seed')} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="mdi:arrow-left" className="text-2xl" />
+              <Icon icon="lucide:arrow-left" className="text-2xl" />
             </button>
           }
           showInfoButton={true}
@@ -269,7 +269,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSeedConfirm} className="w-full max-w-xs space-y-4">
+          <form onSubmit={handleSeedConfirm} className="w-full space-y-4">
             <Input
               label="Seed Phrase"
               value={seedConfirm}
@@ -298,7 +298,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </Button>
           </form>
         </ContentContainer>
-        <Footer icons={[]} />
+        <Footer />
       </div>
     );
   }

@@ -10,7 +10,7 @@ export const ContentContainer: React.FC<ContentContainerProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`flex-1 flex flex-col bg-background justify-center items-center px-6 pt-16 pb-16 ${className}`}>
+    <div className={`flex-1 flex flex-col bg-background justify-center items-center px-4 pt-16 pb-16 gap-4 ${className}`}>
       {children}
     </div>
   );

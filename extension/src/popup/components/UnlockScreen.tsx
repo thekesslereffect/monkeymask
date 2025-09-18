@@ -76,7 +76,7 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked, sh
         </div>
         
         {/* Form */}
-        <form onSubmit={handleUnlock} className="w-full max-w-xs space-y-4">
+        <form onSubmit={handleUnlock} className="w-full space-y-4">
           <Input
             label="Unlock"
             hintText="Forget?"
@@ -122,7 +122,7 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked, sh
           )}
         </form>
       </ContentContainer>
-      <Footer icons={[]} />
+      <Footer />
     </div>
   );
 };

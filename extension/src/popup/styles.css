@@ -111,7 +111,6 @@
   }
   
   .card {
-    @apply rounded-lg shadow-sm p-4;
     background-color: hsl(var(--card));
     border: 1px solid hsl(var(--border));
     color: hsl(var(--card-foreground));

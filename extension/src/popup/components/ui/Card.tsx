@@ -9,6 +9,7 @@ interface CardProps {
   className?: string;
   hover?: boolean;
   onClick?: () => void;
+  hintOnClick?: () => void;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -18,26 +19,25 @@ export const Card: React.FC<CardProps> = ({
   hintTooltip,
   className = '',
   hover = false,
-  onClick
+  onClick,
+  hintOnClick
 }) => {
-  const baseClasses = 'card rounded-xl';
+  const baseClasses = 'bg-card p-2 rounded-xl';
   const hoverClasses = hover ? 'hover:shadow-md transition-shadow cursor-pointer' : '';
   const clickableClasses = onClick ? 'cursor-pointer' : '';
   
   const classes = `${baseClasses} ${hoverClasses} ${clickableClasses} ${className}`;
   
   return (
-    <>
+    <div className="w-full flex flex-col">
     {label && (
-        <Label hintText={hintText} hintTooltip={hintTooltip}>
+        <Label hintText={hintText} hintTooltip={hintTooltip} hintOnClick={hintOnClick}>
           {label}
         </Label>
       )}
     <div className={classes} onClick={onClick}>
-      <div className="px-2">
         {children}
-      </div>
     </div>
-    </>
+    </div>
   );
 };
