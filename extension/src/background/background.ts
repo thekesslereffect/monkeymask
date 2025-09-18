@@ -63,7 +63,7 @@ class BackgroundService {
       this.connectedTabs.delete(tabId);
     });
 
-    // Auto-lock wallet after 30 minutes of inactivity
+    // Auto-lock wallet after configured timeout (default 15 minutes)
     this.setupAutoLock();
   }
 
@@ -361,6 +361,12 @@ class BackgroundService {
       const isUnlocked = this.walletManager.isWalletUnlocked();
       console.log('Background: Wallet unlocked after creation:', isUnlocked);
       
+      // Start auto-lock timer after successful wallet creation
+      if (isUnlocked && this.resetLockTimer) {
+        console.log('Background: Starting auto-lock timer after wallet creation');
+        await this.resetLockTimer();
+      }
+      
       sendResponse({
         success: true,
         data: {
@@ -386,6 +392,16 @@ class BackgroundService {
       const accounts = await this.walletManager.createWalletFromSeed(request.seed);
       await this.walletManager.saveWallet(accounts, request.password);
       
+      // Verify wallet state after import
+      const isUnlocked = this.walletManager.isWalletUnlocked();
+      console.log('Background: Wallet unlocked after import:', isUnlocked);
+      
+      // Start auto-lock timer after successful wallet import
+      if (isUnlocked && this.resetLockTimer) {
+        console.log('Background: Starting auto-lock timer after wallet import');
+        await this.resetLockTimer();
+      }
+      
       sendResponse({
         success: true,
         data: {
@@ -407,6 +423,16 @@ class BackgroundService {
   private async handleUnlockWallet(request: { password: string }, sendResponse: (response: any) => void): Promise<void> {
     try {
       const accounts = await this.walletManager.unlockWallet(request.password);
+      
+      // Verify wallet state after unlock
+      const isUnlocked = this.walletManager.isWalletUnlocked();
+      console.log('Background: Wallet unlocked after unlock:', isUnlocked);
+      
+      // Start auto-lock timer after successful wallet unlock
+      if (isUnlocked && this.resetLockTimer) {
+        console.log('Background: Starting auto-lock timer after wallet unlock');
+        await this.resetLockTimer();
+      }
       
       sendResponse({
         success: true,

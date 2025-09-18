@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RouterProvider, useRouter, useNavigation } from './hooks/useRouter';
+import { AccountsProvider, useAccounts } from './hooks/useAccounts';
 import { Router } from './components/Router';
 import './styles.css';
 
@@ -26,11 +27,13 @@ interface TransactionResult {
   };
 }
 
-// Main App wrapper with router provider
+// Main App wrapper with router and accounts providers
 export const App: React.FC = () => {
   return (
     <RouterProvider initialRoute="welcome">
-      <AppContent />
+      <AccountsProvider>
+        <AppContent />
+      </AccountsProvider>
     </RouterProvider>
   );
 };
@@ -39,6 +42,7 @@ export const App: React.FC = () => {
 const AppContent: React.FC = () => {
   const router = useRouter();
   const navigation = useNavigation();
+  const { reloadAccounts } = useAccounts();
   
   const [walletState, setWalletState] = useState<WalletState>({
     isInitialized: false,
@@ -157,21 +161,28 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleWalletCreated = () => {
+  const handleWalletCreated = async () => {
     console.log('App: Wallet created, setting state and going to dashboard');
     setWalletState(prev => ({ ...prev, isInitialized: true, isUnlocked: true }));
+    // Reload accounts to ensure they're available when dashboard loads
+    await reloadAccounts();
     navigation.goToDashboard();
   };
 
-  const handleWalletImported = () => {
+  const handleWalletImported = async () => {
     console.log('App: Wallet imported, setting state and going to dashboard');
     setWalletState(prev => ({ ...prev, isInitialized: true, isUnlocked: true }));
+    // Reload accounts to ensure they're available when dashboard loads
+    await reloadAccounts();
     navigation.goToDashboard();
   };
 
-  const handleWalletUnlocked = () => {
+  const handleWalletUnlocked = async () => {
     console.log('App: Wallet unlocked');
     setWalletState(prev => ({ ...prev, isUnlocked: true }));
+    
+    // Reload accounts to ensure they're fresh when dashboard loads
+    await reloadAccounts();
     
     // If we have a pending request, go to approval screen, otherwise go to dashboard
     if (pendingRequest) {

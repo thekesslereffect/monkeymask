@@ -86,7 +86,7 @@ export const SettingsScreen: React.FC = () => {
         </div>
 
         {/* Content */}
-        <ContentContainer className="justify-start p-6">
+        <ContentContainer>
           {/* Auto-Lock Settings */}
           <div className="mb-8">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center">

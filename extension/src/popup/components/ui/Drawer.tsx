@@ -1,14 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { useNavigation } from '../../hooks/useRouter';
-
-interface Account {
-  address: string;
-  name: string;
-  balance: string;
-  pending?: string;
-  bnsNames?: string[];
-}
+import { useAccounts } from '../../hooks/useAccounts';
+import { formatBalance } from '../../../utils/format';
 
 interface DrawerProps {
   className?: string;
@@ -18,29 +12,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   className = ''
 }) => {
   const navigation = useNavigation();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadAccounts();
-  }, []);
-
-  const loadAccounts = async () => {
-    try {
-      console.log('Loading accounts...');
-      const response = await chrome.runtime.sendMessage({ type: 'GET_ACCOUNTS' });
-      console.log('GET_ACCOUNTS response:', response);
-      
-      if (response.success) {
-        setAccounts(response.data);
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Error loading accounts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { accounts, loading } = useAccounts();
 
   const copyAddress = async (address: string) => {
     try {
@@ -54,13 +26,6 @@ export const Drawer: React.FC<DrawerProps> = ({
     return `${ban ? 'ban_' : ''}${address.slice(4, 8)}...${address.slice(-4)}`;
   };
 
-  const formatBalance = (balance: string): string => {
-    const num = parseFloat(balance);
-    if (isNaN(num)) return '0';
-    if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
-    if (num >= 100000) return (num / 100000).toFixed(2) + 'K';
-    return num.toFixed(4).replace(/\.?0+$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  };
 
   const handleConnectedSites = () => {
     // Close drawer first, then navigate after animation

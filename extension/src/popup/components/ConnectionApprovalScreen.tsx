@@ -65,7 +65,7 @@ export const ConnectionApprovalScreen: React.FC<ConnectionApprovalScreenProps> =
         </div>
 
         {/* Content */}
-        <ContentContainer className="justify-start p-6">
+        <ContentContainer>
           {/* Site Info */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="flex items-center mb-3">

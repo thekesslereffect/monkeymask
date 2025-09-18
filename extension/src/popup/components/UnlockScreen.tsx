@@ -52,14 +52,11 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked, sh
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <Header 
-        title="MonKeyMask" 
-        rightElement={<div className="w-5"></div>}
-      />
+      <Header />
       
 
       {/* Main Content */}
-      <ContentContainer className="!justify-start">
+      <ContentContainer>
         {/* Monkey Emoji */}
         <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
           <picture>
@@ -121,7 +118,7 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked, sh
           )}
         </form>
       </ContentContainer>
-      <Footer />
+      <Footer showTabs={false} />
     </div>
   );
 };

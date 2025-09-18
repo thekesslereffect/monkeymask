@@ -88,7 +88,7 @@ export const ConnectedSitesScreen: React.FC = () => {
         </div>
 
         {/* Content */}
-        <ContentContainer className="justify-start p-6">
+        <ContentContainer>
           {connectedSites.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-6xl mb-4">🌐</div>

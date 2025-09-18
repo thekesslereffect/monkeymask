@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { bnsResolver } from '../../utils/bns';
-import { ContentContainer, Header } from './ui';
+import { ContentContainer, Header, Input, Button, Alert, Footer } from './ui';
 import { Icon } from '@iconify/react';
+import { formatBalance } from '../../utils/format';
+import { PageName } from './ui/PageName';
+import { useAccounts } from '../hooks/useAccounts';
 
 interface Account {
   address: string;
@@ -11,18 +14,12 @@ interface Account {
 
 interface SendScreenProps {
   account: Account;
-  onBack: () => void;
   onSendComplete: (result: { success: boolean; hash?: string; error?: string; block?: any }) => void;
 }
 
-// Format balance to show up to 4 decimal places, removing trailing zeros
-const formatBalance = (balance: string): string => {
-  const num = parseFloat(balance);
-  if (isNaN(num)) return '0';
-  return num.toFixed(4).replace(/\.?0+$/, '');
-};
 
-export const SendScreen: React.FC<SendScreenProps> = ({ account, onBack, onSendComplete }) => {
+export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete }) => {
+  const { getUsdBalance, priceLoading } = useAccounts();
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -136,116 +133,95 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onBack, onSendC
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-background text-foreground">
       {/* Header */}
-      <Header
-        title="Send BAN"
-        leftElement={
-          <button onClick={onBack} className="text-text-primary hover:text-primary transition-colors">
-            <Icon icon="lucide:arrow-left" className="text-2xl" />
-          </button>
-        }
-      />
+      <Header active={true}/>
 
       {/* Content */}
-      <ContentContainer className="justify-start">
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">From Account</h3>
-          <div className="bg-gray-50 p-4 rounded-lg border">
-            <div className="font-medium">{account.name}</div>
-            <div className="text-sm text-gray-600 font-mono">{account.address}</div>
-            <div className="text-lg font-semibold text-banano-600 mt-2">
-              {formatBalance(account.balance)} BAN
-            </div>
+      <ContentContainer>
+        <PageName name="Send" back />
+        {/* Balance */}
+        <div className="flex flex-col items-center gap-2 h-full min-h-36 justify-center">
+          <div className="text-5xl text-primary">
+            {formatBalance(account.balance)}
+          </div>
+          <div className="text-xl text-tertiary">
+            {priceLoading ? (
+              <span className="animate-pulse">Loading price...</span>
+            ) : (
+              `$${getUsdBalance(account.balance)}`
+            )}
           </div>
         </div>
 
-        <form onSubmit={handleSend} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              To Address
-            </label>
-            <input
-              type="text"
-              value={toAddress}
-              onChange={(e) => handleAddressChange(e.target.value)}
-              className="input font-mono text-sm"
-              placeholder="ban_1... or username.ban"
-              required
-            />
-            
-            {/* BNS Resolution Status */}
-            {isResolving && (
-              <div className="text-blue-600 text-xs mt-1 flex items-center">
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
-                Resolving BNS name...
-              </div>
-            )}
-            
-            {resolvedAddress && (
-              <div className="text-green-600 text-xs mt-1 bg-green-50 p-2 rounded">
-                <div className="font-medium">✅ Resolved to:</div>
-                <div className="font-mono text-xs break-all">{resolvedAddress}</div>
-              </div>
-            )}
-            
-            {/* Supported TLDs hint */}
-            <div className="text-xs text-gray-500 mt-1">
-              Supported BNS TLDs: {bnsResolver.getSupportedTLDs().join(', ')}
+        <form onSubmit={handleSend} className="w-full space-y-5">
+          {/* To */}
+          <Input
+            label="To"
+            variant="secondary"
+            size="lg"
+            value={toAddress}
+            onChange={(e) => handleAddressChange(e.target.value)}
+            placeholder="ban_1... or username.ban"
+            required
+            className="font-mono text-sm text-center"
+          />
+
+          {/* BNS Resolution Status */}
+          {isResolving && (
+            <div className="text-primary text-xs mt-1 flex items-center">
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2"></div>
+              Resolving BNS name...
             </div>
+          )}
+
+          {resolvedAddress && (
+            <div className="text-green-600 text-xs mt-1 bg-green-500/10 p-2 rounded-xl">
+              <div className="font-medium">Resolved to:</div>
+              <div className="font-mono text-xs break-all">{resolvedAddress}</div>
+            </div>
+          )}
+
+          <div className="text-xs text-tertiary -mt-3">
+            Supported BNS TLDs: {bnsResolver.getSupportedTLDs().join(', ')}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Amount (BAN)
-            </label>
-            <input
+          {/* Amount */}
+          <div className="w-full">
+            <Input
+              label="Amount"
+              variant="secondary"
+              size="lg"
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="input"
-              placeholder="0.01"
-              step="0.000001"
-              min="0"
+              placeholder="69.00"
+              step="0.0001"
+              min="0.0001"
               max={account.balance}
               required
+              className="text-center no-spinner"
             />
-            <div className="text-xs text-gray-500 mt-1">
-              Available: {formatBalance(account.balance)} BAN
-            </div>
           </div>
 
           {error && (
-            <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+            <Alert variant="destructive">
               {error}
-            </div>
+            </Alert>
           )}
 
           {success && (
-            <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">
+            <Alert>
               {success}
-            </div>
+            </Alert>
           )}
 
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onBack}
-              className="btn-secondary flex-1"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn-primary flex-1"
-              disabled={loading}
-            >
-              {loading ? 'Sending...' : 'Send BAN'}
-            </button>
-          </div>
+          <Button type="submit" variant="primary" size="lg" disabled={loading}>
+            {loading ? 'Sending…' : 'Send'}
+          </Button>
         </form>
       </ContentContainer>
+      <Footer />
     </div>
   );
 };

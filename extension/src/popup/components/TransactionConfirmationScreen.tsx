@@ -1,5 +1,6 @@
 import React from 'react';
 import { ContentContainer } from './ui';
+import { formatBalance } from '../../utils/format';
 
 interface TransactionResult {
   success: boolean;
@@ -18,12 +19,6 @@ interface TransactionConfirmationScreenProps {
   onClose: () => void;
 }
 
-// Format balance to show up to 4 decimal places, removing trailing zeros
-const formatBalance = (balance: string): string => {
-  const num = parseFloat(balance);
-  if (isNaN(num)) return '0';
-  return num.toFixed(4).replace(/\.?0+$/, '');
-};
 
 // Format address for display
 const formatAddress = (address: string): string => {
@@ -81,7 +76,7 @@ export const TransactionConfirmationScreen: React.FC<TransactionConfirmationScre
       </div>
 
       {/* Content */}
-      <ContentContainer className="justify-start overflow-y-auto">
+      <ContentContainer>
         {result.success ? (
           <div className="space-y-4">
             {/* Success Message */}

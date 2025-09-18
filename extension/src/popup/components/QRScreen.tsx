@@ -3,6 +3,7 @@ import { Icon } from '@iconify/react';
 import QRCode from 'qrcode';
 import { Header, Card, Button, ContentContainer, Footer } from './ui';
 import { useNavigation } from '../hooks/useRouter';
+import { PageName } from './ui/PageName';
 
 interface Account {
   address: string;
@@ -64,18 +65,11 @@ export const QRScreen: React.FC<QRScreenProps> = ({ account }) => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background text-foreground">
-      <Header 
-        title="Receive"
-        leftElement={
-          <button onClick={() => navigation.goBack()} className="text-text-primary hover:text-primary transition-colors">
-            <Icon icon="lucide:arrow-left" className="text-2xl" />
-          </button>
-          }
-        rightElement={<div className="w-5"></div>}
-      />
+    <div className="h-full flex flex-col bg-background text-foreground">
+      <Header active={true}/>
       
-      <ContentContainer className="justify-start overflow-y-auto">
+      <ContentContainer>
+        <PageName name="Receive" back />
               {/* QR Code Display */}
                 <Card className="justify-center items-center aspect-square">
                   <div className="flex flex-col items-center justify-center w-full">

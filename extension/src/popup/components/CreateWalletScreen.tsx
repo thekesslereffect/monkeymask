@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Header, Input, Button, Alert, Footer, ContentContainer, Card } from './ui';
 import { Icon } from '@iconify/react';
+import { PageName } from './ui/PageName';
 
 interface CreateWalletScreenProps {
   onWalletCreated: () => void;
@@ -84,18 +85,10 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
     return (
       <div className="h-full flex flex-col bg-background">
         {/* Header */}
-        <Header 
-          title="MonKeyMask"
-          leftElement={
-            <button onClick={onBack} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="lucide:arrow-left" className="text-2xl" />
-            </button>
-          }
-          rightElement={<div className="w-5"></div>}
-        />
+        <Header />
 
         {/* Main Content */}
-        <ContentContainer className="!justify-start">
+        <ContentContainer>
           {/* Monkey Emoji */}
           <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
             <picture>
@@ -158,7 +151,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </Button>
           </form>
         </ContentContainer>
-        <Footer />
+        <Footer showTabs={false} />
       </div>
     );
   }
@@ -167,18 +160,10 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
     return (
       <div className="h-full flex flex-col bg-background">
         {/* Header */}
-        <Header 
-          title="MonKeyMask"
-          leftElement={
-            <button onClick={() => setStep('password')} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="lucide:arrow-left" className="text-2xl" />
-            </button>
-          }
-          rightElement={<div className="w-5"></div>}
-        />
+        <Header />
 
         {/* Main Content */}
-        <ContentContainer className="!justify-start">
+        <ContentContainer>
           {/* Monkey Emoji */}
           <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
             <picture>
@@ -230,7 +215,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </Button>
           </div>
         </ContentContainer>
-        <Footer />
+        <Footer showTabs={false} />
       </div>
     );
   }
@@ -239,18 +224,11 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
     return (
       <div className="h-full flex flex-col bg-background">
         {/* Header */}
-        <Header 
-          title="MonKeyMask"
-          leftElement={
-            <button onClick={() => setStep('seed')} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="lucide:arrow-left" className="text-2xl" />
-            </button>
-          }
-          rightElement={<div className="w-5"></div>}
-        />  
+        <Header/>  
 
         {/* Main Content */}
-        <ContentContainer className="!justify-start">
+        <ContentContainer>
+          <PageName name="Create Wallet" back />
           {/* Monkey Emoji */}
           <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
             <picture>
@@ -296,7 +274,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </Button>
           </form>
         </ContentContainer>
-        <Footer />
+        <Footer showTabs={false} />
       </div>
     );
   }

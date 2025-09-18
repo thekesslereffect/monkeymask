@@ -1,145 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { bnsResolver } from '../../utils/bns';
-import { Header, Card, Button, IconButton, ContentContainer, Footer, Separator, Drawer } from './ui';
+import React from 'react';
+import { Header, Card, Button, ContentContainer, Footer, Separator } from './ui';
 import { Icon } from '@iconify/react';
+import { useNavigation } from '../hooks/useRouter';
+import { useAccounts } from '../hooks/useAccounts';
+import { formatBalance } from '../../utils/format';
 
-interface Account {
-  address: string;
-  name: string;
-  balance: string;
-  pending?: string;
-  bnsNames?: string[];
-}
-
-interface DashboardScreenProps {
-  onSendRequest: (account: Account) => void;
-  onQRRequest?: (account: Account) => void;
-}
-
-// Format balance to show up to 4 decimal places, removing trailing zeros
-// if balance is greater than 100,000 add K, if greater than 1,000,000 add M, if greater than 1,000,000,000 add B
-// add commas to the balance
-const formatBalance = (balance: string): string => {
-  const num = parseFloat(balance);
-  if (isNaN(num)) return '0';
-  if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
-  if (num >= 100000) return (num / 100000).toFixed(2) + 'K';
-  return num.toFixed(4).replace(/\.?0+$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-};
-
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest, onQRRequest }) => {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const [resolvingBNS, setResolvingBNS] = useState(false);
-
-  useEffect(() => {
-    loadAccounts();
-  }, []);
-
-  // Resolve BNS names for all accounts
-  const resolveBNSNames = async (accountsToResolve: Account[]) => {
-    setResolvingBNS(true);
-    try {
-      const updatedAccounts = await Promise.all(
-        accountsToResolve.map(async (account) => {
-          try {
-            const bnsNames = await bnsResolver.reverseResolve(account.address);
-            return { ...account, bnsNames };
-          } catch (error) {
-            console.log('Failed to resolve BNS for', account.address, ':', error);
-            return { ...account, bnsNames: [] };
-          }
-        })
-      );
-      
-      // Only update accounts if we have valid data and preserve existing balance information
-      setAccounts(prevAccounts => {
-        // Merge BNS names with existing account data to preserve balances
-        return prevAccounts.map(prevAccount => {
-          const updatedAccount = updatedAccounts.find(acc => acc.address === prevAccount.address);
-          if (updatedAccount) {
-            // Preserve the existing balance and pending data, only update BNS names
-            return {
-              ...prevAccount,
-              bnsNames: updatedAccount.bnsNames
-            };
-          }
-          return prevAccount;
-        });
-      });
-    } catch (error) {
-      console.error('Failed to resolve BNS names:', error);
-    } finally {
-      setResolvingBNS(false);
-    }
-  };
-
-  const loadAccounts = async () => {
-    try {
-      console.log('Loading accounts...');
-      const response = await chrome.runtime.sendMessage({ type: 'GET_ACCOUNTS' });
-      console.log('GET_ACCOUNTS response:', response);
-      
-      if (response.success) {
-        setAccounts(response.data);
-        setLoading(false); // Set loading to false here first
-        
-        // Try to resolve BNS names in the background (non-blocking)
-        setTimeout(() => {
-          resolveBNSNames(response.data);
-        }, 100);
-        
-        // Try to refresh balances, but don't block the UI if it fails
-        try {
-          console.log('Refreshing balances...');
-          await refreshBalances();
-        } catch (balanceError) {
-          console.warn('Failed to refresh balances, but showing accounts anyway:', balanceError);
-        }
-      } else {
-        setError(response.error || 'Failed to load accounts');
-      }
-    } catch (error) {
-      console.error('Error loading accounts:', error);
-      setError('Failed to load accounts');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refreshBalances = async () => {
-    setRefreshing(true);
-    try {
-      console.log('Dashboard: Requesting balance update...');
-      
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Balance refresh timeout')), 15000);
-      });
-      
-      const response = await Promise.race([
-        chrome.runtime.sendMessage({ type: 'UPDATE_BALANCES' }),
-        timeoutPromise
-      ]) as any;
-
-      
-      console.log('Dashboard: Balance update response:', response);
-      
-      if (response.success) {
-        setAccounts(response.data);
-        console.log('Dashboard: Balances updated successfully');
-      } else {
-        console.warn('Dashboard: Balance update failed:', response.error);
-      }
-    } catch (error) {
-      console.error('Dashboard: Failed to refresh balances:', error);
-      // Don't show error to user, just log it
-    } finally {
-      setRefreshing(false);
-    }
-  };
+export const DashboardScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const { accounts, loading, getUsdBalance, priceLoading } = useAccounts();
+  
 
   const handleViewOnCreeper = (hash: string) => {
     window.open(`https://creeper.banano.cc/hash/${hash}`, '_blank');
@@ -153,40 +22,34 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,
     );
   }
 
+  // Check if accounts exist and have data
+  if (!accounts || accounts.length === 0) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-text-secondary">No accounts found</div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col font-semibold">
       {/* Header */}
-      <Header 
-        title=""
-        leftElement={<Drawer />}
-        rightElement={
-          <div className="">
-            <IconButton
-              onClick={refreshBalances}
-              disabled={refreshing}
-              icon={
-                <span className={`text-2xl ${refreshing ? 'animate-spin' : ''}`}>
-                  <Icon icon="lucide:refresh-cw" />
-                </span>
-              }
-              title="Refresh balances"
-            />
-          </div>
-        }
-      />
+      <Header active={true}/>
 
-    <ContentContainer className="!justify-start !overflow-y-auto">
+    <ContentContainer>
 
       {/* Balance */}
         <div className="flex flex-col items-center gap-2 h-full min-h-36 justify-center">
           <div className="text-5xl text-primary">
-            {formatBalance(accounts[0].balance)}
+            {formatBalance(accounts[0]?.balance || '0')}
             {/* {formatBalance("19420.69")} */}
           </div>
           <div className="text-xl text-tertiary">
-            {/* convert balance to fiat selection */}
-            {/* implement fiat conversion */}
-            ${formatBalance("1919.19")}
+            {priceLoading ? (
+              <span className="animate-pulse">Loading price...</span>
+            ) : (
+              `$${getUsdBalance(accounts[0]?.balance || '0')}`
+            )}
           </div>
         </div>
 
@@ -198,7 +61,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,
                 variant="secondary"
                 size="lg"
                 className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
-                onClick={() => onQRRequest && accounts.length > 0 && onQRRequest(accounts[0])}
+                onClick={() => accounts.length > 0 && navigation.goToQR(accounts[0])}
                 disabled={accounts.length === 0}
               >
                 <Icon icon="lucide:qr-code" className="text-2xl mb-1" />
@@ -209,7 +72,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,
               variant="secondary"
               size="lg"
               className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
-              onClick={() => accounts.length > 0 && onSendRequest(accounts[0])}
+              onClick={() => accounts.length > 0 && navigation.goToSend(accounts[0])}
               disabled={accounts.length === 0}
             >
               <Icon icon="lucide:send" className="text-2xl mb-1" />
@@ -243,7 +106,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,
 
           {/* History */}
           <Card label="History" hintText="See More" hintOnClick={() => console.log('See More')} className="w-full">
-           
               {/* list of transactions. use mock data array for now */}
               {[...Array(10)].map((_, i) => (
                 <>
@@ -266,27 +128,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSendRequest,
                 )}
                 </>
               ))}
-              
-          
           </Card>
-      
       </ContentContainer>
-      <Footer element={
-          <div className="flex items-center w-full h-full justify-between">
-            <button onClick={() => console.log('Home')} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="lucide:home" className="text-2xl" />
-            </button>
-            <button onClick={() => console.log('NFTs')} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="lucide:layout-grid" className="text-2xl" />
-            </button>
-            <button onClick={() => console.log('History')} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="lucide:clock" className="text-2xl" />
-            </button>
-            <button onClick={() => console.log('Explore')} className="text-text-primary hover:text-primary transition-colors">
-              <Icon icon="lucide:compass" className="text-2xl" />
-            </button>
-          </div>
-        }/>
+      <Footer />
     </div>
   );
 };

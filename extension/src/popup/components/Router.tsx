@@ -79,10 +79,7 @@ export const Router: React.FC<RouterProps> = ({
     ),
     
     dashboard: () => (
-      <DashboardScreen 
-        onSendRequest={(account) => navigation.goToSend(account)}
-        onQRRequest={(account) => navigation.goToQR(account)}
-      />
+      <DashboardScreen />
     ),
     
     send: () => {
@@ -93,7 +90,6 @@ export const Router: React.FC<RouterProps> = ({
       return (
         <SendScreen
           account={params.account}
-          onBack={() => navigation.goBack()}
           onSendComplete={onSendComplete}
         />
       );
