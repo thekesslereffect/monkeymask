@@ -17,7 +17,12 @@ import { AccountInfo } from '@/types/monkeymask';
  * }
  * ```
  */
-export function WalletInfo() {
+interface WalletInfoProps {
+  className?: string;
+  variant?: 'card' | 'plain';
+}
+
+export function WalletInfo({ className = '', variant = 'card' }: WalletInfoProps) {
   const { isConnected, publicKey, accounts, getAccountInfo } = useMonkeyMask();
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,16 +50,24 @@ export function WalletInfo() {
     }
   }, [isConnected, fetchAccountData]);
 
+  const Container: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    variant === 'card' ? (
+      <div className={`card p-5 ${className}`}>{children}</div>
+    ) : (
+      <div className={className}>{children}</div>
+    )
+  );
+
   if (!isConnected) {
     return (
-      <div className="card p-4">
+      <Container>
         <p className="muted">Connect your wallet to see account information.</p>
-      </div>
+      </Container>
     );
   }
 
   return (
-    <div className="card p-5">
+    <Container>
       <h3 className="mb-4">
         Wallet Information
       </h3>
@@ -140,6 +153,6 @@ export function WalletInfo() {
           </div>
         )}
       </div>
-    </div>
+    </Container>
   );
 }

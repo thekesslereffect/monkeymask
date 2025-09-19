@@ -16,7 +16,12 @@ import { useMonkeyMask } from '@/providers';
  * }
  * ```
  */
-export function SendTransaction() {
+interface SendTransactionProps {
+  className?: string;
+  variant?: 'card' | 'plain';
+}
+
+export function SendTransaction({ className = '', variant = 'card' }: SendTransactionProps) {
   const { isConnected, sendTransaction, error: providerError, clearError } = useMonkeyMask();
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
@@ -76,16 +81,24 @@ export function SendTransaction() {
     }
   };
 
+  const Container: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    variant === 'card' ? (
+      <div className={`card p-5 ${className}`}>{children}</div>
+    ) : (
+      <div className={className}>{children}</div>
+    )
+  );
+
   if (!isConnected) {
     return (
-      <div className="card p-4">
+      <Container>
         <p className="muted">Connect your wallet to send transactions.</p>
-      </div>
+      </Container>
     );
   }
 
   return (
-    <div className="card p-5">
+    <Container>
       <h3 className="mb-4">
         Send Transaction
       </h3>
@@ -155,6 +168,6 @@ export function SendTransaction() {
           </p>
         </div>
       )}
-    </div>
+    </Container>
   );
 }

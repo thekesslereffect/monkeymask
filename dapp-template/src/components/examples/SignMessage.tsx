@@ -16,7 +16,12 @@ import { useMonkeyMask } from '@/providers';
  * }
  * ```
  */
-export function SignMessage() {
+interface SignMessageProps {
+  className?: string;
+  variant?: 'card' | 'plain';
+}
+
+export function SignMessage({ className = '', variant = 'card' }: SignMessageProps) {
   const { isConnected, publicKey, signMessage, verifySignedMessage } = useMonkeyMask();
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -88,16 +93,24 @@ export function SignMessage() {
     setMessage('');
   };
 
+  const Container: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    variant === 'card' ? (
+      <div className={`card p-5 ${className}`}>{children}</div>
+    ) : (
+      <div className={className}>{children}</div>
+    )
+  );
+
   if (!isConnected) {
     return (
-      <div className="card p-4">
+      <Container>
         <p className="muted">Connect your wallet to sign messages.</p>
-      </div>
+      </Container>
     );
   }
 
   return (
-    <div className="card p-5">
+    <Container>
       <h3 className="mb-4">
         Sign Message
       </h3>
@@ -188,6 +201,6 @@ export function SignMessage() {
           </div>
         </div>
       )}
-    </div>
+    </Container>
   );
 }

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MonkeyMask dApp Template",
-  description: "A modern dApp template for MonkeyMask wallet integration",
+  title: "MonkeyMask • Banano dApp Template",
+  description: "A clean, modern template for MonkeyMask wallet integration with live demos.",
 };
 
 export default function RootLayout({
