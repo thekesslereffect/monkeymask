@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Figtree, Sniglet, Nunito } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/providers";
 
@@ -13,9 +13,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const figtree = Figtree({
+  variable: "--font-figtree",
+  subsets: ["latin"],
+});
+
+const sniglet = Sniglet({
+  weight: ["400", "800"],
+  variable: "--font-sniglet",
+  subsets: ["latin"],
+});
+
+const nunito = Nunito({
+  variable: "--font-nunito",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "MonkeyMask • Banano dApp Template",
-  description: "A clean, modern template for MonkeyMask wallet integration with live demos.",
+  title: "Coffee – A tiny time tracker for your next big project",
+  description: "Hassle-free time tracking for freelancers. Useful insights, CSV export, daily limits, notifications, and a menubar extension.",
 };
 
 export default function RootLayout({
@@ -26,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} ${sniglet.variable} ${nunito.variable} font-figtree font-semibold antialiased`}
       >
         <Providers>
           {children}

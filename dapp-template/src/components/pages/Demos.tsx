@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useMonkeyMask } from '@/providers';
 import { WalletInfo } from '@/components/examples/WalletInfo';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Textarea, Alert } from '@/components/ui';
-import { ConnectButton } from './ConnectButton';
+import { ConnectButton } from '../ConnectButton';
 
 export function Demos() {
   const { isConnected, publicKey, connect, sendTransaction, signMessage, verifySignedMessage, resolveBNS } = useMonkeyMask();

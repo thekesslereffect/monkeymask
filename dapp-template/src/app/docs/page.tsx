@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Separator, Badge, Alert } from '@/components/ui';
-import { Header } from '@/components/ui/Header';
+import { Header } from '@/components/pages/Header';
 
 export default function DocsPage() {
   return (

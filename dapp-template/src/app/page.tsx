@@ -1,17 +1,15 @@
 'use client';
 
 import React from 'react';
-import { Header } from '@/components/ui/Header';
+import { Header } from '@/components/pages/Header';
 import { Hero } from '@/components/pages/Hero';
-import { Footer } from '@/components/ui/Footer';
-import { Demos } from '@/components/Demos';
+import { Footer } from '@/components/pages/Footer';
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white">
       <Header />
       <Hero />
-      <Demos />
       <Footer />
     </div>
   );
