@@ -40,6 +40,7 @@ export const App: React.FC = () => {
 
 // App content that uses the router
 const AppContent: React.FC = () => {
+  console.log('🚀 AppContent component loaded');
   const router = useRouter();
   const navigation = useNavigation();
   const { reloadAccounts } = useAccounts();
@@ -58,9 +59,17 @@ const AppContent: React.FC = () => {
     const initializeApp = async () => {
       console.log('App: Starting app initialization...');
       try {
-        // Check for pending requests once, then check wallet state
+        // Check for pending requests first
+        console.log('App: Step 1 - Checking for pending requests...');
         await checkPendingRequests();
+        
+        // Wait a moment for state to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Then check wallet state (but respect any pending request that was found)
+        console.log('App: Step 2 - Checking wallet state...');
         await checkWalletState();
+        
         console.log('App: App initialization complete');
       } catch (error) {
         console.error('App: Error during initialization:', error);
@@ -72,12 +81,11 @@ const AppContent: React.FC = () => {
     
     // Check for pending requests when the popup becomes visible
     const handleVisibilityChange = () => {
-      // Don't check for requests if we're already handling one or on unlock screen
-      const isHandlingRequest = router.currentRoute === 'approval' || 
-                               router.currentRoute === 'unlock' || 
-                               pendingRequest !== null;
+      console.log('App: Visibility changed, document.hidden:', document.hidden);
+      console.log('App: Current route:', router.currentRoute);
+      console.log('App: Pending request state:', !!pendingRequest);
       
-      if (!document.hidden && !isHandlingRequest) {
+      if (!document.hidden) {
         console.log('App: Popup became visible, checking for pending requests...');
         checkPendingRequests();
       }
@@ -85,12 +93,28 @@ const AppContent: React.FC = () => {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
+    // Also check when window gains focus (for popup opening)
+    const handleFocus = () => {
+      console.log('App: Window gained focus, checking for pending requests...');
+      checkPendingRequests();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    // Check immediately after a short delay (popup might be opening)
+    const delayedCheck = setTimeout(() => {
+      console.log('App: Delayed check for pending requests...');
+      checkPendingRequests();
+    }, 500);
+    
     // Disable all polling - only check on initialization and visibility changes
     // This prevents the continuous GET_PENDING_APPROVAL calls that interfere with password input
     console.log('App: Polling disabled to prevent interference with unlock screen');
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      clearTimeout(delayedCheck);
     };
   }, []);
 
@@ -102,24 +126,31 @@ const AppContent: React.FC = () => {
   const checkPendingRequests = async () => {
     try {
       console.log('App: Checking for pending requests...');
+      console.log('App: Current route before check:', router.currentRoute);
+      console.log('App: Current pending request state:', pendingRequest);
+      
       const response = await chrome.runtime.sendMessage({ type: 'GET_PENDING_APPROVAL' });
       console.log('App: Pending approval response:', response);
       
       if (response.success && response.data) {
         console.log('App: Found pending request:', response.data);
+        console.log('App: Request type:', response.data.type);
+        console.log('App: Request origin:', response.data.origin);
         
         // Only update state and navigate if we don't already have this request
         if (!pendingRequest || pendingRequest.id !== response.data.id) {
+          console.log('App: Setting pending request and navigating to approval');
           setPendingRequest(response.data);
           router.push('approval', { pendingRequest: response.data });
-          console.log('App: Switched to approval screen');
+          console.log('App: Navigation command sent - route should change to approval');
         } else {
           console.log('App: Already handling this pending request, skipping navigation');
         }
       } else {
-        console.log('App: No pending requests found');
+        console.log('App: No pending requests found - response data:', response.data);
         // Clear pending request if none found
         if (pendingRequest) {
+          console.log('App: Clearing existing pending request');
           setPendingRequest(null);
         }
       }
@@ -139,7 +170,8 @@ const AppContent: React.FC = () => {
         setWalletState(response.data);
         
         // Only set the route if we don't have a pending approval request
-        if (router.currentRoute !== 'approval') {
+        const hasApprovalRequest = router.currentRoute === 'approval' || pendingRequest !== null;
+        if (!hasApprovalRequest) {
           if (response.data.isUnlocked) {
             console.log('App: Wallet is unlocked, going to dashboard');
             router.replace('dashboard');
@@ -151,7 +183,7 @@ const AppContent: React.FC = () => {
             router.replace('welcome');
           }
         } else {
-          console.log('App: Keeping approval screen active, not overriding');
+          console.log('App: Keeping approval screen active, not overriding. Current route:', router.currentRoute, 'Pending request:', !!pendingRequest);
         }
       }
     } catch (error) {

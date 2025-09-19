@@ -1096,13 +1096,21 @@ class BackgroundService {
         console.log('Background: dApp transaction request - requiring approval from:', origin, 'wallet locked:', walletIsLocked);
         
         // Check for existing pending transaction requests from the same origin
-        const existingTxRequest = Array.from(this.pendingApprovals.values())
-          .find(req => req.origin === origin && req.type === 'sendTransaction');
+        const existingTxRequests = Array.from(this.pendingApprovals.values())
+          .filter(req => req.origin === origin && req.type === 'sendTransaction');
         
-        if (existingTxRequest) {
-          console.log('Background: Found existing transaction request from same origin:', existingTxRequest.id);
+        // Only prevent if there are too many pending requests (more than 1 for transactions)
+        if (existingTxRequests.length >= 1) {
+          console.log('Background: Found existing transaction request from same origin:', existingTxRequests.map(r => r.id));
+          // Still open popup to show existing request
+          try {
+            await chrome.action.openPopup();
+          } catch (error) {
+            console.log('Popup might already be open');
+          }
+          
           sendResponse(this.createStandardError(
-            'A transaction request from this origin is already pending',
+            'A transaction request is already pending. Please complete or reject it first.',
             PROVIDER_ERRORS.USER_REJECTED.code
           ));
           return;
@@ -1446,15 +1454,22 @@ class BackgroundService {
       const walletIsLocked = !this.walletManager.isWalletUnlocked();
       console.log('Background: Sign message request, wallet locked:', walletIsLocked);
       
-      // Check for existing pending requests from the same origin
-      const existingRequest = Array.from(this.pendingApprovals.values())
-        .find(req => req.origin === request.origin && req.type === 'signMessage');
+      // Check for existing pending requests from the same origin (but allow different messages)
+      const existingRequests = Array.from(this.pendingApprovals.values())
+        .filter(req => req.origin === request.origin && req.type === 'signMessage');
       
-      if (existingRequest) {
-        console.log('Background: Found existing sign message request from same origin:', existingRequest.id);
-        // Return the existing request ID to prevent duplicates
+      // Only prevent if there are too many pending requests (more than 2)
+      if (existingRequests.length >= 2) {
+        console.log('Background: Too many pending sign message requests from same origin:', existingRequests.map(r => r.id));
+        // Still open popup to show existing requests
+        try {
+          await chrome.action.openPopup();
+        } catch (error) {
+          console.log('Popup might already be open');
+        }
+        
         sendResponse(this.createStandardError(
-          'A signing request from this origin is already pending',
+          'Too many pending signing requests. Please complete or reject existing requests first.',
           PROVIDER_ERRORS.USER_REJECTED.code
         ));
         return;
