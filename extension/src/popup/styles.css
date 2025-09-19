@@ -39,6 +39,66 @@
     --ring: 0 0% 95%;
     --radius: 0.5rem;    
   }
+
+  /* Light theme */
+  [data-theme="light"] {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 13%;
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 40%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 40%;
+    --primary: 0 0% 13%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 13%;
+    --tertiary: 0 0% 40%;
+    --tertiary-foreground: 0 0% 13%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 215 20.2% 35.1%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 40%;
+    --bars: 0 0% 100%;
+    --bars-foreground: 0 0% 35%;
+    --bars-border: 0 0% 90%;
+    --bars-icon: 0 0% 40%;
+    --bars-icon-active: 0 0% 13%;
+    --destructive: 10 78% 49%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 96%;
+    --ring: 0 0% 13%;
+  }
+
+  /* Banano theme */
+  [data-theme="banano"] {
+    --background: 131 45% 20%;      /* green */
+    --foreground: 0 0% 95%;
+    --card: 131 45% 24%;
+    --card-foreground: 0 0% 90%;
+    --popover: 131 45% 24%;
+    --popover-foreground: 0 0% 90%;
+    --primary: 54 100% 50%;         /* banana yellow */
+    --primary-foreground: 0 0% 10%;
+    --secondary: 131 45% 18%;
+    --secondary-foreground: 0 0% 95%;
+    --tertiary: 131 15% 70%;
+    --tertiary-foreground: 0 0% 95%;
+    --muted: 131 45% 18%;
+    --muted-foreground: 131 10% 75%;
+    --accent: 131 45% 26%;
+    --accent-foreground: 131 15% 70%;
+    --bars: 131 45% 24%;
+    --bars-foreground: 131 15% 70%;
+    --bars-border: 131 30% 28%;
+    --bars-icon: 131 15% 65%;
+    --bars-icon-active: 0 0% 98%;
+    --destructive: 20 100% 50%;
+    --destructive-foreground: 0 0% 10%;
+    --border: 131 30% 28%;
+    --input: 131 45% 22%;
+    --ring: 54 100% 50%;
+  }
 }
 
 @layer components {

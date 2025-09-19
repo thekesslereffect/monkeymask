@@ -11,3 +11,4 @@ export { Separator } from './Separator';
 export { Drawer } from './Drawer';
 export { PageName } from './PageName';
 export { Carousel } from './Carousel';
+export { ThemeToggle } from './ThemeToggle';

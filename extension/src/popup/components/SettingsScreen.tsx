@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Header, ContentContainer, Footer, PageName, Card, Alert } from './ui';
+import { Header, ContentContainer, Footer, PageName, Card, Alert, ThemeToggle } from './ui';
 import { Icon } from '@iconify/react';
 
 export const SettingsScreen: React.FC = () => {
@@ -139,7 +139,10 @@ export const SettingsScreen: React.FC = () => {
               </div>
             </div>
           </Alert>
+          <ThemeToggle />
         </div>
+
+        
       </ContentContainer>
 
       <Footer />
