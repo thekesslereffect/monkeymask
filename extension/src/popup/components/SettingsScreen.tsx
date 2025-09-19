@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ContentContainer } from './ui';
-import { useNavigation } from '../hooks/useRouter';
+import { Header, ContentContainer, Footer, PageName, Card, Alert } from './ui';
+import { Icon } from '@iconify/react';
 
 export const SettingsScreen: React.FC = () => {
-  const navigation = useNavigation();
   const [autoLockTimeout, setAutoLockTimeout] = useState<number>(15); // minutes
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,106 +56,93 @@ export const SettingsScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-400 to-orange-500 p-4">
-        <div className="max-w-md mx-auto bg-white rounded-xl shadow-2xl p-6">
-          <div className="text-center">Loading settings...</div>
-        </div>
+      <div className="h-full flex flex-col">
+        <Header active />
+        <ContentContainer>
+          <PageName name="Settings" back={true} />
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-tertiary">Loading settings...</div>
+          </div>
+        </ContentContainer>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-400 to-orange-500 p-4">
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-2xl">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-t-xl p-6 text-white">
-          <div className="flex items-center mb-4">
-            <button
-              onClick={() => navigation.goBack()}
-              className="text-white hover:text-yellow-200 mr-4"
-            >
-              ← Back
-            </button>
-            <div className="text-2xl mr-3">⚙️</div>
-            <h1 className="text-xl font-bold">Settings</h1>
-          </div>
-          <p className="text-yellow-100">
-            Configure your MonkeyMask preferences
-          </p>
-        </div>
+    <div className="h-full flex flex-col font-semibold">
+      <Header active />
 
-        {/* Content */}
-        <ContentContainer>
-          {/* Auto-Lock Settings */}
-          <div className="mb-8">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
-              <span className="text-lg mr-2">🔒</span>
-              Auto-Lock Timer
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Choose how long MonkeyMask stays unlocked when you're not using it. 
-              For security, your wallet will automatically lock after this period of inactivity.
-            </p>
-            
-            <div className="space-y-3">
-              {timeoutOptions.map((option) => (
-                <div
-                  key={option.value}
-                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                    autoLockTimeout === option.value
-                      ? 'border-orange-500 bg-orange-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => saveTimeout(option.value)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <input
-                        type="radio"
-                        checked={autoLockTimeout === option.value}
-                        onChange={() => saveTimeout(option.value)}
-                        className="mr-3 text-orange-500 focus:ring-orange-500"
-                        disabled={saving}
-                      />
-                      <span className="font-medium text-gray-900">
-                        {option.label}
-                      </span>
-                    </div>
-                    {saving && autoLockTimeout === option.value && (
-                      <div className="text-orange-500">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+      <ContentContainer>
+        <PageName name="Settings" back={true} />
+        
+        <div className="w-full space-y-4">
+          {/* Auto-Lock Settings Card */}
+          <Card label="Auto-Lock Timer" className="w-full">
+            <div className="mb-4">
+              <div className="text-xs text-tertiary/70 mb-4">
+                Choose how long MonkeyMask stays unlocked when you're not using it. 
+                For security, your wallet will automatically lock after this period of inactivity.
+              </div>
+              
+              <div className="space-y-3">
+                {timeoutOptions.map((option) => (
+                  <div
+                    key={option.value}
+                    className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                      autoLockTimeout === option.value
+                        ? 'border-primary bg-primary/10'
+                        : 'border-tertiary/20 hover:border-tertiary/40'
+                    }`}
+                    onClick={() => saveTimeout(option.value)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          checked={autoLockTimeout === option.value}
+                          onChange={() => saveTimeout(option.value)}
+                          className="!text-destructive !focus:ring-destructive"
+                          disabled={saving}
+                        />
+                        <span className="text-sm text-tertiary">
+                          {option.label}
+                        </span>
                       </div>
-                    )}
+                      {saving && autoLockTimeout === option.value && (
+                        <Icon icon="lucide:loader-2" className="text-primary animate-spin text-lg" />
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Security Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start">
-              <div className="text-blue-600 mr-3">ℹ️</div>
-              <div className="text-sm text-blue-800">
-                <div className="font-semibold mb-1">Security Tip</div>
-                <div>
-                  Shorter timeouts provide better security but require more frequent unlocking. 
-                  Choose a balance that works for your usage pattern.
-                </div>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Current Status */}
-          <div className="mt-6 text-center">
-            <div className="text-sm text-gray-500">
-              Current setting: <span className="font-semibold text-gray-700">
-                {timeoutOptions.find(opt => opt.value === autoLockTimeout)?.label}
-              </span>
+            {/* Current Status */}
+            <div className="pt-3 border-t border-tertiary/20">
+              <div className="text-xs text-tertiary/70">
+                Current setting: <span className="font-semibold text-tertiary">
+                  {timeoutOptions.find(opt => opt.value === autoLockTimeout)?.label}
+                </span>
+              </div>
             </div>
-          </div>
-        </ContentContainer>
-      </div>
+          </Card>
+
+          {/* Security Info Alert */}
+          <Alert variant="default" className="w-full">
+            <Icon icon="lucide:info" className="text-lg" />
+            <div>
+              <div className="font-semibold mb-1">Security Tip</div>
+              <div className="text-sm">
+                Shorter timeouts provide better security but require more frequent unlocking. 
+                Choose a balance that works for your usage pattern.
+              </div>
+            </div>
+          </Alert>
+        </div>
+      </ContentContainer>
+
+      <Footer />
     </div>
   );
 };

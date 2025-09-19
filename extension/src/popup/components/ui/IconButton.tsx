@@ -13,11 +13,11 @@ export const IconButton: React.FC<IconButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const baseClasses = 'rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50';
+  const baseClasses = 'rounded-lg transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50';
   
   const variantClasses = {
-    default: 'icon-button',
-    ghost: 'p-2 text-text-secondary hover:text-text-primary hover:bg-muted'
+    default: 'text-tertiary hover:text-primary',
+    ghost: 'p-2 text-tertiary hover:text-primary hover:bg-muted'
   };
   
   const sizeClasses = {

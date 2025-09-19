@@ -205,7 +205,7 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
           </div>
 
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="warning">
               {error}
             </Alert>
           )}

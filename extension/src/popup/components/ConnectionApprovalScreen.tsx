@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ContentContainer } from './ui';
+import { Header, ContentContainer, Footer, PageName, Card, Button, Alert } from './ui';
+import { Icon } from '@iconify/react';
 
 interface ConnectionApprovalScreenProps {
   request: {
@@ -51,107 +52,100 @@ export const ConnectionApprovalScreen: React.FC<ConnectionApprovalScreenProps> =
   const domain = request.origin.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-400 to-orange-500 p-4">
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-2xl">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-t-xl p-6 text-white">
-          <div className="flex items-center justify-center mb-4">
-            <div className="text-4xl">🔗</div>
-          </div>
-          <h1 className="text-xl font-bold text-center">Connection Request</h1>
-          <p className="text-center text-yellow-100 mt-2">
-            A website wants to connect to MonkeyMask
-          </p>
-        </div>
+    <div className="h-full flex flex-col font-semibold">
+      <Header active />
 
-        {/* Content */}
-        <ContentContainer>
-          {/* Site Info */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <div className="flex items-center mb-3">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+      <ContentContainer>
+        <PageName name="Connection Request" back={false} />
+        
+        <div className="w-full space-y-4">
+          {/* Site Info Card */}
+          <Card label="Site Details" className="w-full">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 bg-background rounded-full aspect-square flex items-center justify-center text-tertiary text-sm">
                 {domain.charAt(0).toUpperCase()}
               </div>
               <div>
-                <div className="font-semibold text-gray-900">{domain}</div>
-                <div className="text-sm text-gray-500">{request.origin}</div>
+                <div className="text-sm text-tertiary font-semibold">{domain}</div>
+                <div className="text-xs text-tertiary/70">{request.origin}</div>
+                <div className="text-xs text-tertiary/70 mt-2">
+                  This site is requesting access to view your account addresses, account balance, activity, and suggest transactions to approve.
+                </div>
               </div>
             </div>
-            <div className="text-sm text-gray-600">
-              This site is requesting access to view your account addresses, account balance, activity, and suggest transactions to approve.
-            </div>
-          </div>
+          </Card>
 
-          {/* Account Selection */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Select accounts to connect:</h3>
-            <div className="space-y-2">
+          {/* Account Selection Card */}
+          <Card label="Select Accounts to Connect" className="w-full">
+            <div className="space-y-3">
               {request.data.accounts.map((account) => (
                 <div
                   key={account.address}
                   className={`border rounded-lg p-3 cursor-pointer transition-colors ${
                     selectedAccounts.includes(account.address)
-                      ? 'border-orange-500 bg-orange-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-tertiary/20 hover:border-tertiary/40'
                   }`}
                   onClick={() => handleAccountToggle(account.address)}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
                         checked={selectedAccounts.includes(account.address)}
                         onChange={() => handleAccountToggle(account.address)}
-                        className="mr-3 text-orange-500 focus:ring-orange-500"
+                        className="text-primary focus:ring-primary"
                       />
                       <div>
-                        <div className="font-medium text-gray-900">{account.name}</div>
-                        <div className="text-sm text-gray-500 font-mono">
+                        <div className="text-sm text-tertiary font-semibold">{account.name}</div>
+                        <div className="text-xs text-tertiary/70 font-mono">
                           {account.address.slice(0, 12)}...{account.address.slice(-8)}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium text-gray-900">{account.balance} BAN</div>
+                      <div className="text-sm text-tertiary font-semibold">{account.balance} BAN</div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
 
-          {/* Warning */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="flex items-start">
-              <div className="text-yellow-600 mr-3">⚠️</div>
-              <div className="text-sm text-yellow-800">
-                <div className="font-semibold mb-1">Only connect with sites you trust</div>
-                <div>
-                  Connecting gives this site permission to view your account addresses and balances, 
-                  and request approval for transactions.
-                </div>
+          {/* Warning Alert */}
+          <Alert variant="warning" className="w-full">
+            <Icon icon="lucide:alert-triangle" className="text-lg" />
+            <div>
+              <div className="font-semibold mb-1">Only connect with sites you trust</div>
+              <div className="text-sm">
+                Connecting gives this site permission to view your account addresses and balances, 
+                and request approval for transactions.
               </div>
             </div>
-          </div>
+          </Alert>
 
           {/* Action Buttons */}
-          <div className="flex space-x-3">
-            <button
+          <div className="flex gap-3 w-full">
+            <Button
+              variant="secondary"
               onClick={handleReject}
-              className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+              className="flex-1"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="primary"
               onClick={handleApprove}
               disabled={selectedAccounts.length === 0}
-              className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-3 px-4 rounded-lg font-semibold hover:from-yellow-600 hover:to-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1"
             >
               Connect ({selectedAccounts.length})
-            </button>
+            </Button>
           </div>
-        </ContentContainer>
-      </div>
+        </div>
+      </ContentContainer>
+
+      <Footer />
     </div>
   );
 };

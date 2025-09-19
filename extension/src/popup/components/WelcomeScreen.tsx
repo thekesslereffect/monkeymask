@@ -52,7 +52,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           </Button>
         </div>
       </ContentContainer>
-      <Footer showTabs={false} />
+      <Footer active={false} />
     </div>
   );
 };

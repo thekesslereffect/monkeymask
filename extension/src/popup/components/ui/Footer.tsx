@@ -1,29 +1,45 @@
 import { Icon } from '@iconify/react';
 import React from 'react';
-
+import { useNavigation, useRouter } from '../../hooks/useRouter';
 interface FooterProps {
-  showTabs?: boolean;
+  active?: boolean;
   className?: string;
 }
 
 export const Footer: React.FC<FooterProps> = ({
-  showTabs = true,
+  active = true,
   className = ''
 }) => {
+  const navigation = useNavigation();
+  const router = useRouter();
+  const currentRoute = router.currentRoute;
+
   return (
     <div className={`footer px-4 h-14 fixed bottom-0 left-0 right-0 z-10 ${className}`}>
-      {showTabs && (
+      {active && (
       <div className="flex items-center w-full h-full justify-between">
-          <button onClick={() => console.log('Home')} className="text-text-primary hover:text-primary transition-colors">
+          <button 
+            onClick={() => navigation.goToDashboard()} 
+            className={`${currentRoute === 'dashboard' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`}
+          >
             <Icon icon="lucide:home" className="text-2xl" />
           </button>
-          <button onClick={() => console.log('NFTs')} className="text-text-primary hover:text-primary transition-colors">
+          <button 
+            onClick={() => console.log('NFTs')} 
+            className="text-text-primary hover:text-primary transition-colors"
+          >
             <Icon icon="lucide:layout-grid" className="text-2xl" />
           </button>
-          <button onClick={() => console.log('History')} className="text-text-primary hover:text-primary transition-colors">
+          <button 
+            onClick={() => navigation.goToHistory()} 
+            className={`${currentRoute === 'history' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`}
+          >
             <Icon icon="lucide:clock" className="text-2xl" />
           </button>
-          <button onClick={() => console.log('Explore')} className="text-text-primary hover:text-primary transition-colors">
+          <button 
+            onClick={() => console.log('Explore')} 
+            className="text-text-primary hover:text-primary transition-colors"
+          >
             <Icon icon="lucide:compass" className="text-2xl" />
           </button>
         </div>

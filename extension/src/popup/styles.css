@@ -30,8 +30,10 @@
     --bars-border: 0 0% 21%;
     --bars-icon: 0 0% 35%;
     --bars-icon-active: 0 0% 95%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 46%;
+    /* --destructive: 338, 86%, 21.6%;
+    --destructive-foreground: 338, 100%, 36.6%; */
+    --destructive: 48.42,95%,52.94%;
+    --destructive-foreground: 0 0% 13%;
     --border: 0 0% 16%;
     --input: 0 0% 16%;
     --ring: 0 0% 95%;
@@ -137,6 +139,96 @@
   
   .border-border {
     border-color: hsl(var(--border));
+  }
+
+  /* Custom radio button styling */
+  input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid hsl(var(--border));
+    border-radius: 50%;
+    background-color: hsl(var(--background));
+    position: relative;
+    cursor: pointer;
+  }
+
+  input[type="radio"]:checked {
+    border-color: hsl(var(--destructive));
+    background-color: hsl(var(--destructive));
+  }
+
+  input[type="radio"]:checked::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: hsl(var(--destructive-foreground));
+  }
+
+  input[type="radio"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
+  }
+
+  input[type="radio"]:hover:not(:disabled) {
+    border-color: hsl(var(--destructive) / 0.7);
+  }
+
+  input[type="radio"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Custom checkbox styling */
+  input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid hsl(var(--border));
+    border-radius: 0.25rem;
+    background-color: hsl(var(--background));
+    position: relative;
+    cursor: pointer;
+  }
+
+  input[type="checkbox"]:checked {
+    border-color: hsl(var(--destructive));
+    background-color: hsl(var(--destructive));
+  }
+
+  input[type="checkbox"]:checked::before {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 4px;
+    width: 4px;
+    height: 8px;
+    border: solid hsl(var(--destructive-foreground));
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  input[type="checkbox"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
+  }
+
+  input[type="checkbox"]:hover:not(:disabled) {
+    border-color: hsl(var(--destructive) / 0.7);
+  }
+
+  input[type="checkbox"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 

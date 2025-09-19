@@ -176,4 +176,6 @@ export class BananoRPC {
       pending: false
     });
   }
+
+  // Note: getAccountHistory is now handled by bananojs.getAccountHistory() directly
 }

@@ -9,6 +9,7 @@ export type Route =
   | 'dashboard'
   | 'send'
   | 'qr'
+  | 'history'
   | 'settings'
   | 'connected-sites'
   | 'approval'
@@ -104,6 +105,7 @@ export const useNavigation = () => {
     goToDashboard: () => router.replace('dashboard'),
     goToSend: (account: RouteParams['account']) => router.push('send', { account }),
     goToQR: (account: RouteParams['account']) => router.push('qr', { account }),
+    goToHistory: () => router.push('history'),
     goToSettings: () => router.push('settings'),
     goToConnectedSites: () => router.push('connected-sites'),
     goToConfirmation: (transactionResult: RouteParams['transactionResult']) => 

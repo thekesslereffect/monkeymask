@@ -72,7 +72,12 @@ const AppContent: React.FC = () => {
     
     // Check for pending requests when the popup becomes visible
     const handleVisibilityChange = () => {
-      if (!document.hidden && router.currentRoute !== 'approval') {
+      // Don't check for requests if we're already handling one or on unlock screen
+      const isHandlingRequest = router.currentRoute === 'approval' || 
+                               router.currentRoute === 'unlock' || 
+                               pendingRequest !== null;
+      
+      if (!document.hidden && !isHandlingRequest) {
         console.log('App: Popup became visible, checking for pending requests...');
         checkPendingRequests();
       }
@@ -80,24 +85,9 @@ const AppContent: React.FC = () => {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Set up minimal polling for pending requests (only when not on approval screen)
-    const pollForPendingRequests = () => {
-      let attempts = 0;
-      const maxAttempts = 3; // Reduced to 3 attempts
-      
-      const poll = () => {
-        if (attempts < maxAttempts && router.currentRoute !== 'approval') {
-          console.log(`App: Polling for pending requests (attempt ${attempts + 1}/${maxAttempts})`);
-          checkPendingRequests();
-          attempts++;
-          setTimeout(poll, 1000); // Check every 1 second instead of 500ms
-        }
-      };
-      
-      setTimeout(poll, 500); // Start after 500ms
-    };
-    
-    pollForPendingRequests();
+    // Disable all polling - only check on initialization and visibility changes
+    // This prevents the continuous GET_PENDING_APPROVAL calls that interfere with password input
+    console.log('App: Polling disabled to prevent interference with unlock screen');
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -117,11 +107,21 @@ const AppContent: React.FC = () => {
       
       if (response.success && response.data) {
         console.log('App: Found pending request:', response.data);
-        setPendingRequest(response.data);
-        router.push('approval', { pendingRequest: response.data });
-        console.log('App: Switched to approval screen');
+        
+        // Only update state and navigate if we don't already have this request
+        if (!pendingRequest || pendingRequest.id !== response.data.id) {
+          setPendingRequest(response.data);
+          router.push('approval', { pendingRequest: response.data });
+          console.log('App: Switched to approval screen');
+        } else {
+          console.log('App: Already handling this pending request, skipping navigation');
+        }
       } else {
         console.log('App: No pending requests found');
+        // Clear pending request if none found
+        if (pendingRequest) {
+          setPendingRequest(null);
+        }
       }
     } catch (error) {
       console.log('App: Error checking pending requests:', error);

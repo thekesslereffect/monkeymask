@@ -23,7 +23,7 @@ export const Input: React.FC<InputProps> = ({
   ...props
 }) => {
 
-  const baseClasses = 'w-full rounded-xl transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses = 'w-full rounded-xl transition-colors text-center duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variantClasses = {
     default: 'bg-background text-foreground border border-border focus:border-transparent placeholder:text-tertiary',

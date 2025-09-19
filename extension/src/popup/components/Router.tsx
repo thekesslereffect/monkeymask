@@ -15,6 +15,7 @@ import { SigningApprovalScreen } from './SigningApprovalScreen';
 import { ConnectedSitesScreen } from './ConnectedSitesScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { QRScreen } from './QRScreen';
+import { HistoryScreen } from './HistoryScreen';
 
 interface RouterProps {
   walletState: {
@@ -107,6 +108,10 @@ export const Router: React.FC<RouterProps> = ({
       );
     },
     
+    history: () => (
+      <HistoryScreen />
+    ),
+    
     settings: () => (
       <SettingsScreen />
     ),
@@ -171,6 +176,7 @@ export const Router: React.FC<RouterProps> = ({
     },
     
     confirmation: () => {
+      console.log('Router: Rendering confirmation route with params:', params);
       if (!params.transactionResult) {
         console.error('Confirmation route requires transactionResult parameter');
         return <div>Error: No transaction result</div>;

@@ -1,5 +1,6 @@
 import React from 'react';
-import { ContentContainer } from './ui';
+import { Header, ContentContainer, Footer, PageName, Card, Button, Alert } from './ui';
+import { Icon } from '@iconify/react';
 import { formatBalance } from '../../utils/format';
 
 interface TransactionResult {
@@ -36,6 +37,7 @@ export const TransactionConfirmationScreen: React.FC<TransactionConfirmationScre
   result,
   onClose
 }) => {
+  console.log('TransactionConfirmationScreen: Rendering with result:', result);
   const handleViewOnCreeper = () => {
     if (result.hash) {
       window.open(`https://creeper.banano.cc/hash/${result.hash}`, '_blank');
@@ -50,137 +52,127 @@ export const TransactionConfirmationScreen: React.FC<TransactionConfirmationScre
   };
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      {/* Header */}
-      <div className={`p-4 text-white ${
-        result.success 
-          ? 'bg-gradient-to-r from-green-500 to-green-600' 
-          : 'bg-gradient-to-r from-red-500 to-red-600'
-      }`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold">
-              {result.success ? '✅ Transaction Successful' : '❌ Transaction Failed'}
-            </h1>
-            <p className="text-sm opacity-90">
-              {result.success ? 'Your transaction has been processed' : 'Your transaction could not be completed'}
-            </p>
-          </div>
+    <div className="h-full flex flex-col font-semibold">
+      <Header active />
+
+      <ContentContainer>
+        <div className="flex items-center justify-between mb-4">
+          <PageName name={result.success ? 'Transaction Successful' : 'Transaction Failed'} back={false} />
           <button
             onClick={onClose}
-            className="text-white hover:text-gray-200 transition-colors"
+            className="text-tertiary hover:text-primary transition-colors"
           >
-            ✕
+            <Icon icon="lucide:x" className="text-xl" />
           </button>
         </div>
-      </div>
-
-      {/* Content */}
-      <ContentContainer>
-        {result.success ? (
-          <div className="space-y-4">
-            {/* Success Message */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-green-800">Transaction Completed</span>
-              </div>
-              <p className="text-sm text-green-700">
-                Your Banano transaction has been successfully processed and added to the blockchain.
-              </p>
-            </div>
-
-            {/* Transaction Details */}
-            {result.block && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-700">Transaction Details</h3>
-                
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-sm font-medium text-gray-600">From</span>
-                  <span className="text-sm font-mono text-gray-800">
-                    {formatAddress(result.block.fromAddress)}
-                  </span>
-                </div>
-                
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-sm font-medium text-gray-600">To</span>
-                  <span className="text-sm font-mono text-gray-800">
-                    {formatAddress(result.block.toAddress)}
-                  </span>
-                </div>
-                
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-sm font-medium text-gray-600">Amount</span>
-                  <span className="text-lg font-semibold text-banano-600">
-                    {formatBalance(result.block.amount)} BAN
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Transaction Hash */}
-            {result.hash && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-700">Transaction Hash</h3>
-                
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-gray-600 break-all">
-                      {formatHash(result.hash)}
-                    </span>
-                    <button
-                      onClick={handleCopyHash}
-                      className="ml-2 text-xs text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                      📋 Copy
-                    </button>
+        
+        <div className="w-full space-y-4">
+          {result.success ? (
+            <>
+              {/* Success Alert */}
+              <Alert variant="success" className="w-full">
+                <Icon icon="lucide:check-circle" className="text-lg" />
+                <div>
+                  <div className="font-semibold mb-1">Transaction Completed</div>
+                  <div className="text-sm">
+                    Your Banano transaction has been successfully processed and added to the blockchain.
                   </div>
                 </div>
-                
-                <button
-                  onClick={handleViewOnCreeper}
-                  className="w-full py-2 px-4 bg-banano-500 text-white rounded-lg font-medium hover:bg-banano-600 transition-colors flex items-center justify-center space-x-2"
-                >
-                  <span>🔍</span>
-                  <span>View on Creeper</span>
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Error Message */}
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-sm font-medium text-red-800">Transaction Failed</span>
-              </div>
-              <p className="text-sm text-red-700">
-                {result.error || 'An unknown error occurred while processing your transaction.'}
-              </p>
-            </div>
+              </Alert>
 
-            {/* Error Details */}
-            <div className="bg-gray-50 rounded-lg p-3">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Error Details</h3>
-              <p className="text-xs text-gray-600">
-                Please check your connection and try again. If the problem persists, 
-                ensure you have sufficient balance and the recipient address is valid.
-              </p>
-            </div>
-          </div>
-        )}
+              {/* Transaction Details Card */}
+              {result.block && (
+                <Card label="Transaction Details" className="w-full">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-tertiary/20">
+                      <span className="text-sm text-tertiary">From</span>
+                      <span className="text-sm font-mono text-tertiary">
+                        {formatAddress(result.block.fromAddress)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center py-2 border-b border-tertiary/20">
+                      <span className="text-sm text-tertiary">To</span>
+                      <span className="text-sm font-mono text-tertiary">
+                        {formatAddress(result.block.toAddress)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm text-tertiary">Amount</span>
+                      <span className="text-lg font-semibold text-primary">
+                        {formatBalance(result.block.amount)} BAN
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Transaction Hash Card */}
+              {result.hash && (
+                <Card label="Transaction Hash" className="w-full">
+                  <div className="space-y-3">
+                    <div className="bg-tertiary/10 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono text-tertiary break-all">
+                          {formatHash(result.hash)}
+                        </span>
+                        <button
+                          onClick={handleCopyHash}
+                          className="ml-2 text-primary hover:text-primary/80 transition-colors"
+                        >
+                          <Icon icon="lucide:copy" className="text-sm" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <Button
+                      variant="primary"
+                      onClick={handleViewOnCreeper}
+                      className="w-full flex items-center justify-center gap-2"
+                    >
+                      <Icon icon="lucide:external-link" />
+                      View on Creeper
+                    </Button>
+                  </div>
+                </Card>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Error Alert */}
+              <Alert variant="warning" className="w-full">
+                <Icon icon="lucide:x-circle" className="text-lg" />
+                <div>
+                  <div className="font-semibold mb-1">Transaction Failed</div>
+                  <div className="text-sm">
+                    {result.error || 'An unknown error occurred while processing your transaction.'}
+                  </div>
+                </div>
+              </Alert>
+
+              {/* Error Details Card */}
+              <Card label="Error Details" className="w-full">
+                <div className="text-xs text-tertiary/70">
+                  Please check your connection and try again. If the problem persists, 
+                  ensure you have sufficient balance and the recipient address is valid.
+                </div>
+              </Card>
+            </>
+          )}
+
+          {/* Action Button */}
+          <Button
+            variant="primary"
+            onClick={onClose}
+            className="w-full"
+          >
+            {result.success ? 'Done' : 'Try Again'}
+          </Button>
+        </div>
       </ContentContainer>
 
-      {/* Actions */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <button
-          onClick={onClose}
-          className="w-full py-3 px-4 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-        >
-          {result.success ? '✅ Done' : '🔄 Try Again'}
-        </button>
-      </div>
+      <Footer />
     </div>
   );
 };

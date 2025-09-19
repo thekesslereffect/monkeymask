@@ -89,7 +89,7 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked, sh
           />
 
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="warning">
               {error}
             </Alert>
           )}
@@ -118,7 +118,7 @@ export const UnlockScreen: React.FC<UnlockScreenProps> = ({ onWalletUnlocked, sh
           )}
         </form>
       </ContentContainer>
-      <Footer showTabs={false} />
+      <Footer active={false} />
     </div>
   );
 };

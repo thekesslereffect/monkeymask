@@ -122,7 +122,7 @@ export const ImportWalletScreen: React.FC<ImportWalletScreenProps> = ({
           />
 
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="warning">
               {error}
             </Alert>
           )}
@@ -138,7 +138,7 @@ export const ImportWalletScreen: React.FC<ImportWalletScreenProps> = ({
           </Button>
         </form>
       </ContentContainer>
-      <Footer showTabs={false} />
+      <Footer active={false} />
     </div>
   );
 };

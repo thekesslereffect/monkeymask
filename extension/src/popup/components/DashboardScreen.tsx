@@ -17,7 +17,7 @@ export const DashboardScreen: React.FC = () => {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-text-secondary">Loading accounts...</div>
+        <div className="text-tertiary">Loading accounts...</div>
       </div>
     );
   }
@@ -26,7 +26,7 @@ export const DashboardScreen: React.FC = () => {
   if (!accounts || accounts.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-text-secondary">No accounts found</div>
+        <div className="text-tertiary">No accounts found</div>
       </div>
     );
   }
@@ -60,7 +60,7 @@ export const DashboardScreen: React.FC = () => {
             <Button 
                 variant="secondary"
                 size="lg"
-                className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
+                className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
                 onClick={() => accounts.length > 0 && navigation.goToQR(accounts[0])}
                 disabled={accounts.length === 0}
               >
@@ -71,7 +71,7 @@ export const DashboardScreen: React.FC = () => {
             <Button 
               variant="secondary"
               size="lg"
-              className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
+              className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
               onClick={() => accounts.length > 0 && navigation.goToSend(accounts[0])}
               disabled={accounts.length === 0}
             >
@@ -82,7 +82,7 @@ export const DashboardScreen: React.FC = () => {
             <Button 
               variant="secondary"
               size="lg"
-              className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
+              className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
               onClick={() => {console.log('Faucet')}}
               disabled={accounts.length === 0}
             >
@@ -93,7 +93,7 @@ export const DashboardScreen: React.FC = () => {
             <Button 
               variant="secondary"
               size="lg"
-              className="flex flex-col items-center justify-center text-tertiary p-2 aspect-square "
+              className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
               onClick={() => {console.log('Buy')}}
               disabled={accounts.length === 0}
             >
@@ -105,29 +105,51 @@ export const DashboardScreen: React.FC = () => {
 
 
           {/* History */}
-          <Card label="History" hintText="See More" hintOnClick={() => console.log('See More')} className="w-full">
-              {/* list of transactions. use mock data array for now */}
-              {[...Array(10)].map((_, i) => (
-                <>
-                <button key={i} className="flex justify-between items-center w-full hover:bg-tertiary/10 cursor-pointer transition-colors rounded-lg p-2 text-tertiary" onClick={() => handleViewOnCreeper('1234567890')}>
-                  <div className="flex items-center gap-2">
-                    <Icon icon={i % 2 === 0 ? "lucide:arrow-up-right" : "lucide:arrow-down-left"} 
-                          className={i % 2 === 0 ? "text-destructive" : "text-primary"} />
-                    <div className="flex flex-col items-start">
-                      <span className="text-sm">{i % 2 === 0 ? "Sent" : "Received"}</span>
-                      <span className="text-xs">ban_1abc...xyz</span>
+          <Card label="History" hintText="See More" hintOnClick={() => navigation.goToHistory()} className="w-full">
+              {accounts[0]?.transactions && accounts[0].transactions.length > 0 ? (
+                accounts[0].transactions.map((transaction, i) => (
+                  <>
+                  <button key={transaction.hash} className="flex justify-between items-center w-full hover:bg-tertiary/10 cursor-pointer transition-colors rounded-lg p-2 text-tertiary" onClick={() => handleViewOnCreeper(transaction.hash)}>
+                    <div className="flex items-center gap-2">
+                      <Icon icon={
+                        transaction.type === 'send' ? "lucide:arrow-up-right" : 
+                        transaction.type === 'receive' ? "lucide:arrow-down-left" :
+                        transaction.type === 'open' ? "lucide:arrow-down-left" :
+                        transaction.type === 'change' ? "lucide:settings" :
+                        "lucide:circle"
+                      } 
+                      className={
+                        transaction.type === 'send' ? "text-destructive" : 
+                        transaction.type === 'receive' || transaction.type === 'open' ? "text-primary" :
+                        transaction.type === 'change' ? "text-tertiary" :
+                        "text-tertiary"
+                      } />
+                      <div className="flex flex-col items-start">
+                        <span className="text-sm">
+                          {transaction.type === 'send' ? "Sent" : 
+                           transaction.type === 'receive' ? "Received" : 
+                           transaction.type === 'open' ? "Opened" :
+                           transaction.type === 'change' ? "Changed Rep" :
+                           transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                        </span>
+                        <span className="text-xs">{transaction.account.slice(0, 10)}...{transaction.account.slice(-6)}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm">{(Math.random() * 100).toFixed(2)} BAN</span>
-                    <span className="text-xs">2 hours ago</span>
-                  </div>
-                </button>
-                {i !== 9 && (
-                <Separator className="w-full my-2" />
-                )}
-                </>
-              ))}
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm">{parseFloat(transaction.amount).toFixed(2)} BAN</span>
+                      <span className="text-xs">{new Date(parseInt(transaction.timestamp) * 1000).toLocaleDateString()}</span>
+                    </div>
+                  </button>
+                  {i !== (accounts[0]?.transactions?.length || 0) - 1 && (
+                  <Separator className="w-full my-2" />
+                  )}
+                  </>
+                ))
+              ) : (
+                <div className="text-center py-4 text-tertiary">
+                  <span className="text-sm">No transactions yet</span>
+                </div>
+              )}
           </Card>
       </ContentContainer>
       <Footer />

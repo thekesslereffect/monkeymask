@@ -1,12 +1,22 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { bnsResolver } from '../../utils/bns';
 
+interface Transaction {
+  hash: string;
+  type: string;
+  amount: string;
+  account: string;
+  timestamp: string;
+  local_timestamp: string;
+}
+
 interface Account {
   address: string;
   name: string;
   balance: string;
   pending?: string;
   bnsNames?: string[];
+  transactions?: Transaction[];
 }
 
 interface PriceData {
@@ -82,6 +92,36 @@ export const AccountsProvider: React.FC<AccountsProviderProps> = ({ children }) 
     }
   };
 
+  const fetchAccountHistory = useCallback(async (address: string) => {
+    try {
+      console.log('Accounts: Fetching transaction history for:', address);
+      
+      const response = await chrome.runtime.sendMessage({
+        type: 'GET_ACCOUNT_HISTORY',
+        address: address,
+        count: 10
+      });
+
+      if (response.success) {
+        const transactions = response.data.transactions;
+        console.log('Accounts: Transaction history fetched:', transactions);
+        
+        // Update the account with transaction history
+        setAccounts(prevAccounts => 
+          prevAccounts.map(account => 
+            account.address === address 
+              ? { ...account, transactions }
+              : account
+          )
+        );
+      } else {
+        console.warn('Failed to fetch account history:', response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching account history:', error);
+    }
+  }, []);
+
   const refreshBalances = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -102,6 +142,15 @@ export const AccountsProvider: React.FC<AccountsProviderProps> = ({ children }) 
       if (response.success) {
         setAccounts(response.data);
         console.log('Accounts: Balances updated successfully');
+        
+        // Fetch transaction history for the first account after balance update
+        if (response.data && response.data.length > 0) {
+          try {
+            await fetchAccountHistory(response.data[0].address);
+          } catch (historyError) {
+            console.warn('Failed to fetch transaction history:', historyError);
+          }
+        }
       } else {
         console.warn('Accounts: Balance update failed:', response.error);
       }
@@ -111,7 +160,7 @@ export const AccountsProvider: React.FC<AccountsProviderProps> = ({ children }) 
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [fetchAccountHistory]);
 
   const loadAccounts = useCallback(async () => {
     try {

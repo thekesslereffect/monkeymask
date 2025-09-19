@@ -9,3 +9,4 @@ export { Footer } from './Footer';
 export { ContentContainer } from './ContentContainer';
 export { Separator } from './Separator';
 export { Drawer } from './Drawer';
+export { PageName } from './PageName';

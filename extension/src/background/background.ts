@@ -43,6 +43,8 @@ class BackgroundService {
   private connectedTabs: Map<number, string> = new Map(); // tabId -> origin
   private accountInfoCache: Map<string, { accountInfo: any; ts: number }> = new Map();
   private static readonly ACCOUNT_INFO_TTL_MS = 5000;
+  private lastPendingApprovalCheck: Map<string, number> = new Map(); // origin -> timestamp
+  private static readonly PENDING_APPROVAL_RATE_LIMIT_MS = 1000; // 1 second
 
   constructor() {
     this.walletManager = WalletManager.getInstance();
@@ -297,8 +299,15 @@ class BackgroundService {
           await this.handleVerifySignedMessage(request, sendResponse);
           break;
         
+        case 'GET_ACCOUNT_HISTORY':
+          await this.handleGetAccountHistory(request, sendResponse);
+          break;
+        
         case 'GET_PENDING_APPROVAL':
-          this.handleGetPendingApproval(sendResponse);
+          // Add debugging to track where these calls are coming from
+          console.log('Background: GET_PENDING_APPROVAL called from:', sender.tab?.url || sender.url || 'extension popup');
+          console.log('Background: Request details:', JSON.stringify(request, null, 2));
+          this.handleGetPendingApproval(sendResponse, sender);
           break;
         
         case 'APPROVE_TRANSACTION':
@@ -524,43 +533,42 @@ class BackgroundService {
       }
 
       const accounts = this.walletManager.getAccounts();
-      const addresses = accounts.map(acc => acc.address);
       
-      console.log('Background: Fetching balances for addresses:', addresses);
+      if (accounts.length === 0) {
+        console.log('Background: No accounts found');
+        sendResponse({ success: false, error: 'No accounts found' });
+        return;
+      }
+
+      // Only process the primary account (first account)
+      const primaryAccount = accounts[0];
+      const primaryAddress = primaryAccount.address;
       
-      // First, get current balance info to check for pending
-      let pendingAmounts: Record<string, string> = {};
+      console.log('Background: Fetching balance for primary account:', primaryAddress);
+      
+      // First, get current balance info to check for pending on primary account only
+      let pendingAmount = '0';
       try {
         const preBalanceResult = await Promise.race([
-          this.rpc.getAccountsBalances(addresses),
+          this.rpc.getAccountBalance(primaryAddress),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Pre-balance timeout')), 5000))
         ]) as any;
         
-        if (preBalanceResult.success) {
-          // Store pending amounts for each address using standard RPC fields
-          for (const address of addresses) {
-            const balanceData = preBalanceResult.data?.balances[address];
-            if (balanceData?.pending && balanceData.pending !== '0') {
-              pendingAmounts[address] = BananoRPC.rawToBan(balanceData.pending);
-              console.log('Background: Found pending amount for', address, ':', pendingAmounts[address]);
-            }
-          }
+        if (preBalanceResult.success && preBalanceResult.data?.pending && preBalanceResult.data.pending !== '0') {
+          pendingAmount = BananoRPC.rawToBan(preBalanceResult.data.pending);
+          console.log('Background: Found pending amount for primary account:', pendingAmount);
         }
       } catch (error) {
         console.warn('Background: Failed to get pre-balance for pending check:', error);
       }
       
-      // Now try to auto-receive any pending transactions
-      for (const address of addresses) {
+      // Try to auto-receive any pending transactions on primary account only
+      if (pendingAmount !== '0') {
         try {
-          const pendingAmount = pendingAmounts[address];
-          if (pendingAmount) {
-            console.log('Background: Auto-receiving pending for:', address, 'amount:', pendingAmount);
-            await this.walletManager.autoReceivePending(address, pendingAmount);
-          }
+          console.log('Background: Auto-receiving pending for primary account:', primaryAddress, 'amount:', pendingAmount);
+          await this.walletManager.autoReceivePending(primaryAddress, pendingAmount);
         } catch (error) {
-          console.warn('Background: Failed to auto-receive pending for', address, ':', error);
-          // Continue with other addresses even if one fails
+          console.warn('Background: Failed to auto-receive pending for primary account:', error);
         }
       }
       
@@ -570,32 +578,36 @@ class BackgroundService {
       });
       
       const balanceResult = await Promise.race([
-        this.rpc.getAccountsBalances(addresses),
+        this.rpc.getAccountBalance(primaryAddress),
         timeoutPromise
       ]) as any;
       
-      console.log('Background: Balance result:', balanceResult);
+      console.log('Background: Balance result for primary account:', balanceResult);
       
       if (!balanceResult.success) {
         throw new Error(balanceResult.error);
       }
 
-      // Update account balances
-      const updatedAccounts = accounts.map(account => {
-        const balanceData = balanceResult.data?.balances[account.address];
-        if (balanceData) {
-          account.balance = BananoRPC.rawToBan(balanceData.balance || '0');
-          const pendingRaw = balanceData.pending || '0';
-          const pendingAmount = BananoRPC.rawToBan(pendingRaw);
-          (account as any).pending = pendingAmount;
-          if (parseFloat(pendingAmount) > 0) {
-            console.log('Background: Account has pending balance:', pendingAmount);
+      // Update primary account balance, keep other accounts with existing data
+      const updatedAccounts = accounts.map((account, index) => {
+        if (index === 0) {
+          // Update primary account with fresh data
+          const balanceData = balanceResult.data;
+          if (balanceData) {
+            account.balance = BananoRPC.rawToBan(balanceData.balance || '0');
+            const pendingRaw = balanceData.pending || '0';
+            const pendingAmount = BananoRPC.rawToBan(pendingRaw);
+            (account as any).pending = pendingAmount;
+            if (parseFloat(pendingAmount) > 0) {
+              console.log('Background: Primary account has pending balance:', pendingAmount);
+            }
           }
         }
+        // Secondary accounts keep their existing balance data
         return account;
       });
 
-      console.log('Background: Updated accounts with balances:', updatedAccounts);
+      console.log('Background: Updated primary account with balance:', updatedAccounts[0]);
 
       sendResponse({
         success: true,
@@ -644,6 +656,7 @@ class BackgroundService {
 
   /**
    * Refresh balances without needing a sendResponse callback. Fire-and-forget.
+   * Only updates the primary account for performance optimization.
    */
   private async updateBalancesAsync(): Promise<void> {
     try {
@@ -652,14 +665,20 @@ class BackgroundService {
       }
 
       const accounts = this.walletManager.getAccounts();
-      const addresses = accounts.map(acc => acc.address);
+      
+      if (accounts.length === 0) {
+        return;
+      }
+
+      // Only update primary account
+      const primaryAddress = accounts[0].address;
 
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Balance fetch timeout')), 10000);
       });
 
       const balanceResult = await Promise.race([
-        this.rpc.getAccountsBalances(addresses),
+        this.rpc.getAccountBalance(primaryAddress),
         timeoutPromise
       ]) as any;
 
@@ -667,15 +686,12 @@ class BackgroundService {
         throw new Error(balanceResult?.error || 'Unknown balance fetch error');
       }
 
-      const updatedAccounts = accounts.map(account => {
-        const balanceData = balanceResult.data?.balances[account.address];
-        if (balanceData) {
-          account.balance = BananoRPC.rawToBan(balanceData.balance || '0');
-        }
-        return account;
-      });
-      // No explicit setter needed; objects are mutated in place
-      console.log('Background: updateBalancesAsync completed');
+      // Update only the primary account
+      if (balanceResult.data) {
+        accounts[0].balance = BananoRPC.rawToBan(balanceResult.data.balance || '0');
+      }
+      
+      console.log('Background: updateBalancesAsync completed for primary account');
     } catch (error) {
       console.warn('Background: updateBalancesAsync failed:', error);
     }
@@ -1079,6 +1095,19 @@ class BackgroundService {
         const walletIsLocked = !this.walletManager.isWalletUnlocked();
         console.log('Background: dApp transaction request - requiring approval from:', origin, 'wallet locked:', walletIsLocked);
         
+        // Check for existing pending transaction requests from the same origin
+        const existingTxRequest = Array.from(this.pendingApprovals.values())
+          .find(req => req.origin === origin && req.type === 'sendTransaction');
+        
+        if (existingTxRequest) {
+          console.log('Background: Found existing transaction request from same origin:', existingTxRequest.id);
+          sendResponse(this.createStandardError(
+            'A transaction request from this origin is already pending',
+            PROVIDER_ERRORS.USER_REJECTED.code
+          ));
+          return;
+        }
+        
         // Create approval request
         const requestId = 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(7);
         const approvalRequest = {
@@ -1344,6 +1373,61 @@ class BackgroundService {
     }
   }
 
+  // hexToAccount method removed - no longer needed since bananojs.getAccountHistory() 
+  // already resolves account addresses for us
+
+  private async handleGetAccountHistory(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      console.log('Background: Get account history request for:', request.address);
+      
+      const { address, count = 10 } = request;
+      if (!address) {
+        sendResponse({ success: false, error: 'Address is required' });
+        return;
+      }
+
+      // Use bananojs getAccountHistory method instead of custom RPC call
+      const historyResult = await bananojs.getAccountHistory(address, count);
+      console.log('Background: bananojs getAccountHistory result:', JSON.stringify(historyResult, null, 2));
+      
+      // bananojs methods return data directly, not wrapped in success/data structure
+      if (!historyResult || historyResult.error) {
+        sendResponse({ success: false, error: historyResult?.error || 'Failed to fetch history' });
+        return;
+      }
+
+      // Process and format the transaction history
+      const history = historyResult.history || [];
+      console.log('Background: Raw history data:', JSON.stringify(history, null, 2));
+      const transactions = history.map((block: any) => {
+        // bananojs already provides clean transaction types and resolved account addresses
+        const transactionType = block.type || 'unknown';
+        const counterpartyAccount = block.account || 'Unknown';
+        
+        // Use the decimal amount if available, otherwise convert from raw
+        const amount = block.amount_decimal || BananoRPC.rawToBan(block.amount || '0');
+
+        return {
+          hash: block.hash,
+          type: transactionType,
+          amount: amount,
+          account: counterpartyAccount,
+          timestamp: block.local_timestamp || '0',
+          local_timestamp: block.local_timestamp || '0'
+        };
+      });
+
+      sendResponse({ success: true, data: { transactions } });
+      
+    } catch (error) {
+      console.error('Background: Error getting account history:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get account history'
+      });
+    }
+  }
+
   private async handleSignMessage(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
       console.log('Background: Sign message request from origin:', request.origin);
@@ -1361,6 +1445,20 @@ class BackgroundService {
       // Check if wallet is locked for extended timeout
       const walletIsLocked = !this.walletManager.isWalletUnlocked();
       console.log('Background: Sign message request, wallet locked:', walletIsLocked);
+      
+      // Check for existing pending requests from the same origin
+      const existingRequest = Array.from(this.pendingApprovals.values())
+        .find(req => req.origin === request.origin && req.type === 'signMessage');
+      
+      if (existingRequest) {
+        console.log('Background: Found existing sign message request from same origin:', existingRequest.id);
+        // Return the existing request ID to prevent duplicates
+        sendResponse(this.createStandardError(
+          'A signing request from this origin is already pending',
+          PROVIDER_ERRORS.USER_REJECTED.code
+        ));
+        return;
+      }
       
       // Create approval request
       const signRequestId = 'signMessage_' + Date.now() + '_' + Math.random().toString(36).substring(7);
@@ -1465,14 +1563,53 @@ class BackgroundService {
     }
   }
 
-  private handleGetPendingApproval(sendResponse: (response: any) => void): void {
-    const pendingRequests = Array.from(this.pendingApprovals.values());
-    // Get the most recent request (last in array)
-    const nextRequest = pendingRequests[pendingRequests.length - 1] || null;
+  private handleGetPendingApproval(sendResponse: (response: any) => void, sender?: chrome.runtime.MessageSender): void {
+    // Rate limiting to prevent spam calls
+    const origin = sender?.tab?.url || sender?.url || 'extension';
+    const now = Date.now();
+    const lastCheck = this.lastPendingApprovalCheck.get(origin) || 0;
     
-    console.log('Background: Get pending approval, total pending:', pendingRequests.length);
+    if (now - lastCheck < BackgroundService.PENDING_APPROVAL_RATE_LIMIT_MS) {
+      console.log('Background: Rate limiting GET_PENDING_APPROVAL from:', origin);
+      // Return the same result as last time to avoid breaking the flow
+      const pendingRequests = Array.from(this.pendingApprovals.values());
+      const nextRequest = pendingRequests[0] || null;
+      sendResponse({
+        success: true,
+        data: nextRequest
+      });
+      return;
+    }
+    
+    this.lastPendingApprovalCheck.set(origin, now);
+    
+    const pendingRequests = Array.from(this.pendingApprovals.values());
+    
+    // Clean up any stale requests first (older than 10 minutes)
+    const staleRequests = pendingRequests.filter(request => {
+      const requestTime = parseInt(request.id.split('_')[1]) || 0;
+      return now - requestTime > 10 * 60 * 1000; // 10 minutes
+    });
+    
+    // Remove stale requests
+    staleRequests.forEach(request => {
+      console.log('Background: Cleaning up stale request:', request.id);
+      this.pendingApprovals.delete(request.id);
+      const resolver = this.approvalResolvers.get(request.id);
+      if (resolver) {
+        this.approvalResolvers.delete(request.id);
+        resolver.reject(new Error('Request expired'));
+      }
+    });
+    
+    // Get fresh list after cleanup
+    const freshRequests = Array.from(this.pendingApprovals.values());
+    // Get the oldest request (first in queue) - FIFO processing
+    const nextRequest = freshRequests[0] || null;
+    
+    console.log('Background: Get pending approval, total pending:', freshRequests.length);
     console.log('Background: Returning request:', nextRequest?.id || 'none');
-    console.log('Background: All pending IDs:', pendingRequests.map(r => r.id));
+    console.log('Background: All pending IDs:', freshRequests.map(r => r.id));
     
     sendResponse({
       success: true,

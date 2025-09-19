@@ -135,7 +135,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </div>
 
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="warning">
                 {error}
               </Alert>
             )}
@@ -151,7 +151,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </Button>
           </form>
         </ContentContainer>
-        <Footer showTabs={false} />
+        <Footer active={false} />
       </div>
     );
   }
@@ -215,7 +215,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </Button>
           </div>
         </ContentContainer>
-        <Footer showTabs={false} />
+        <Footer active={false} />
       </div>
     );
   }
@@ -258,7 +258,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             />
 
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="warning">
                 {error}
               </Alert>
             )}
@@ -274,7 +274,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
             </Button>
           </form>
         </ContentContainer>
-        <Footer showTabs={false} />
+        <Footer active={false} />
       </div>
     );
   }
