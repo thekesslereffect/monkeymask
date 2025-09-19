@@ -23,7 +23,7 @@ export function Hero() {
               <Button variant="default" size="lg"><Icon icon="noto:monkey-face" className="size-8" /> <span>Get MonKeyMask</span></Button>
             </a>
             <a href="https://www.producthunt.com/" target="_blank" className="inline-flex">
-              <Button variant="outline" size="lg">
+              <Button variant="outline" size="md">
                 <Icon icon="cuida:unfold-horizontal-outline" className="size-6" /> <span>Developers</span></Button>
             </a>
           </div>
