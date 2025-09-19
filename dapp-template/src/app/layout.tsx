@@ -30,8 +30,8 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "Coffee – A tiny time tracker for your next big project",
-  description: "Hassle-free time tracking for freelancers. Useful insights, CSV export, daily limits, notifications, and a menubar extension.",
+  title: "MonkeyMask - A Banano wallet for the modern Web",
+  description: "A Banano wallet for the modern Web",
 };
 
 export default function RootLayout({

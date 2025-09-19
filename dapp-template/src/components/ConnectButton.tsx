@@ -32,7 +32,7 @@ export function ConnectButton({ className = '' }: ConnectButtonProps) {
   if (!isInstalled) {
     return (
       <a href="/docs#install" className={className}>
-        <Button variant="secondary" size="lg">Install MonkeyMask</Button>
+        <Button variant="secondary" size="md">Get MonkeyMask</Button>
       </a>
     );
   }
