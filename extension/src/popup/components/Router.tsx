@@ -16,6 +16,10 @@ import { ConnectedSitesScreen } from './ConnectedSitesScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { QRScreen } from './QRScreen';
 import { HistoryScreen } from './HistoryScreen';
+import { NFTsScreen } from './NFTsScreen';
+import { ExploreScreen } from './ExploreScreen';
+import { FaucetScreen } from './FaucetScreen';
+import { BuyScreen } from './BuyScreen';
 
 interface RouterProps {
   walletState: {
@@ -110,6 +114,20 @@ export const Router: React.FC<RouterProps> = ({
     
     history: () => (
       <HistoryScreen />
+    ),
+    
+    nfts: () => (
+      <NFTsScreen />
+    ),
+    
+    explore: () => (
+      <ExploreScreen />
+    ),
+    faucet: () => (
+      <FaucetScreen account={params.account || { address: '', name: '', balance: '0' }} />
+    ),
+    buy: () => (
+      <BuyScreen />
     ),
     
     settings: () => (

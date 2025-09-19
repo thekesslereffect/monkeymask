@@ -89,6 +89,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
 
         {/* Main Content */}
         <ContentContainer>
+        <PageName name="Create Password" back />
           {/* Monkey Emoji */}
           <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
             <picture>
@@ -164,6 +165,7 @@ export const CreateWalletScreen: React.FC<CreateWalletScreenProps> = ({
 
         {/* Main Content */}
         <ContentContainer>
+        <PageName name="Seed Phrase" back />
           {/* Monkey Emoji */}
           <div className="flex flex-col items-center h-min min-h-48 justify-center text-center">
             <picture>

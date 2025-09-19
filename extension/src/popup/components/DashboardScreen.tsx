@@ -83,7 +83,7 @@ export const DashboardScreen: React.FC = () => {
               variant="secondary"
               size="lg"
               className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
-              onClick={() => {console.log('Faucet')}}
+              onClick={() => navigation.goToFaucet()}
               disabled={accounts.length === 0}
             >
               <Icon icon="lucide:droplet" className="text-2xl mb-1" />
@@ -94,7 +94,7 @@ export const DashboardScreen: React.FC = () => {
               variant="secondary"
               size="lg"
               className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
-              onClick={() => {console.log('Buy')}}
+              onClick={() => navigation.goToBuy()}
               disabled={accounts.length === 0}
             >
               <Icon icon="lucide:dollar-sign" className="text-2xl mb-1" />

@@ -182,10 +182,6 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
             </div>
           )}
 
-          <div className="text-xs text-tertiary -mt-3">
-            Supported BNS TLDs: {bnsResolver.getSupportedTLDs().join(', ')}
-          </div>
-
           {/* Amount */}
           <div className="w-full">
             <Input

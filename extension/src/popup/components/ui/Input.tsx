@@ -42,10 +42,8 @@ export const Input: React.FC<InputProps> = ({
   
   return (
     <div className="w-full">
-      {label && (
-        <Label hintText={hintText} hintTooltip={hintTooltip}>
-          {label}
-        </Label>
+      {(label || hintText) && (
+        <Label label={label} hintText={hintText} hintTooltip={hintTooltip}/>
       )}
       
       <input

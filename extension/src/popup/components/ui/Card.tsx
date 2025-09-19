@@ -30,10 +30,8 @@ export const Card: React.FC<CardProps> = ({
   
   return (
     <div className="w-full flex flex-col">
-    {label && (
-        <Label hintText={hintText} hintTooltip={hintTooltip} hintOnClick={hintOnClick}>
-          {label}
-        </Label>
+    {(label || hintText) && (
+        <Label label={label} hintText={hintText} hintTooltip={hintTooltip} hintOnClick={hintOnClick}/>
       )}
     <div className={classes} onClick={onClick}>
         {children}

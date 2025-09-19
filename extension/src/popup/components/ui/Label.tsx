@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 interface LabelProps {
-  children: React.ReactNode;
+  label?: string;
   hintText?: string;
   hintTooltip?: string;
   className?: string;
@@ -9,7 +9,7 @@ interface LabelProps {
 }
 
 export const Label: React.FC<LabelProps> = ({
-  children,
+  label,
   hintText,
   hintTooltip,
   hintOnClick,
@@ -43,9 +43,13 @@ export const Label: React.FC<LabelProps> = ({
 
   return (
     <div className={`flex justify-between items-center mb-1 relative px-2 ${className}`}>
-      <div className="text-xl text-tertiary">
-        {children}
-      </div>
+      {label ? (
+        <div className="text-xl text-tertiary">
+          {label}
+        </div>
+      ) : (
+        <div className="w-5" />
+      )}
       {hintText && (
         <div className="relative">
           <span

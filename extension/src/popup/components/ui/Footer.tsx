@@ -25,8 +25,8 @@ export const Footer: React.FC<FooterProps> = ({
             <Icon icon="lucide:home" className="text-2xl" />
           </button>
           <button 
-            onClick={() => console.log('NFTs')} 
-            className="text-text-primary hover:text-primary transition-colors"
+            onClick={() => navigation.goToNFTs()} 
+            className={`${currentRoute === 'nfts' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`}
           >
             <Icon icon="lucide:layout-grid" className="text-2xl" />
           </button>
@@ -37,8 +37,8 @@ export const Footer: React.FC<FooterProps> = ({
             <Icon icon="lucide:clock" className="text-2xl" />
           </button>
           <button 
-            onClick={() => console.log('Explore')} 
-            className="text-text-primary hover:text-primary transition-colors"
+            onClick={() => navigation.goToExplore()} 
+            className={`${currentRoute === 'explore' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`}
           >
             <Icon icon="lucide:compass" className="text-2xl" />
           </button>
