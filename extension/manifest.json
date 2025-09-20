@@ -3,6 +3,9 @@
   "name": "MonkeyMask - Banano Wallet",
   "version": "0.1.0",
   "description": "Browser extension wallet for Banano cryptocurrency",
+  "icons": {
+    "128": "icons/icon-128.png"
+  },
   "permissions": [
     "storage",
     "activeTab"
@@ -23,7 +26,10 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "MonkeyMask"
+    "default_title": "MonkeyMask",
+    "default_icon": {
+      "128": "icons/icon-128.png"
+    }
   },
   "web_accessible_resources": [
     {
