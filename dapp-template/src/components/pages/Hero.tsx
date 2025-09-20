@@ -1,6 +1,5 @@
 'use client';
 
-import React, { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui';
 import { Icon } from "@iconify/react";
@@ -43,12 +42,6 @@ export function Hero() {
             </div>
           </div>
         </div>
-
-        {/* <div className="mt-10 md:mt-14 rounded-[2rem] overflow-hidden">
-            <div className="aspect-[16/9] w-full bg-[url('/assets/backgrounds/bg-footer.svg')] bg-cover scale-120 bg-center">
-            
-            </div>
-          </div> */}
           
         <FunctionalitySection />
           
@@ -63,8 +56,8 @@ export function Hero() {
             Ready to Build the Future of Banano?
           </h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Join the growing ecosystem of developers building amazing dApps with MonkeyMask's 
-            enterprise-grade wallet integration.
+            {`Join the growing ecosystem of developers building amazing dApps with MonkeyMask's 
+            enterprise-grade wallet integration.`}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button variant="default" size="lg" asChild className="text-lg px-8 py-4">

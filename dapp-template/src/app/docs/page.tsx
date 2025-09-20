@@ -6,7 +6,7 @@ import { Header } from '@/components/pages/Header';
 import { TryMe } from '@/components/pages/TryMe';
 import { Icon } from "@iconify/react";
 import Link from 'next/link';
-
+import { DonateButton } from '@/components/DonateButton';
 // Expandable section component
 const ExpandableSection = ({ 
   title, 
@@ -181,8 +181,8 @@ export default function DocsPage() {
                   <ol className="text-sm space-y-2 list-decimal list-inside text-[var(--text-secondary)]">
                     <li>Download the latest release from GitHub</li>
                     <li>Open Chrome and go to <code>chrome://extensions/</code></li>
-                    <li>Enable "Developer mode" (toggle in top right)</li>
-                    <li>Click "Load unpacked" and select the <code>dist</code> folder</li>
+                    <li>Enable Developer mode</li>
+                    <li>Click Load Unpacked and select the <code>dist</code> folder</li>
                     <li>MonkeyMask will appear in your extensions!</li>
                   </ol>
                 </div>
@@ -1480,14 +1480,14 @@ const walletManager = new WalletManager();`}</code>
                     </ul>
                 </div>
                 <div>
-                  <h4 className="font-medium mb-2 text-red-600">❌ Don't</h4>
+                  <h4 className="font-medium mb-2 text-red-600">{`❌ Don't`}</h4>
                   <ul className="text-sm space-y-1 text-[var(--text-secondary)]">
                     <li>• Never store private keys in your dApp</li>
-                    <li>• Don't assume connection persists</li>
+                    <li>• {`Don't assume connection persists`}</li>
                     <li>• Avoid requesting unnecessary permissions</li>
-                    <li>• Don't ignore error codes</li>
+                    <li>• {`Don't ignore error codes`}</li>
                     <li>• Never auto-submit transactions</li>
-                    <li>• Don't trust client-side verification alone</li>
+                    <li>• {`Don't trust client-side verification alone`}</li>
                   </ul>
                 </div>
               </div>
@@ -1558,6 +1558,7 @@ const walletManager = new WalletManager();`}</code>
             </div>
           </div>
         </section>
+        <DonateButton />
       </main>
     </div>
   );

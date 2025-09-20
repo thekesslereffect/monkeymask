@@ -1,21 +1,12 @@
 'use client';
 
 import React from 'react';
-import { useMonkeyMask } from '@/providers';
 
 interface TryMeProps {
   className?: string;
 }
 
 export function TryMe({ className = '' }: TryMeProps) {
-  const { isConnected, publicKey } = useMonkeyMask();
-
-  const displayKey = React.useMemo(() => {
-    if (isConnected && publicKey) {
-      return `${publicKey.slice(0, 6)}...${publicKey.slice(-6)}`;
-    }
-    return 'ban_14...xb5pym';
-  }, [isConnected, publicKey]);
 
   return (
     <div className={className} aria-hidden>

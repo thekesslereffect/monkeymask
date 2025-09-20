@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Icon } from '@iconify/react';
-import { Button, Badge } from '@/components/ui';
+import { Badge } from '@/components/ui';
 
 // Feature card component
 const FeatureCard = ({ 
@@ -50,25 +50,6 @@ const FeatureCard = ({
   </div>
 );
 
-// Stats component
-const StatCard = ({ 
-  number, 
-  label, 
-  icon 
-}: { 
-  number: string; 
-  label: string; 
-  icon: string;
-}) => (
-  <div className="text-center p-6">
-    <div className="inline-flex p-3 rounded-full bg-secondary mb-4">
-      <Icon icon={icon} className="size-6 text-secondary-foreground" />
-    </div>
-    <div className="text-3xl font-bold text-foreground mb-2">{number}</div>
-    <div className="text-sm text-secondary-foreground font-medium">{label}</div>
-  </div>
-);
-
 export default function ExploreSection() {
   const [activeTab, setActiveTab] = useState('features');
 
@@ -108,13 +89,6 @@ export default function ExploreSection() {
       description: 'Advanced privacy options including stealth addresses and transaction mixing for enhanced anonymity.',
       comingSoon: true
     }
-  ];
-
-  const stats = [
-    { number: '50+', label: 'Ecosystem Sites', icon: 'mdi:web' },
-    { number: '15+', label: 'API Methods', icon: 'mdi:api' },
-    { number: '0ms', label: 'Transaction Time', icon: 'mdi:clock-fast' },
-    { number: '100%', label: 'Feeless', icon: 'mdi:currency-usd-off' }
   ];
 
   const dappIdeas = [
