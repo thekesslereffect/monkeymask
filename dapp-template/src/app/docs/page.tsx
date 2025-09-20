@@ -138,11 +138,11 @@ export default function DocsPage() {
               Phantom-style API compatibility, and comprehensive ecosystem integration.
             </p>
             <div className="mt-8 flex items-center gap-3">
-              <Button variant="secondary" size="md" asChild>
-                <Link href="https://github.com/thekesslereffect/monkeymask" target="_blank">
-                  <Icon icon="mdi:github" className="size-6" /> Github
-                </Link>
-              </Button>
+            <Button variant="secondary" size="md" asChild>
+              <Link href="https://github.com/thekesslereffect/monkeymask" target="_blank">
+                <Icon icon="mdi:github" className="size-6" /> Github
+              </Link>
+            </Button>
               <a href="#api" className="inline-flex">
                 <Button variant="outline" size="sm">
                   <Icon icon="cuida:unfold-horizontal-outline" className="size-6" /> <span>API Reference</span>
@@ -263,7 +263,7 @@ export default function Page() {
     <div>
       <h1>My Banano dApp</h1>
       <ConnectButton />
-    </div>
+</div>
   );
 }`}</code>
                 </pre>
@@ -302,7 +302,7 @@ export default function MyComponent() {
         <div>
           <p>Connected: {publicKey}</p>
           <button onClick={handleSend}>Send 1 BAN</button>
-        </div>
+</div>
       ) : (
         <p>Please connect your wallet</p>
       )}
@@ -319,14 +319,14 @@ export default function MyComponent() {
         <section id="features" className="max-w-5xl mx-auto">
           <h2 className="text-4xl font-bold mb-8">Core Features</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
+          <Card>
+            <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Icon icon="mdi:shield-check" className="size-5 text-green-500" />
                   Enterprise Security
                 </CardTitle>
-              </CardHeader>
-              <CardContent>
+            </CardHeader>
+            <CardContent>
                 <ul className="text-sm space-y-2 text-[var(--text-secondary)]">
                   <li>• Per-origin permissions</li>
                   <li>• AES-256 encryption</li>
@@ -337,41 +337,41 @@ export default function MyComponent() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
+                <Card>
+                  <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Icon icon="mdi:api" className="size-5 text-blue-500" />
                   Phantom-Style API
                 </CardTitle>
-              </CardHeader>
-              <CardContent>
+                  </CardHeader>
+                  <CardContent>
                 <ul className="text-sm space-y-2 text-[var(--text-secondary)]">
                   <li>• Event-driven architecture</li>
                   <li>• Connection persistence</li>
                   <li>• Standardized error codes</li>
                   <li>• TypeScript support</li>
                   <li>• Silent reconnection</li>
-                </ul>
-              </CardContent>
-            </Card>
+                    </ul>
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader>
+                <Card>
+                  <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Icon icon="mdi:web" className="size-5 text-yellow-500" />
                   BNS Integration
                 </CardTitle>
-              </CardHeader>
-              <CardContent>
+                  </CardHeader>
+                  <CardContent>
                 <ul className="text-sm space-y-2 text-[var(--text-secondary)]">
                   <li>• Resolve .ban domains</li>
                   <li>• Human-readable addresses</li>
                   <li>• Automatic resolution</li>
                   <li>• Transaction support</li>
                   <li>• Developer-friendly API</li>
-                </ul>
-              </CardContent>
-            </Card>
+                    </ul>
+                  </CardContent>
+                </Card>
           </div>
         </section>
 
@@ -392,17 +392,26 @@ export default function MyComponent() {
                   signature="connect(options?: { onlyIfTrusted?: boolean }): Promise<{ publicKey: string }>"
                   description="Connect to the user's wallet. Shows approval popup if not previously authorized."
                   returns="Promise<{ publicKey: string }>"
-                  example={`// Basic connection
-const result = await window.banano.connect();
-console.log('Connected:', result.publicKey);
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
 
-// Silent connection (only if previously authorized)
-try {
-  const result = await window.banano.connect({ onlyIfTrusted: true });
-  console.log('Silently connected:', result.publicKey);
-} catch (error) {
-  // User hasn't authorized this site before
-  console.log('Not previously authorized');
+function MyComponent() {
+  const { connect, isConnected, publicKey } = useMonkeyMask();
+
+  const handleConnect = async () => {
+    try {
+      await connect();
+      console.log('Connected:', publicKey);
+    } catch (error) {
+      console.log('Connection failed:', error.message);
+    }
+  };
+
+  return (
+    <button onClick={handleConnect} disabled={isConnected}>
+      {isConnected ? 'Connected' : 'Connect Wallet'}
+    </button>
+  );
 }`}
                 />
 
@@ -411,8 +420,23 @@ try {
                   signature="disconnect(): Promise<void>"
                   description="Disconnect from the wallet and clear the connection state."
                   returns="Promise<void>"
-                  example={`await window.banano.disconnect();
-console.log('Disconnected from wallet');`}
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
+
+function DisconnectButton() {
+  const { disconnect, isConnected } = useMonkeyMask();
+
+  const handleDisconnect = async () => {
+    await disconnect();
+    console.log('Disconnected from wallet');
+  };
+
+  return (
+    <button onClick={handleDisconnect} disabled={!isConnected}>
+      Disconnect
+    </button>
+  );
+}`}
                 />
 
                 <ApiMethod
@@ -420,10 +444,21 @@ console.log('Disconnected from wallet');`}
                   signature="readonly isConnected: boolean"
                   description="Current connection status to the wallet."
                   category="property"
-                  example={`if (window.banano.isConnected) {
-  console.log('Wallet is connected');
-} else {
-  console.log('Wallet is not connected');
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
+
+function ConnectionStatus() {
+  const { isConnected } = useMonkeyMask();
+
+  return (
+    <div>
+      {isConnected ? (
+        <span>✅ Wallet is connected</span>
+      ) : (
+        <span>❌ Wallet is not connected</span>
+      )}
+    </div>
+  );
 }`}
                 />
 
@@ -432,9 +467,21 @@ console.log('Disconnected from wallet');`}
                   signature="readonly publicKey: string | null"
                   description="The public key of the currently connected account."
                   category="property"
-                  example={`const publicKey = window.banano.publicKey;
-if (publicKey) {
-  console.log('Current account:', publicKey);
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
+
+function AccountDisplay() {
+  const { publicKey, isConnected } = useMonkeyMask();
+
+  if (!isConnected || !publicKey) {
+    return <div>No account connected</div>;
+  }
+
+  return (
+    <div>
+      Current account: {publicKey.slice(0, 8)}...{publicKey.slice(-8)}
+    </div>
+  );
 }`}
                 />
               </div>
@@ -452,9 +499,28 @@ if (publicKey) {
                   signature="getAccounts(): Promise<string[]>"
                   description="Get all connected account addresses."
                   returns="Promise<string[]>"
-                  example={`const accounts = await window.banano.getAccounts();
-console.log('Connected accounts:', accounts);
-// ['ban_1abc...', 'ban_1def...']`}
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
+
+function AccountsList() {
+  const { getAccounts, isConnected } = useMonkeyMask();
+  const [accounts, setAccounts] = useState([]);
+
+  useEffect(() => {
+    if (isConnected) {
+      getAccounts().then(setAccounts);
+    }
+  }, [isConnected, getAccounts]);
+
+  return (
+    <div>
+      <h3>Connected Accounts ({accounts.length})</h3>
+      {accounts.map((account, index) => (
+        <div key={index}>{account}</div>
+      ))}
+    </div>
+  );
+}`}
                 />
 
                 <ApiMethod
@@ -462,13 +528,38 @@ console.log('Connected accounts:', accounts);
                   signature="getBalance(address?: string): Promise<string>"
                   description="Get the balance for an account. Uses connected account if no address provided."
                   returns="Promise<string>"
-                  example={`// Get balance for connected account
-const balance = await window.banano.getBalance();
-console.log('Balance:', balance, 'BAN');
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
 
-// Get balance for specific account
-const balance2 = await window.banano.getBalance('ban_1abc...');
-console.log('Account balance:', balance2, 'BAN');`}
+function BalanceDisplay() {
+  const { getBalance, publicKey, isConnected } = useMonkeyMask();
+  const [balance, setBalance] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const refreshBalance = async () => {
+    if (!isConnected) return;
+    setLoading(true);
+    try {
+      const bal = await getBalance();
+      setBalance(bal);
+    } catch (error) {
+      console.error('Failed to get balance:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshBalance();
+  }, [isConnected]);
+
+  return (
+    <div>
+      <div>Balance: {loading ? 'Loading...' : balance || '0'} BAN</div>
+      <button onClick={refreshBalance}>Refresh</button>
+    </div>
+  );
+}`}
                 />
 
                 <ApiMethod
@@ -476,14 +567,49 @@ console.log('Account balance:', balance2, 'BAN');`}
                   signature="getAccountInfo(address?: string): Promise<AccountInfo>"
                   description="Get detailed account information including balance, pending, and raw values."
                   returns="Promise<AccountInfo>"
-                  example={`const info = await window.banano.getAccountInfo();
-console.log('Account info:', {
-  address: info.address,
-  balance: info.balance,
-  pending: info.pending,
-  rawBalance: info.rawBalance,
-  rawPending: info.rawPending
-});`}
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
+
+function AccountInfo() {
+  const { getAccountInfo, isConnected } = useMonkeyMask();
+  const [accountInfo, setAccountInfo] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchAccountInfo = async () => {
+    if (!isConnected) return;
+    setLoading(true);
+    try {
+      const info = await getAccountInfo();
+      setAccountInfo(info);
+      console.log('Account info:', info);
+    } catch (error) {
+      console.error('Failed to get account info:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAccountInfo();
+  }, [isConnected]);
+
+  return (
+    <div>
+      {loading ? (
+        <div>Loading account info...</div>
+      ) : accountInfo ? (
+        <div>
+          <div>Address: {accountInfo.address}</div>
+          <div>Balance: {accountInfo.balance} BAN</div>
+          <div>Pending: {accountInfo.pending} BAN</div>
+          <div>Representative: {accountInfo.representative}</div>
+        </div>
+      ) : (
+        <div>No account info available</div>
+      )}
+    </div>
+  );
+}`}
                 />
               </div>
             </div>
@@ -500,21 +626,51 @@ console.log('Account info:', {
                   signature="sendTransaction(from: string, to: string, amount: string): Promise<{ hash: string; block: any }>"
                   description="Send a Banano transaction. Supports BNS name resolution for the recipient."
                   returns="Promise<{ hash: string; block: any }>"
-                  example={`// Send to Banano address
-const result = await window.banano.sendTransaction(
-  'ban_1sender...',
-  'ban_1recipient...',
-  '1.5'
-);
-console.log('Transaction hash:', result.hash);
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
 
-// Send to BNS name (automatically resolved)
-const result2 = await window.banano.sendTransaction(
-  'ban_1sender...',
-  'username.ban',
-  '0.1'
-);
-console.log('Sent to BNS name:', result2.hash);`}
+function SendForm() {
+  const { sendTransaction, isConnected } = useMonkeyMask();
+  const [recipient, setRecipient] = useState('');
+  const [amount, setAmount] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!recipient || !amount) return;
+    
+    setSending(true);
+    try {
+      // Supports both Banano addresses and BNS names
+      const hash = await sendTransaction(recipient, amount);
+      console.log('Transaction sent:', hash);
+      alert('Transaction sent successfully!');
+    } catch (error) {
+      console.error('Transaction failed:', error);
+      alert('Transaction failed: ' + error.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSend}>
+      <input 
+        value={recipient} 
+        onChange={(e) => setRecipient(e.target.value)}
+        placeholder="ban_1... or username.ban" 
+      />
+      <input 
+        value={amount} 
+        onChange={(e) => setAmount(e.target.value)}
+        placeholder="Amount in BAN" 
+      />
+      <button type="submit" disabled={!isConnected || sending}>
+        {sending ? 'Sending...' : 'Send Transaction'}
+      </button>
+    </form>
+  );
+}`}
                 />
 
                 <ApiMethod
@@ -522,17 +678,51 @@ console.log('Sent to BNS name:', result2.hash);`}
                   signature="signMessage(message: string | Uint8Array, display?: 'utf8' | 'hex'): Promise<{ signature: Uint8Array; publicKey: string }>"
                   description="Sign an arbitrary message for authentication or verification purposes."
                   returns="Promise<{ signature: Uint8Array; publicKey: string }>"
-                  example={`// Sign a login message
-const message = \`Login to MyApp at \${Date.now()}\`;
-const result = await window.banano.signMessage(message, 'utf8');
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
 
-console.log('Signature:', result.signature);
-console.log('Signed by:', result.publicKey);
+function MessageSigner() {
+  const { signMessage, isConnected } = useMonkeyMask();
+  const [message, setMessage] = useState('');
+  const [signature, setSignature] = useState('');
+  const [signing, setSigning] = useState(false);
 
-// Convert signature to hex for storage/transmission
-const signatureHex = Array.from(result.signature, 
-  byte => byte.toString(16).padStart(2, '0')
-).join('');`}
+  const handleSign = async () => {
+    if (!message.trim()) return;
+    
+    setSigning(true);
+    try {
+      // Sign the message (returns hex string)
+      const sig = await signMessage(message);
+      setSignature(sig);
+      console.log('Message signed:', sig);
+    } catch (error) {
+      console.error('Signing failed:', error);
+      alert('Signing failed: ' + error.message);
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  return (
+    <div>
+      <textarea 
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Enter message to sign..."
+      />
+      <button onClick={handleSign} disabled={!isConnected || signing}>
+        {signing ? 'Signing...' : 'Sign Message'}
+      </button>
+      {signature && (
+        <div>
+          <strong>Signature:</strong>
+          <div style={{wordBreak: 'break-all'}}>{signature}</div>
+        </div>
+      )}
+    </div>
+  );
+}`}
                 />
 
                 <ApiMethod
@@ -540,17 +730,49 @@ const signatureHex = Array.from(result.signature,
                   signature="signBlock(block: Block): Promise<SignBlockResult>"
                   description="Sign a pre-constructed Banano block for advanced use cases."
                   returns="Promise<SignBlockResult>"
-                  example={`const block = {
-  type: 'send',
-  account: 'ban_1sender...',
-  previous: 'ABC123...',
-  representative: 'ban_1rep...',
-  balance: '1000000000000000000000000000',
-  link: 'ban_1recipient...'
-};
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
 
-const result = await window.banano.signBlock(block);
-console.log('Signed block:', result);`}
+function BlockSigner() {
+  const { signBlock, isConnected } = useMonkeyMask();
+  const [signedBlock, setSignedBlock] = useState(null);
+  const [signing, setSigning] = useState(false);
+
+  const handleSignBlock = async () => {
+    const block = {
+      type: 'send',
+      account: 'ban_1sender...',
+      previous: 'ABC123...',
+      representative: 'ban_1rep...',
+      balance: '1000000000000000000000000000',
+      link: 'ban_1recipient...'
+    };
+
+    setSigning(true);
+    try {
+      const result = await signBlock(block);
+      setSignedBlock(result);
+      console.log('Signed block:', result);
+    } catch (error) {
+      console.error('Block signing failed:', error);
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={handleSignBlock} disabled={!isConnected || signing}>
+        {signing ? 'Signing Block...' : 'Sign Block'}
+      </button>
+      {signedBlock && (
+        <div>
+          <strong>Signed Block Hash:</strong> {signedBlock.hash}
+        </div>
+      )}
+    </div>
+  );
+}`}
                 />
 
                 <ApiMethod
@@ -558,12 +780,53 @@ console.log('Signed block:', result);`}
                   signature="sendBlock(block: Block): Promise<string>"
                   description="Send a pre-signed block to the network."
                   returns="Promise<string>"
-                  example={`// First sign the block
-const signedBlock = await window.banano.signBlock(block);
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
 
-// Then send it to the network
-const hash = await window.banano.sendBlock(signedBlock);
-console.log('Block hash:', hash);`}
+function BlockSender() {
+  const { signBlock, sendBlock, isConnected } = useMonkeyMask();
+  const [blockHash, setBlockHash] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleSendBlock = async () => {
+    const block = {
+      type: 'send',
+      account: 'ban_1sender...',
+      previous: 'ABC123...',
+      representative: 'ban_1rep...',
+      balance: '1000000000000000000000000000',
+      link: 'ban_1recipient...'
+    };
+
+    setSending(true);
+    try {
+      // First sign the block
+      const signedBlock = await signBlock(block);
+      
+      // Then send it to the network
+      const hash = await sendBlock(signedBlock);
+      setBlockHash(hash);
+      console.log('Block hash:', hash);
+    } catch (error) {
+      console.error('Block sending failed:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={handleSendBlock} disabled={!isConnected || sending}>
+        {sending ? 'Sending Block...' : 'Sign & Send Block'}
+      </button>
+      {blockHash && (
+        <div>
+          <strong>Block Hash:</strong> {blockHash}
+        </div>
+      )}
+    </div>
+  );
+}`}
                 />
               </div>
             </div>
@@ -580,18 +843,49 @@ console.log('Block hash:', hash);`}
                   signature="resolveBNS(bnsName: string): Promise<string>"
                   description="Resolve a BNS name to a Banano address. Supports .ban and .banano domains."
                   returns="Promise<string>"
-                  example={`// Resolve BNS names
-const address1 = await window.banano.resolveBNS('username.ban');
-const address2 = await window.banano.resolveBNS('myname.banano');
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
 
-console.log('Resolved addresses:', address1, address2);
+function BNSResolver() {
+  const { resolveBNS } = useMonkeyMask();
+  const [bnsName, setBnsName] = useState('');
+  const [resolvedAddress, setResolvedAddress] = useState('');
+  const [resolving, setResolving] = useState(false);
 
-// Use in transactions (automatic resolution)
-await window.banano.sendTransaction(
-  myAddress,
-  'recipient.ban', // Automatically resolved
-  '1.0'
-);`}
+  const handleResolve = async () => {
+    if (!bnsName.trim()) return;
+    
+    setResolving(true);
+    try {
+      const address = await resolveBNS(bnsName);
+      setResolvedAddress(address);
+      console.log(\`\${bnsName} resolves to \${address}\`);
+    } catch (error) {
+      console.error('BNS resolution failed:', error);
+      setResolvedAddress('Not found');
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  return (
+    <div>
+      <input 
+        value={bnsName}
+        onChange={(e) => setBnsName(e.target.value)}
+        placeholder="username.ban or name.banano"
+      />
+      <button onClick={handleResolve} disabled={resolving}>
+        {resolving ? 'Resolving...' : 'Resolve BNS'}
+      </button>
+      {resolvedAddress && (
+        <div>
+          <strong>Resolved:</strong> {resolvedAddress}
+        </div>
+      )}
+    </div>
+  );
+}`}
                 />
               </div>
             </div>
@@ -608,22 +902,66 @@ await window.banano.sendTransaction(
                   signature="verifySignedMessage(message: string, signature: string, publicKey: string, display?: 'utf8' | 'hex'): Promise<boolean>"
                   description="Verify a signed message against a public key. Useful for authentication flows."
                   returns="Promise<boolean>"
-                  example={`// Verify a signature
-const message = 'Login to MyApp at 1234567890';
-const signature = '0123456789abcdef...'; // hex signature
-const publicKey = 'ban_1abc...'; // or hex public key
+                  example={`// Using the React hook
+import { useMonkeyMask } from '@/providers';
 
-const isValid = await window.banano.verifySignedMessage(
-  message, 
-  signature, 
-  publicKey, 
-  'utf8'
-);
+function SignatureVerifier() {
+  const { verifySignedMessage } = useMonkeyMask();
+  const [message, setMessage] = useState('Login to MyApp at 1234567890');
+  const [signature, setSignature] = useState('');
+  const [publicKey, setPublicKey] = useState('');
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [verifying, setVerifying] = useState(false);
 
-if (isValid) {
-  console.log('Signature is valid - user authenticated!');
-} else {
-  console.log('Invalid signature');
+  const handleVerify = async () => {
+    if (!message || !signature || !publicKey) return;
+    
+    setVerifying(true);
+    try {
+      const isValid = await verifySignedMessage(message, signature, publicKey);
+      setVerificationResult(isValid);
+      
+      if (isValid) {
+        console.log('Signature is valid - user authenticated!');
+      } else {
+        console.log('Invalid signature');
+      }
+    } catch (error) {
+      console.error('Verification failed:', error);
+      setVerificationResult(false);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <div>
+      <input 
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Message to verify"
+      />
+      <input 
+        value={signature}
+        onChange={(e) => setSignature(e.target.value)}
+        placeholder="Signature (hex)"
+      />
+      <input 
+        value={publicKey}
+        onChange={(e) => setPublicKey(e.target.value)}
+        placeholder="Public key"
+      />
+      <button onClick={handleVerify} disabled={verifying}>
+        {verifying ? 'Verifying...' : 'Verify Signature'}
+      </button>
+      
+      {verificationResult !== null && (
+        <div style={{color: verificationResult ? 'green' : 'red'}}>
+          {verificationResult ? '✅ Valid signature' : '❌ Invalid signature'}
+        </div>
+      )}
+    </div>
+  );
 }`}
                 />
               </div>
@@ -641,11 +979,37 @@ if (isValid) {
                   signature="on('connect', handler: (data: { publicKey: string }) => void): void"
                   description="Listen for wallet connection events."
                   category="event"
-                  example={`window.banano.on('connect', (data) => {
-  console.log('Wallet connected:', data.publicKey);
-  // Update UI to show connected state
-  updateConnectionStatus(true, data.publicKey);
-});`}
+                  example={`// Using the React hook with config
+import { MonkeyMaskProvider } from '@/providers';
+
+function App() {
+  const config = {
+    onConnect: (publicKey) => {
+      console.log('Wallet connected:', publicKey);
+      // Update UI or trigger side effects
+      toast.success('Wallet connected successfully!');
+    }
+  };
+
+  return (
+    <MonkeyMaskProvider config={config}>
+      <YourAppComponents />
+    </MonkeyMaskProvider>
+  );
+}
+
+// Or listen for connection state changes in components
+function ConnectionListener() {
+  const { isConnected, publicKey } = useMonkeyMask();
+  
+  useEffect(() => {
+    if (isConnected && publicKey) {
+      console.log('Connected to:', publicKey);
+    }
+  }, [isConnected, publicKey]);
+  
+  return null;
+}`}
                 />
 
                 <ApiMethod
@@ -653,11 +1017,37 @@ if (isValid) {
                   signature="on('disconnect', handler: () => void): void"
                   description="Listen for wallet disconnection events."
                   category="event"
-                  example={`window.banano.on('disconnect', () => {
-  console.log('Wallet disconnected');
-  // Update UI to show disconnected state
-  updateConnectionStatus(false, null);
-});`}
+                  example={`// Using the React hook with config
+import { MonkeyMaskProvider } from '@/providers';
+
+function App() {
+  const config = {
+    onDisconnect: () => {
+      console.log('Wallet disconnected');
+      // Update UI or trigger side effects
+      toast.info('Wallet disconnected');
+    }
+  };
+
+  return (
+    <MonkeyMaskProvider config={config}>
+      <YourAppComponents />
+    </MonkeyMaskProvider>
+  );
+}
+
+// Or listen for disconnection in components
+function DisconnectionListener() {
+  const { isConnected } = useMonkeyMask();
+  
+  useEffect(() => {
+    if (!isConnected) {
+      console.log('Wallet is disconnected');
+    }
+  }, [isConnected]);
+  
+  return null;
+}`}
                 />
 
                 <ApiMethod
@@ -665,11 +1055,38 @@ if (isValid) {
                   signature="on('accountChanged', handler: (publicKey: string) => void): void"
                   description="Listen for account changes when user switches accounts."
                   category="event"
-                  example={`window.banano.on('accountChanged', (newPublicKey) => {
-  console.log('Account changed to:', newPublicKey);
-  // Refresh account-specific data
-  refreshAccountData(newPublicKey);
-});`}
+                  example={`// Using the React hook with config
+import { MonkeyMaskProvider } from '@/providers';
+
+function App() {
+  const config = {
+    onAccountChanged: (newPublicKey) => {
+      console.log('Account changed to:', newPublicKey);
+      // Update UI or refresh data
+      toast.info('Account switched');
+    }
+  };
+
+  return (
+    <MonkeyMaskProvider config={config}>
+      <YourAppComponents />
+    </MonkeyMaskProvider>
+  );
+}
+
+// Or listen for account changes in components
+function AccountChangeListener() {
+  const { publicKey } = useMonkeyMask();
+  
+  useEffect(() => {
+    if (publicKey) {
+      console.log('Current account:', publicKey);
+      // Refresh account-specific data
+    }
+  }, [publicKey]);
+  
+  return null;
+}`}
                 />
               </div>
             </div>
@@ -679,8 +1096,8 @@ if (isValid) {
         {/* Error Handling */}
         <section id="errors" className="max-w-4xl mx-auto">
           <h2 className="text-4xl font-bold mb-8">Error Handling</h2>
-          <Card>
-            <CardHeader>
+                <Card>
+                  <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Icon icon="mdi:alert-circle" className="size-5" />
                 Standardized Error Codes
@@ -724,22 +1141,34 @@ if (isValid) {
               >
                 <pre className="text-sm bg-[var(--panel)] p-4 rounded border border-[var(--border)] overflow-x-auto">
                   <code>{`try {
-  const result = await window.banano.connect();
-  console.log('Connected:', result.publicKey);
-} catch (error) {
-  switch (error.code) {
-    case 4001:
-      console.log('User rejected the connection request');
-      break;
-    case 4100:
-      console.log('Please connect to MonkeyMask first');
-      break;
-    case 4900:
-      console.log('MonkeyMask is disconnected');
-      break;
-    default:
-      console.error('Unexpected error:', error.message);
-  }
+  await connect();
+  console.log('Connected successfully!');
+} catch (err) {
+  // Error is automatically handled by the provider
+  // and available via the error state
+  console.error('Connection failed:', err.message);
+}
+
+// The provider automatically handles standard error codes:
+// 4001: User rejected request
+// 4100: Not connected to MonkeyMask  
+// 4900: Provider disconnected
+// -32602: Invalid parameters
+// -32603: Internal error
+
+// Access errors via the hook:
+const { connect, error, clearError } = useMonkeyMask();
+
+return (
+  <div>
+    <button onClick={handleConnect}>Connect Wallet</button>
+    {error && (
+      <div style={{color: 'red'}}>
+        Error: {error}
+        <button onClick={clearError}>Dismiss</button>
+      </div>
+    )}
+  </div>
 }`}</code>
                 </pre>
               </ExpandableSection>
@@ -761,18 +1190,25 @@ if (isValid) {
                   Implement secure user authentication using message signing and server-side verification.
                 </p>
                 <pre className="text-sm bg-[var(--panel)] p-4 rounded border border-[var(--border)] overflow-x-auto">
-                  <code>{`// Client-side authentication
-async function authenticateUser() {
-  try {
-    // 1. Connect to wallet
-    const connection = await window.banano.connect();
-    
-    // 2. Create authentication message
-    const timestamp = Date.now();
-    const message = \`Login to MyApp at \${timestamp}\`;
-    
-    // 3. Sign the message
-    const signature = await window.banano.signMessage(message, 'utf8');
+                  <code>{`// Client-side authentication using React hook
+import { useMonkeyMask } from '@/providers';
+
+function AuthenticationComponent() {
+  const { connect, signMessage, isConnected } = useMonkeyMask();
+
+  const authenticateUser = async () => {
+    try {
+      // 1. Connect to wallet
+      if (!isConnected) {
+        await connect();
+      }
+      
+      // 2. Create authentication message
+      const timestamp = Date.now();
+      const message = \`Login to MyApp at \${timestamp}\`;
+      
+      // 3. Sign the message
+      const signature = await signMessage(message);
     
     // 4. Send to server for verification
     const response = await fetch('/api/auth/login', {
@@ -852,15 +1288,22 @@ Message: \${message}\`;
                   Build user-friendly interfaces with BNS name resolution.
                 </p>
                 <pre className="text-sm bg-[var(--panel)] p-4 rounded border border-[var(--border)] overflow-x-auto">
-                  <code>{`// Smart address input with BNS support
-async function handleAddressInput(input) {
-  const addressInput = input.trim();
-  
-  // Check if it looks like a BNS name
-  if (addressInput.includes('.ban') || addressInput.includes('.banano')) {
-    try {
-      setStatus('Resolving BNS name...');
-      const resolvedAddress = await window.banano.resolveBNS(addressInput);
+                  <code>{`// Smart address input with BNS support using React hook
+import { useMonkeyMask } from '@/providers';
+
+function SmartAddressInput() {
+  const { resolveBNS } = useMonkeyMask();
+  const [status, setStatus] = useState('');
+  const [resolvedAddress, setResolvedAddress] = useState('');
+
+  const handleAddressInput = async (input) => {
+    const addressInput = input.trim();
+    
+    // Check if it looks like a BNS name
+    if (addressInput.includes('.ban') || addressInput.includes('.banano')) {
+      try {
+        setStatus('Resolving BNS name...');
+        const resolvedAddress = await resolveBNS(addressInput);
       
       setResolvedAddress(resolvedAddress);
       setStatus(\`Resolved to: \${resolvedAddress.slice(0, 10)}...\`);
@@ -879,16 +1322,15 @@ async function handleAddressInput(input) {
   }
 }
 
-// Use in transaction
-async function sendToBNS(bnsName, amount) {
-  try {
-    const resolvedAddress = await handleAddressInput(bnsName);
-    
-    const result = await window.banano.sendTransaction(
-      myAddress,
-      resolvedAddress, // or just use bnsName directly
-      amount
-    );
+  // Use in transaction
+  const sendToBNS = async (bnsName, amount) => {
+    try {
+      const resolvedAddress = await handleAddressInput(bnsName);
+      
+      const result = await sendTransaction(
+        resolvedAddress, // or just use bnsName directly
+        amount
+      );
     
     console.log(\`Sent \${amount} BAN to \${bnsName} (\${resolvedAddress})\`);
     return result;
@@ -909,32 +1351,30 @@ async function sendToBNS(bnsName, amount) {
                   Build reactive dApps that respond to wallet state changes.
                 </p>
                 <pre className="text-sm bg-[var(--panel)] p-4 rounded border border-[var(--border)] overflow-x-auto">
-                  <code>{`class WalletManager {
-  constructor() {
-    this.isConnected = false;
-    this.currentAccount = null;
-    this.setupEventListeners();
-  }
+                  <code>{`// Event-driven architecture using React hooks
+import { useMonkeyMask } from '@/providers';
+
+function WalletManager() {
+  const { isConnected, publicKey } = useMonkeyMask();
+  const [walletStatus, setWalletStatus] = useState('Not connected');
   
-  setupEventListeners() {
-    // Connection events
-    window.banano.on('connect', (data) => {
-      this.isConnected = true;
-      this.currentAccount = data.publicKey;
-      this.onConnectionChange(true, data.publicKey);
-    });
-    
-    window.banano.on('disconnect', () => {
-      this.isConnected = false;
-      this.currentAccount = null;
-      this.onConnectionChange(false, null);
-    });
-    
-    window.banano.on('accountChanged', (newAccount) => {
-      this.currentAccount = newAccount;
-      this.onAccountChange(newAccount);
-    });
-  }
+  // React to connection changes
+  useEffect(() => {
+    if (isConnected && publicKey) {
+      setWalletStatus(\`Connected: \${publicKey.slice(0, 10)}...\`);
+      onConnectionChange(true, publicKey);
+    } else {
+      setWalletStatus('Not connected');
+      onConnectionChange(false, null);
+    }
+  }, [isConnected, publicKey]);
+  
+  // React to account changes
+  useEffect(() => {
+    if (publicKey) {
+      onAccountChange(publicKey);
+    }
+  }, [publicKey]);
   
   onConnectionChange(connected, account) {
     // Update UI
@@ -958,10 +1398,10 @@ async function sendToBNS(bnsName, amount) {
     this.loadAccountData(newAccount);
   }
   
-  async loadAccountData(account) {
+  const loadAccountData = async (account) => {
     try {
-      const balance = await window.banano.getBalance(account);
-      const accountInfo = await window.banano.getAccountInfo(account);
+      const balance = await getBalance(account);
+      const accountInfo = await getAccountInfo(account);
       
       // Update UI with new data
       this.updateAccountDisplay(balance, accountInfo);
@@ -1025,8 +1465,8 @@ const walletManager = new WalletManager();`}</code>
                 <Icon icon="mdi:code-braces" className="size-5" />
                 Developer Security Guidelines
               </CardTitle>
-            </CardHeader>
-            <CardContent>
+                  </CardHeader>
+                  <CardContent>
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <h4 className="font-medium mb-2 text-green-600">✅ Do</h4>
@@ -1037,7 +1477,7 @@ const walletManager = new WalletManager();`}</code>
                     <li>• Listen for disconnect events</li>
                     <li>• Implement proper error handling</li>
                     <li>• Show clear transaction details to users</li>
-                  </ul>
+                    </ul>
                 </div>
                 <div>
                   <h4 className="font-medium mb-2 text-red-600">❌ Don't</h4>
@@ -1051,8 +1491,8 @@ const walletManager = new WalletManager();`}</code>
                   </ul>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
         </section>
 
         {/* Extension Features */}
@@ -1074,8 +1514,8 @@ const walletManager = new WalletManager();`}</code>
                   <li>• <strong>Connected Sites:</strong> Manage permissions per website</li>
                   <li>• <strong>Account Management:</strong> Multiple accounts with custom names</li>
                 </ul>
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
 
             <Card>
               <CardHeader>
