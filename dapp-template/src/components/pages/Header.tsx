@@ -18,7 +18,7 @@ export function Header() {
             </div>
             <div className="text-2xl font-bold">MonKeyMask</div>
           </Link>
-          <nav className="flex items-center gap-8">
+          <nav className="flex items-center gap-8 hidden md:flex">
             <Link href="/docs" className="font-bold text-lg">Docs</Link>
             <Button variant="outline" size="sm" asChild>
               <Link href="https://github.com/thekesslereffect/monkeymask" target="_blank">

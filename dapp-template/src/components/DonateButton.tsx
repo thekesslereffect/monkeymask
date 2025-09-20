@@ -89,7 +89,7 @@ export function DonateButton() {
       disabled={sending} 
       variant="secondary" 
       size="sm" 
-      className="fixed bottom-4 right-4 gap-2" 
+      className="fixed bottom-4 right-4 gap-2 hidden md:flex" 
       title={error ? `Error: ${error}` : `Donate ${DONATION_AMOUNT} BAN to cosmic.ban`}
     >
       {getButtonContent()}

@@ -124,9 +124,9 @@ export default function DocsPage() {
     <div className="min-h-screen">
       <Header />
 
-      <main className="mx-auto max-w-[1500px] px-4 py-12 md:py-20 space-y-16">
+      <main className="mx-auto max-w-[1500px] px-4 py-12 md:py-20 space-y-30">
         {/* Hero */}
-        <TryMe className="fixed top-24 right-30" />
+        <TryMe className="fixed top-24 right-30  hidden md:flex" />
         <div className="max-w-5xl mx-auto">
           <div className="max-w-3xl">
             <Badge>Documentation</Badge>
@@ -316,7 +316,7 @@ export default function MyComponent() {
         </section>
 
         {/* Core Features */}
-        <section id="features" className="max-w-5xl mx-auto">
+        <section id="features" className="max-w-5xl mx-auto flex flex-col justify-center items-center md:block">
           <h2 className="text-4xl font-bold mb-8">Core Features</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card>
@@ -1420,7 +1420,7 @@ const walletManager = new WalletManager();`}</code>
         </section>
 
         {/* Security Best Practices */}
-        <section id="security" className="max-w-4xl mx-auto">
+        <section id="security" className="max-w-4xl mx-auto  flex flex-col justify-center items-center md:block">
           <h2 className="text-4xl font-bold mb-8">Security Best Practices</h2>
           
           <div className="grid md:grid-cols-2 gap-6">
@@ -1496,7 +1496,7 @@ const walletManager = new WalletManager();`}</code>
         </section>
 
         {/* Extension Features */}
-        <section id="extension-features" className="max-w-4xl mx-auto">
+        <section id="extension-features" className="max-w-4xl mx-auto flex flex-col justify-center items-center md:block">
           <h2 className="text-4xl font-bold mb-8">Extension Features</h2>
           
           <div className="grid md:grid-cols-2 gap-6">
