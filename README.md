@@ -30,7 +30,7 @@ monkeymask/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/monkeymask.git
+   git clone https://github.com/thekesslereffect/monkeymask.git
    cd monkeymask/extension
    ```
 

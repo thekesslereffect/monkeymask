@@ -58,10 +58,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/monkeymask-dapp-template.git"
+    "url": "https://github.com/thekesslereffect/monkeymask-dapp-template.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/monkeymask-dapp-template/issues"
+    "url": "https://github.com/thekesslereffect/monkeymask-dapp-template/issues"
   },
-  "homepage": "https://github.com/your-org/monkeymask-dapp-template#readme"
+  "homepage": "https://github.com/thekesslereffect/monkeymask-dapp-template#readme"
 }
