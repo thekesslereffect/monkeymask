@@ -112,6 +112,7 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
           setIsConnected(true);
           setPublicKey(data.publicKey);
           setAccounts(data.accounts || [data.publicKey]);
+          setUserDisconnected(false); // Reset disconnect flag when successfully connected
           clearError();
           onConnect?.(data.publicKey);
         });
@@ -120,7 +121,7 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
           setIsConnected(false);
           setPublicKey(null);
           setAccounts([]);
-          setUserDisconnected(false);
+          // Don't reset userDisconnected flag here - it should persist
           onDisconnect?.();
         });
 
