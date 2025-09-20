@@ -1388,14 +1388,14 @@ class BackgroundService {
     try {
       console.log('Background: Get account history request for:', request.address);
       
-      const { address, count = 10 } = request;
+      const { address, count = 10, head } = request;
       if (!address) {
         sendResponse({ success: false, error: 'Address is required' });
         return;
       }
 
-      // Use bananojs getAccountHistory method instead of custom RPC call
-      const historyResult = await bananojs.getAccountHistory(address, count);
+      // Use bananojs getAccountHistory method with optional head parameter for pagination
+      const historyResult = await bananojs.getAccountHistory(address, count, head);
       console.log('Background: bananojs getAccountHistory result:', JSON.stringify(historyResult, null, 2));
       
       // bananojs methods return data directly, not wrapped in success/data structure
@@ -1425,7 +1425,17 @@ class BackgroundService {
         };
       });
 
-      sendResponse({ success: true, data: { transactions } });
+      // Get the previous hash (head for next page) from the last transaction
+      const previousHash = transactions.length > 0 ? transactions[transactions.length - 1].hash : null;
+      
+      sendResponse({ 
+        success: true, 
+        data: { 
+          transactions,
+          previousHash,
+          hasMore: transactions.length === count // If we got exactly the requested count, there might be more
+        } 
+      });
       
     } catch (error) {
       console.error('Background: Error getting account history:', error);

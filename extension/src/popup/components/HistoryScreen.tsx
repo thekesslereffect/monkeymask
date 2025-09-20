@@ -22,34 +22,65 @@ export const HistoryScreen: React.FC = () => {
   const { accounts } = useAccounts();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [nextPageHead, setNextPageHead] = useState<string | null>(null);
 
   const handleViewOnCreeper = (hash: string) => {
     window.open(`https://creeper.banano.cc/hash/${hash}`, '_blank');
   };
 
-  const fetchMoreTransactions = async () => {
+  const fetchTransactions = async (head?: string | null, append: boolean = false) => {
     if (!accounts || accounts.length === 0) return;
 
     try {
-      setLoading(true);
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
       const response = await chrome.runtime.sendMessage({
         type: 'GET_ACCOUNT_HISTORY',
         address: accounts[0].address,
-        count: 50 // Fetch more transactions for history view
+        count: 20, // Fetch 20 transactions per page
+        head: head || undefined
       });
 
       if (response.success) {
-        setAllTransactions(response.data.transactions);
+        const newTransactions = response.data.transactions;
+        
+        if (append) {
+          // Append new transactions to existing ones
+          setAllTransactions(prev => [...prev, ...newTransactions]);
+        } else {
+          // Replace all transactions (initial load)
+          setAllTransactions(newTransactions);
+        }
+
+        // Update pagination state
+        setHasMore(response.data.hasMore && newTransactions.length > 0);
+        setNextPageHead(response.data.previousHash);
       }
     } catch (error) {
       console.error('Error fetching transaction history:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
+  const loadMoreTransactions = async () => {
+    if (!hasMore || loadingMore) return;
+    await fetchTransactions(nextPageHead, true);
+  };
+
   useEffect(() => {
-    fetchMoreTransactions();
+    // Reset state when accounts change
+    setAllTransactions([]);
+    setHasMore(true);
+    setNextPageHead(null);
+    fetchTransactions();
   }, [accounts]);
 
   const groupTransactionsByTime = (transactions: Transaction[]): GroupedTransactions => {
@@ -186,6 +217,26 @@ export const HistoryScreen: React.FC = () => {
                 ))}
               </Card>
             ))}
+            
+            {/* Load More Button */}
+            {hasMore && (
+              <div className="w-full flex justify-center pt-4">
+                <button
+                  onClick={loadMoreTransactions}
+                  disabled={loadingMore}
+                  className="px-6 py-2 bg-secondary hover:bg-secondary/80 text-tertiary hover:text-primary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingMore ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <span>Loading...</span>
+                    </div>
+                  ) : (
+                    'Load More'
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </ContentContainer>

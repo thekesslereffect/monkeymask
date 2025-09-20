@@ -99,7 +99,7 @@ export const AccountsProvider: React.FC<AccountsProviderProps> = ({ children }) 
       const response = await chrome.runtime.sendMessage({
         type: 'GET_ACCOUNT_HISTORY',
         address: address,
-        count: 10
+        count: 5 // Only fetch 5 transactions for dashboard display
       });
 
       if (response.success) {
