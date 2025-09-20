@@ -8,7 +8,7 @@ export function DonateButton() {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const DONATION_AMOUNT = '0.001';
+  const DONATION_AMOUNT = '100';
 
   // Reset success/error states after 3 seconds
   useEffect(() => {
