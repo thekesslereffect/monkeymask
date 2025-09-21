@@ -5,6 +5,7 @@ import { useAccounts } from '../../hooks/useAccounts';
 import { useDrawer } from '../../hooks/useDrawer';
 import { formatBalance } from '../../../utils/format';
 import { AccountSkeleton } from './Skeleton';
+import { Avatar } from './Avatar';
 
 interface DrawerProps {
   className?: string;
@@ -134,7 +135,7 @@ export const Drawer: React.FC<DrawerProps> = ({
           onClick={() => setIsOpen(true)}
           className="cursor-pointer"
         >
-          <div className="h-10 w-10 rounded-full bg-primary"></div>
+          <Avatar address={currentAccount?.address || ''} size={32} />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-primary text-md">
@@ -183,7 +184,7 @@ export const Drawer: React.FC<DrawerProps> = ({
             <h3 className="text-lg font-semibold text-foreground mb-3">Current Account</h3>
             <div className="bg-muted rounded-lg p-4">
               <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-10 rounded-full bg-primary"></div>
+                <Avatar address={currentAccount?.address || ''} size={32} />
                 <div>
                   <div className="font-medium text-foreground">
                     {currentAccount?.bnsNames && currentAccount.bnsNames.length > 0 ? currentAccount.bnsNames[0] : `Account ${currentAccountIndex + 1}`}
@@ -248,7 +249,7 @@ export const Drawer: React.FC<DrawerProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-primary"></div>
+                    <Avatar address={account.address} size={32} />
                     <div className="flex-1">
                       <div className="font-medium text-foreground">
                         {account.bnsNames && account.bnsNames.length > 0 ? account.bnsNames[0] : `Account ${index + 1}`}

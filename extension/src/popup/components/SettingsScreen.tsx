@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Header, ContentContainer, Footer, PageName, Card, Alert, ThemeToggle } from './ui';
+import { Header, ContentContainer, Footer, PageName, Card, Alert, ThemeToggle, AvatarToggle } from './ui';
 import { Icon } from '@iconify/react';
 
 export const SettingsScreen: React.FC = () => {
@@ -140,6 +140,13 @@ export const SettingsScreen: React.FC = () => {
             </div>
           </Alert>
           <ThemeToggle />
+          
+          {/* Avatar Settings */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-foreground">Avatar Style</h3>
+            <p className="text-xs text-tertiary">Choose how account avatars are displayed</p>
+          </div>
+          <AvatarToggle />
         </div>
 
         
