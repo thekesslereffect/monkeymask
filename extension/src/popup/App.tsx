@@ -5,6 +5,23 @@ import { DrawerProvider } from './hooks/useDrawer';
 import { Router } from './components/Router';
 import './styles.css';
 
+// Theme utilities
+type Theme = 'dark' | 'light' | 'banano';
+
+const applyTheme = (theme: Theme) => {
+  document.documentElement.setAttribute('data-theme', theme);
+};
+
+const loadSavedTheme = async (): Promise<Theme> => {
+  try {
+    const result = await chrome.storage.local.get(['theme']);
+    return (result.theme as Theme) ?? 'dark';
+  } catch (error) {
+    console.warn('Failed to load saved theme:', error);
+    return 'dark';
+  }
+};
+
 interface Account {
   address: string;
   name: string;
@@ -30,6 +47,22 @@ interface TransactionResult {
 
 // Main App wrapper with router and accounts providers
 export const App: React.FC = () => {
+  useEffect(() => {
+    // Initialize theme as early as possible
+    const initializeTheme = async () => {
+      try {
+        const savedTheme = await loadSavedTheme();
+        applyTheme(savedTheme);
+        console.log('App: Theme initialized:', savedTheme);
+      } catch (error) {
+        console.error('App: Failed to initialize theme:', error);
+        applyTheme('dark'); // Fallback to dark theme
+      }
+    };
+
+    initializeTheme();
+  }, []);
+
   return (
     <RouterProvider initialRoute="welcome">
       <AccountsProvider>

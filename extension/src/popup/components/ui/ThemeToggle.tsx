@@ -4,31 +4,68 @@ import { Icon } from '@iconify/react';
 
 type Theme = 'dark' | 'light' | 'banano';
 
-const STORAGE_KEY = 'monkeymask.theme';
+const STORAGE_KEY = 'theme';
 
 const applyTheme = (theme: Theme) => {
   document.documentElement.setAttribute('data-theme', theme);
 };
 
-const readStoredTheme = (): Theme => {
-  const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
-  return saved ?? 'dark';
+const readStoredTheme = async (): Promise<Theme> => {
+  try {
+    const result = await chrome.storage.local.get([STORAGE_KEY]);
+    return (result[STORAGE_KEY] as Theme) ?? 'dark';
+  } catch (error) {
+    console.warn('Failed to read stored theme:', error);
+    return 'dark';
+  }
+};
+
+const saveTheme = async (theme: Theme): Promise<void> => {
+  try {
+    await chrome.storage.local.set({ [STORAGE_KEY]: theme });
+  } catch (error) {
+    console.error('Failed to save theme:', error);
+  }
 };
 
 export const ThemeToggle: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('dark');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = readStoredTheme();
-    setTheme(saved);
-    applyTheme(saved);
+    const loadTheme = async () => {
+      try {
+        const saved = await readStoredTheme();
+        setTheme(saved);
+        applyTheme(saved);
+      } catch (error) {
+        console.error('Failed to load theme:', error);
+        // Fallback to dark theme
+        setTheme('dark');
+        applyTheme('dark');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTheme();
   }, []);
 
-  const handleSetTheme = (next: Theme) => {
+  const handleSetTheme = async (next: Theme) => {
     setTheme(next);
-    localStorage.setItem(STORAGE_KEY, next);
     applyTheme(next);
+    await saveTheme(next);
   };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-3 gap-2 p-2 rounded-xl bg-secondary border border-border w-max">
+        <div className="h-8 w-8 rounded-full bg-muted/30 animate-pulse" />
+        <div className="h-8 w-8 rounded-full bg-muted/30 animate-pulse" />
+        <div className="h-8 w-8 rounded-full bg-muted/30 animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-3 gap-2 p-2 rounded-xl bg-secondary border border-border w-max">
