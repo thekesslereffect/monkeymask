@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-export type Route = 'welcome' | 'create' | 'import' | 'unlock' | 'dashboard' | 'send' | 'qr' | 'history' | 'nfts' | 'explore' | 'faucet' | 'buy' | 'settings' | 'connected-sites' | 'approval' | 'confirmation';
+export type Route = 'welcome' | 'create' | 'import' | 'unlock' | 'dashboard' | 'send' | 'qr' | 'history' | 'nfts' | 'explore' | 'faucet' | 'settings' | 'connected-sites' | 'approval' | 'confirmation';
 export interface RouteParams {
     account?: {
         address: string;
@@ -32,7 +32,6 @@ export declare const useNavigation: () => {
     goToNFTs: () => void;
     goToExplore: () => void;
     goToFaucet: () => void;
-    goToBuy: () => void;
     goToSettings: () => void;
     goToConnectedSites: () => void;
     goToConfirmation: (transactionResult: RouteParams["transactionResult"]) => void;

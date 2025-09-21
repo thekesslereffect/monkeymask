@@ -13,7 +13,6 @@ export type Route =
   | 'nfts'
   | 'explore'
   | 'faucet'
-  | 'buy'
   | 'settings'
   | 'connected-sites'
   | 'approval'
@@ -113,7 +112,6 @@ export const useNavigation = () => {
     goToNFTs: () => router.push('nfts'),
     goToExplore: () => router.push('explore'),
     goToFaucet: () => router.push('faucet'),
-    goToBuy: () => router.push('buy'),
     goToSettings: () => router.push('settings'),
     goToConnectedSites: () => router.push('connected-sites'),
     goToConfirmation: (transactionResult: RouteParams['transactionResult']) => 

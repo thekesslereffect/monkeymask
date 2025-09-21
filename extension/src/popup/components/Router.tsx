@@ -8,10 +8,7 @@ import { ImportWalletScreen } from './ImportWalletScreen';
 import { UnlockScreen } from './UnlockScreen';
 import { DashboardScreen } from './DashboardScreen';
 import { SendScreen } from './SendScreen';
-import { TransactionApprovalScreen } from './TransactionApprovalScreen';
 import { TransactionConfirmationScreen } from './TransactionConfirmationScreen';
-import { ConnectionApprovalScreen } from './ConnectionApprovalScreen';
-import { SigningApprovalScreen } from './SigningApprovalScreen';
 import { ConnectedSitesScreen } from './ConnectedSitesScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { QRScreen } from './QRScreen';
@@ -19,7 +16,8 @@ import { HistoryScreen } from './HistoryScreen';
 import { NFTsScreen } from './NFTsScreen';
 import { ExploreScreen } from './ExploreScreen';
 import { FaucetScreen } from './FaucetScreen';
-import { BuyScreen } from './BuyScreen';
+// Unified approval screen
+import { ApprovalScreen } from './UnifiedApprovalScreen';
 
 interface RouterProps {
   walletState: {
@@ -126,9 +124,7 @@ export const Router: React.FC<RouterProps> = ({
     faucet: () => (
       <FaucetScreen account={params.account || { address: '', name: '', balance: '0' }} />
     ),
-    buy: () => (
-      <BuyScreen />
-    ),
+    // removed buy route; open external from Dashboard
     
     settings: () => (
       <SettingsScreen />
@@ -166,42 +162,14 @@ export const Router: React.FC<RouterProps> = ({
 
       // Show appropriate approval screen based on request type
       console.log('Router: Wallet is unlocked, showing approval screen for type:', pendingRequest.type);
-      switch (pendingRequest.type) {
-        case 'connect':
-          console.log('Router: Rendering ConnectionApprovalScreen');
-          return (
-            <ConnectionApprovalScreen
-              request={pendingRequest}
-              onApprove={onApproveConnection}
-              onReject={onRejectTransaction}
-            />
-          );
-          
-        case 'signMessage':
-        case 'signBlock':
-          console.log('Router: Rendering SigningApprovalScreen');
-          return (
-            <SigningApprovalScreen
-              request={pendingRequest}
-              onApprove={onApproveTransaction}
-              onReject={onRejectTransaction}
-            />
-          );
-          
-        case 'sendTransaction':
-          console.log('Router: Rendering TransactionApprovalScreen');
-          return (
-            <TransactionApprovalScreen
-              request={pendingRequest}
-              onApprove={onApproveTransaction}
-              onReject={onRejectTransaction}
-            />
-          );
-          
-        default:
-          console.error('Router: Unknown request type:', pendingRequest.type);
-          return <div>Error: Unknown request type: {pendingRequest.type}</div>;
-      }
+      return (
+        <ApprovalScreen
+          request={pendingRequest as any}
+          onApproveTx={onApproveTransaction}
+          onReject={onRejectTransaction}
+          onApproveConnect={onApproveConnection}
+        />
+      );
     },
     
     confirmation: () => {

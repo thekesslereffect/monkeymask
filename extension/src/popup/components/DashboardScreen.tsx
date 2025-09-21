@@ -121,7 +121,7 @@ export const DashboardScreen: React.FC = () => {
               variant="secondary"
               size="lg"
               className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
-              onClick={() => navigation.goToBuy()}
+              onClick={() => window.open('https://banano.trade', '_blank')}
               disabled={accounts.length === 0}
             >
               <Icon icon="lucide:dollar-sign" className="text-2xl mb-1" />
