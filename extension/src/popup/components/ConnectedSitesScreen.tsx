@@ -2,11 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Header, ContentContainer, Footer, PageName, Card, Button } from './ui';
 import { Icon } from '@iconify/react';
 
-interface ConnectedSite {
-  origin: string;
-  approvedAccounts: string[];
+interface ConnectedAccount {
+  account: string;
   approvedAt: number;
   lastUsed: number;
+}
+
+interface ConnectedSite {
+  origin: string;
+  accounts: ConnectedAccount[];
+  lastUsed: number; // Most recent lastUsed from all accounts
 }
 
 export const ConnectedSitesScreen: React.FC = () => {
@@ -22,8 +27,34 @@ export const ConnectedSitesScreen: React.FC = () => {
       const response = await chrome.storage.local.get(['permissions']);
       const permissions = response.permissions || {};
       
-      const sites = Object.values(permissions) as ConnectedSite[];
-      sites.sort((a, b) => b.lastUsed - a.lastUsed); // Sort by most recently used
+      // Group permissions by origin
+      const siteMap = new Map<string, ConnectedAccount[]>();
+      
+      // permissions is now { "account:origin": AccountPermission }
+      Object.entries(permissions).forEach(([key, permission]: [string, any]) => {
+        const origin = permission.origin;
+        const account = permission.account;
+        
+        if (!siteMap.has(origin)) {
+          siteMap.set(origin, []);
+        }
+        
+        siteMap.get(origin)!.push({
+          account,
+          approvedAt: permission.approvedAt,
+          lastUsed: permission.lastUsed
+        });
+      });
+      
+      // Convert to ConnectedSite array
+      const sites: ConnectedSite[] = Array.from(siteMap.entries()).map(([origin, accounts]) => ({
+        origin,
+        accounts: accounts.sort((a, b) => b.lastUsed - a.lastUsed), // Sort accounts by most recent
+        lastUsed: Math.max(...accounts.map(acc => acc.lastUsed)) // Most recent usage across all accounts
+      }));
+      
+      // Sort sites by most recently used
+      sites.sort((a, b) => b.lastUsed - a.lastUsed);
       
       setConnectedSites(sites);
     } catch (error) {
@@ -33,9 +64,25 @@ export const ConnectedSitesScreen: React.FC = () => {
     }
   };
 
-  const disconnectSite = async (origin: string) => {
+  const disconnectAccount = async (account: string, origin: string) => {
     try {
-      // Send disconnect request to background
+      // Send disconnect request for specific account
+      await chrome.runtime.sendMessage({
+        type: 'REVOKE_ACCOUNT_PERMISSION',
+        account,
+        origin
+      });
+      
+      // Reload the list
+      await loadConnectedSites();
+    } catch (error) {
+      console.error('Failed to disconnect account:', error);
+    }
+  };
+
+  const disconnectAllAccounts = async (origin: string) => {
+    try {
+      // Send disconnect request for all accounts on this origin
       await chrome.runtime.sendMessage({
         type: 'REVOKE_PERMISSION',
         origin
@@ -102,7 +149,7 @@ export const ConnectedSitesScreen: React.FC = () => {
                         {site.origin}
                       </div>
                       <div className="text-xs text-tertiary/70">
-                        Connected: {formatDate(site.approvedAt)}
+                        First connected: {formatDate(Math.min(...site.accounts.map(acc => acc.approvedAt)))}
                       </div>
                       <div className="text-xs text-tertiary/70">
                         Last used: {formatDate(site.lastUsed)}
@@ -112,27 +159,45 @@ export const ConnectedSitesScreen: React.FC = () => {
                 </div>
                 
                 {/* Connected Accounts */}
-                <div className="pt-2 border-t border-tertiary/20 mb-2">
+                <div className="pt-2 border-t border-tertiary/20 mb-3">
                   <div className="text-xs text-tertiary/70 mb-2">
-                    Connected accounts ({site.approvedAccounts.length}):
+                    Connected accounts ({site.accounts.length}):
                   </div>
-                  <div className="space-y-1">
-                    {site.approvedAccounts.map((account) => (
+                  <div className="space-y-2">
+                    {site.accounts.map((connectedAccount) => (
                       <div
-                        key={account}
-                        className="text-xs font-mono text-tertiary bg-tertiary/10 rounded px-2 py-1"
+                        key={connectedAccount.account}
+                        className="flex items-center justify-between bg-tertiary/5 rounded-lg p-2"
                       >
-                        {account.slice(0, 12)}...{account.slice(-8)}
+                        <div className="flex-1 min-w-0 mr-2">
+                          <div className="text-xs font-mono text-primary truncate">
+                            {connectedAccount.account.slice(0, 12)}...{connectedAccount.account.slice(-8)}
+                          </div>
+                          <div className="text-xs text-tertiary/60 mt-1">
+                            Connected: {formatDate(connectedAccount.approvedAt)}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => disconnectAccount(connectedAccount.account, site.origin)}
+                          className="flex-shrink-0 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
+                          title="Disconnect this account"
+                        >
+                          <Icon icon="lucide:x" className="w-3 h-3" />
+                        </button>
                       </div>
                     ))}
                   </div>
                 </div>
+                
+                {/* Disconnect All Button */}
                 <Button
                   variant="danger"
-                  size="md"
-                  onClick={() => disconnectSite(site.origin)}
+                  size="sm"
+                  onClick={() => disconnectAllAccounts(site.origin)}
+                  className="w-full text-xs"
                 >
-                  Disconnect
+                  <Icon icon="lucide:unlink" className="w-3 h-3 mr-1" />
+                  Disconnect All
                 </Button>
               </Card>
             ))}

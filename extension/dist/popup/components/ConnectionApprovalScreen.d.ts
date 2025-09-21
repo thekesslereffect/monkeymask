@@ -5,6 +5,7 @@ interface ConnectionApprovalScreenProps {
         origin: string;
         data: {
             origin: string;
+            currentAccountAddress?: string;
             accounts: Array<{
                 address: string;
                 name: string;

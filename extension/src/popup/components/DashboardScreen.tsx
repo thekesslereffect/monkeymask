@@ -1,5 +1,5 @@
 import React from 'react';
-import { Header, Card, Button, ContentContainer, Footer, Separator } from './ui';
+import { Header, Card, Button, ContentContainer, Footer, Separator, BalanceSkeleton, TransactionSkeleton } from './ui';
 import { Icon } from '@iconify/react';
 import { useNavigation } from '../hooks/useRouter';
 import { useAccounts } from '../hooks/useAccounts';
@@ -7,7 +7,7 @@ import { formatBalance } from '../../utils/format';
 
 export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { accounts, loading, getUsdBalance, priceLoading } = useAccounts();
+  const { accounts, currentAccount, loading, getUsdBalance, priceLoading } = useAccounts();
   
 
   const handleViewOnCreeper = (hash: string) => {
@@ -16,14 +16,41 @@ export const DashboardScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-tertiary">Loading accounts...</div>
+      <div className="h-full flex flex-col font-semibold">
+        <Header active />
+        <ContentContainer>
+          {/* Balance Skeleton */}
+          <div className="text-center mb-8">
+            <BalanceSkeleton />
+          </div>
+
+          {/* Action Buttons Skeleton */}
+          <div className="flex gap-3 mb-8">
+            <div className="flex-1 h-12 bg-muted/30 rounded-lg animate-pulse" />
+            <div className="flex-1 h-12 bg-muted/30 rounded-lg animate-pulse" />
+            <div className="flex-1 h-12 bg-muted/30 rounded-lg animate-pulse" />
+          </div>
+
+          {/* Recent Transactions Skeleton */}
+          <div className="w-full">
+            <div className="flex items-center justify-between mb-4">
+              <div className="h-6 w-32 bg-muted/30 rounded animate-pulse" />
+              <div className="h-6 w-16 bg-muted/30 rounded animate-pulse" />
+            </div>
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <TransactionSkeleton key={index} />
+              ))}
+            </div>
+          </div>
+        </ContentContainer>
+        <Footer />
       </div>
     );
   }
 
-  // Check if accounts exist and have data
-  if (!accounts || accounts.length === 0) {
+  // Check if accounts exist and have data (but not while loading)
+  if (!loading && (!accounts || accounts.length === 0)) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-tertiary">No accounts found</div>
@@ -41,14 +68,14 @@ export const DashboardScreen: React.FC = () => {
       {/* Balance */}
         <div className="flex flex-col items-center gap-2 h-full min-h-36 justify-center">
           <div className="text-5xl text-primary">
-            {formatBalance(accounts[0]?.balance || '0')}
+            {formatBalance(currentAccount?.balance || '0')}
             {/* {formatBalance("19420.69")} */}
           </div>
           <div className="text-xl text-tertiary">
             {priceLoading ? (
               <span className="animate-pulse">Loading price...</span>
             ) : (
-              `$${getUsdBalance(accounts[0]?.balance || '0')}`
+              `$${getUsdBalance(currentAccount?.balance || '0')}`
             )}
           </div>
         </div>
@@ -61,7 +88,7 @@ export const DashboardScreen: React.FC = () => {
                 variant="secondary"
                 size="lg"
                 className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
-                onClick={() => accounts.length > 0 && navigation.goToQR(accounts[0])}
+                onClick={() => currentAccount && navigation.goToQR(currentAccount)}
                 disabled={accounts.length === 0}
               >
                 <Icon icon="lucide:qr-code" className="text-2xl mb-1" />
@@ -72,7 +99,7 @@ export const DashboardScreen: React.FC = () => {
               variant="secondary"
               size="lg"
               className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
-              onClick={() => accounts.length > 0 && navigation.goToSend(accounts[0])}
+              onClick={() => currentAccount && navigation.goToSend(currentAccount)}
               disabled={accounts.length === 0}
             >
               <Icon icon="lucide:send" className="text-2xl mb-1" />
@@ -106,8 +133,15 @@ export const DashboardScreen: React.FC = () => {
 
           {/* History */}
           <Card label="History" hintText="See More" hintOnClick={() => navigation.goToHistory()} className="w-full">
-              {accounts[0]?.transactions && accounts[0].transactions.length > 0 ? (
-                accounts[0].transactions.map((transaction, i) => (
+              {!currentAccount?.transactions ? (
+                // Show skeleton while transactions are loading
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <TransactionSkeleton key={index} />
+                  ))}
+                </div>
+              ) : currentAccount.transactions.length > 0 ? (
+                currentAccount.transactions.map((transaction, i) => (
                   <>
                   <button key={transaction.hash} className="flex justify-between items-center w-full hover:bg-tertiary/10 cursor-pointer transition-colors rounded-lg p-2 text-tertiary" onClick={() => handleViewOnCreeper(transaction.hash)}>
                     <div className="flex items-center gap-2">
@@ -140,7 +174,7 @@ export const DashboardScreen: React.FC = () => {
                       <span className="text-xs">{new Date(parseInt(transaction.timestamp) * 1000).toLocaleDateString()}</span>
                     </div>
                   </button>
-                  {i !== (accounts[0]?.transactions?.length || 0) - 1 && (
+                  {i !== (currentAccount?.transactions?.length || 0) - 1 && (
                   <Separator className="w-full my-2" />
                   )}
                   </>

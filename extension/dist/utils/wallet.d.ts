@@ -4,6 +4,8 @@ export declare class WalletManager {
     private accounts;
     private isUnlocked;
     private currentSeed;
+    private currentPasswordHash;
+    private currentSalt;
     private rpc;
     constructor();
     static getInstance(): WalletManager;
@@ -28,6 +30,23 @@ export declare class WalletManager {
      */
     deriveAccountFromSeed(hexSeed: string, index: number): Promise<Account>;
     /**
+     * Find the next available account index (fills gaps from removed accounts)
+     */
+    getNextAvailableAccountIndex(): number;
+    /**
+     * Sort accounts by their index (Account 1, Account 2, Account 3, etc.)
+     */
+    private sortAccountsByIndex;
+    /**
+     * Create a new account using the current seed at the specified index
+     */
+    createNewAccount(index?: number): Promise<Account>;
+    /**
+     * Remove an account by address
+     * Note: Cannot remove the first account (index 0) as it's the primary account
+     */
+    removeAccount(address: string): Promise<void>;
+    /**
      * Import wallet from private key
      */
     importFromPrivateKey(privateKey: string, name?: string): Promise<Account>;
@@ -46,6 +65,18 @@ export declare class WalletManager {
      * Save wallet to browser storage
      */
     saveWallet(accounts: Account[], password: string): Promise<void>;
+    /**
+     * Save current accounts to storage (used when adding new accounts)
+     */
+    saveAccounts(password: string): Promise<void>;
+    /**
+     * Save accounts to storage using stored password hash (for automatic saves)
+     */
+    private saveAccountsToStorage;
+    /**
+     * Temporarily store accounts in memory-based storage (fallback when credentials not available)
+     */
+    private saveAccountsTemporarily;
     /**
      * Load wallet from browser storage
      */

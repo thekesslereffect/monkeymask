@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Header, ContentContainer, Footer, PageName, Card, Button, Alert } from './ui';
 import { Icon } from '@iconify/react';
+import { useAccounts } from '../hooks/useAccounts';
 
 interface ConnectionApprovalScreenProps {
   request: {
@@ -8,6 +9,7 @@ interface ConnectionApprovalScreenProps {
     origin: string;
     data: {
       origin: string;
+      currentAccountAddress?: string;
       accounts: Array<{
         address: string;
         name: string;
@@ -24,8 +26,10 @@ export const ConnectionApprovalScreen: React.FC<ConnectionApprovalScreenProps> =
   onApprove,
   onReject
 }) => {
+  const { currentAccount } = useAccounts();
+  
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([
-    request.data.accounts[0]?.address || ''
+    request.data.currentAccountAddress || currentAccount?.address || request.data.accounts[0]?.address || ''
   ]);
 
   const handleAccountToggle = (address: string) => {

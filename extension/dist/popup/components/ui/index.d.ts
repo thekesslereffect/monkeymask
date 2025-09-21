@@ -12,3 +12,4 @@ export { Drawer } from './Drawer';
 export { PageName } from './PageName';
 export { Carousel } from './Carousel';
 export { ThemeToggle } from './ThemeToggle';
+export { Skeleton, AccountSkeleton, TransactionSkeleton, BalanceSkeleton } from './Skeleton';

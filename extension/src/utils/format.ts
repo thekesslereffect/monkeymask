@@ -19,7 +19,15 @@ export const formatBalance = (value: string | number): string => {
 
   // Limit to 4 decimals, trim trailing zeros, then add thousands separators
   const withDecimals = num.toFixed(4).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
-  return withDecimals.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  
+  // Split into integer and decimal parts
+  const [integerPart, decimalPart] = withDecimals.split('.');
+  
+  // Add thousands separators only to the integer part
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  
+  // Combine integer and decimal parts
+  return decimalPart ? `${formattedInteger}.${decimalPart}` : formattedInteger;
 };
 
 

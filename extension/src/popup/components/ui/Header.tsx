@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ active = false }) => {
         </div>        
         <div className="flex items-center">
           <IconButton
-            onClick={refreshBalances}
+            onClick={() => refreshBalances()}
             disabled={refreshing}
             icon={
               <span className={`text-2xl ${refreshing ? 'animate-spin' : ''}`}>

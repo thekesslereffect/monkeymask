@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { useNavigation } from '../../hooks/useRouter';
 import { useAccounts } from '../../hooks/useAccounts';
+import { useDrawer } from '../../hooks/useDrawer';
 import { formatBalance } from '../../../utils/format';
+import { AccountSkeleton } from './Skeleton';
 
 interface DrawerProps {
   className?: string;
@@ -11,8 +13,11 @@ interface DrawerProps {
 export const Drawer: React.FC<DrawerProps> = ({
   className = ''
 }) => {
+  console.log('Drawer: Component rendered/re-rendered');
+  
   const navigation = useNavigation();
-  const { accounts, loading } = useAccounts();
+  const { accounts, currentAccountIndex, currentAccount, loading, createNewAccount, switchAccount, removeAccount } = useAccounts();
+  const { isOpen, setIsOpen } = useDrawer();
 
   const copyAddress = async (address: string) => {
     try {
@@ -24,6 +29,18 @@ export const Drawer: React.FC<DrawerProps> = ({
 
   const formatAddress = (address: string, ban: boolean = true) => {
     return `${ban ? 'ban_' : ''}${address.slice(4, 8)}...${address.slice(-4)}`;
+  };
+
+  const handleRemoveAccount = async (address: string, accountName: string, event: React.MouseEvent) => {
+    // Prevent the account selection click
+    event.stopPropagation();
+    
+    try {
+      await removeAccount(address);
+    } catch (error) {
+      console.error('Failed to remove account:', error);
+      // Error is already handled in the removeAccount function
+    }
   };
 
 
@@ -55,18 +72,33 @@ export const Drawer: React.FC<DrawerProps> = ({
       }
     }, 300); // Match the transition duration
   };
-  const [isOpen, setIsOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
 
+  // Track component lifecycle
+  useEffect(() => {
+    console.log('Drawer: Component mounted');
+    return () => {
+      console.log('Drawer: Component unmounted');
+    };
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      console.log('Drawer: Click outside detected', {
+        target: event.target,
+        drawerContains: drawerRef.current?.contains(event.target as Node),
+        triggerContains: triggerRef.current?.contains(event.target as Node),
+        isOpen
+      });
+      
       if (
         drawerRef.current &&
         !drawerRef.current.contains(event.target as Node) &&
         triggerRef.current &&
         !triggerRef.current.contains(event.target as Node)
       ) {
+        console.log('Drawer: Closing drawer due to outside click');
         setIsOpen(false);
       }
     };
@@ -92,7 +124,7 @@ export const Drawer: React.FC<DrawerProps> = ({
     };
   }, [isOpen]);
 
-  if (accounts.length === 0) return null;
+  if (accounts.length === 0 && !loading) return null;
 
   return (
     <>
@@ -106,10 +138,10 @@ export const Drawer: React.FC<DrawerProps> = ({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-primary text-md">
-            {accounts[0].bnsNames && accounts[0].bnsNames.length > 0 ? accounts[0].bnsNames[0] : formatAddress(accounts[0].address, false)}
+            {currentAccount?.bnsNames && currentAccount.bnsNames.length > 0 ? currentAccount.bnsNames[0] : formatAddress(currentAccount?.address || '', false)}
           </span>
           <button
-            onClick={() => copyAddress(accounts[0].address)}
+            onClick={() => copyAddress(currentAccount?.address || '')}
             className="text-tertiary hover:text-primary/80 text-lg transition-colors"
             title="Copy address"
           >
@@ -126,7 +158,7 @@ export const Drawer: React.FC<DrawerProps> = ({
       {/* Drawer */}
       <div
         ref={drawerRef}
-        className={`fixed top-0 left-0 h-screen w-80 bg-background border-r border-border transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-screen w-80 bg-background border-r border-border transform transition-transform duration-300 ease-in-out flex flex-col ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } ${className}`}
         style={{ zIndex: 110 }}
@@ -154,10 +186,10 @@ export const Drawer: React.FC<DrawerProps> = ({
                 <div className="h-10 w-10 rounded-full bg-primary"></div>
                 <div>
                   <div className="font-medium text-foreground">
-                    {accounts[0].bnsNames && accounts[0].bnsNames.length > 0 ? accounts[0].bnsNames[0] : 'Account 1'}
+                    {currentAccount?.bnsNames && currentAccount.bnsNames.length > 0 ? currentAccount.bnsNames[0] : `Account ${currentAccountIndex + 1}`}
                   </div>
                   <div className="text-sm text-tertiary">
-                    {formatAddress(accounts[0].address, false)}
+                    {formatAddress(currentAccount?.address || '', false)}
                   </div>
                 </div>
               </div>
@@ -165,11 +197,11 @@ export const Drawer: React.FC<DrawerProps> = ({
                 <div>
                   <div className="text-sm text-tertiary">Balance</div>
                   <div className="text-lg font-semibold text-foreground">
-                    {formatBalance(accounts[0].balance)} BAN
+                    {formatBalance(currentAccount?.balance || '0')} BAN
                   </div>
                 </div>
                 <button
-                  onClick={() => copyAddress(accounts[0].address)}
+                  onClick={() => copyAddress(currentAccount?.address || '')}
                   className="p-2 hover:bg-background rounded-lg transition-colors"
                   title="Copy address"
                 >
@@ -181,10 +213,40 @@ export const Drawer: React.FC<DrawerProps> = ({
 
           {/* All Accounts */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-foreground mb-3">All Accounts</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-foreground">All Accounts</h3>
+              <button
+                onClick={() => {
+                  console.log('Drawer: Creating new account');
+                  createNewAccount();
+                }}
+                disabled={loading}
+                className="px-3 py-1.5 bg-primary hover:bg-primary/80 text-background text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Icon icon="lucide:plus" className="text-sm" />
+                Add Account
+              </button>
+            </div>
             <div className="space-y-2">
-              {accounts.map((account, index) => (
-                <div key={account.address} className="bg-muted rounded-lg p-3 hover:bg-muted/80 transition-colors cursor-pointer">
+              {loading ? (
+                // Show skeleton loading for accounts
+                Array.from({ length: 3 }).map((_, index) => (
+                  <AccountSkeleton key={index} />
+                ))
+              ) : (
+                accounts.map((account, index) => (
+                <div 
+                  key={account.address} 
+                  onClick={() => {
+                    console.log('Drawer: Switching to account', index);
+                    switchAccount(index);
+                  }}
+                  className={`rounded-lg p-3 transition-colors cursor-pointer ${
+                    index === currentAccountIndex 
+                      ? 'bg-primary/10 border border-primary/20' 
+                      : 'bg-muted hover:bg-muted/80'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-primary"></div>
                     <div className="flex-1">
@@ -195,14 +257,34 @@ export const Drawer: React.FC<DrawerProps> = ({
                         {formatAddress(account.address, false)}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-foreground">
-                        {formatBalance(account.balance)} BAN
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-foreground">
+                          {formatBalance(account.balance)} BAN
+                        </div>
+                        {index === currentAccountIndex && (
+                          <div className="text-xs text-primary font-medium">Current</div>
+                        )}
                       </div>
+                      {/* Remove button - only show for non-primary accounts */}
+                      {index > 0 && (
+                        <button
+                          onClick={(e) => handleRemoveAccount(
+                            account.address, 
+                            account.bnsNames && account.bnsNames.length > 0 ? account.bnsNames[0] : `Account ${index + 1}`,
+                            e
+                          )}
+                          className="flex-shrink-0 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors opacity-70 hover:opacity-100"
+                          title="Remove this account"
+                        >
+                          <Icon icon="lucide:trash-2" className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 

@@ -109,34 +109,53 @@ export function MonkeyMaskProvider({ children, config = {} }: MonkeyMaskProvider
         
         // Set up event listeners (no noisy logs)
         window.banano.on('connect', (data: { publicKey: string; accounts?: string[] }) => {
+          console.log('dApp: Wallet connected:', data.publicKey);
           setIsConnected(true);
           setPublicKey(data.publicKey);
           setAccounts(data.accounts || [data.publicKey]);
           setUserDisconnected(false); // Reset disconnect flag when successfully connected
           clearError();
+          
+          // Clear account info cache when connecting to a new account
+          accountInfoCacheRef.current.clear();
+          
           onConnect?.(data.publicKey);
         });
 
         window.banano.on('disconnect', () => {
+          console.log('dApp: Wallet disconnected');
           setIsConnected(false);
           setPublicKey(null);
           setAccounts([]);
+          
+          // Clear account info cache on disconnect
+          accountInfoCacheRef.current.clear();
+          
           // Don't reset userDisconnected flag here - it should persist
           onDisconnect?.();
         });
 
         window.banano.on('accountChanged', (newPublicKey: string) => {
+          console.log('dApp: Account changed to:', newPublicKey);
+          
+          // Note: This event is for backward compatibility
+          // The new per-account permission system uses disconnect -> connect flow instead
+          // But if we receive this event, treat it as a connected account change
+          
+          setIsConnected(true);
           setPublicKey(newPublicKey);
           setAccounts([newPublicKey]);
+          
+          // Clear account info cache when switching accounts
+          accountInfoCacheRef.current.clear();
+          
+          // Treat account change as a new connection
           onConnect?.(newPublicKey);
         });
 
-        // Seed state if already connected
-        if (window.banano.isConnected && window.banano.publicKey) {
-          setIsConnected(true);
-          setPublicKey(window.banano.publicKey);
-          setAccounts([window.banano.publicKey]);
-        }
+        // Don't seed state immediately - let the provider's silentReconnect() handle it
+        // The provider will emit 'connect' events if there's an existing connection
+        // This ensures we get the currently selected account, not stale cached data
       } else {
         setIsInstalled(false);
       }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RouterProvider, useRouter, useNavigation } from './hooks/useRouter';
 import { AccountsProvider, useAccounts } from './hooks/useAccounts';
+import { DrawerProvider } from './hooks/useDrawer';
 import { Router } from './components/Router';
 import './styles.css';
 
@@ -32,7 +33,9 @@ export const App: React.FC = () => {
   return (
     <RouterProvider initialRoute="welcome">
       <AccountsProvider>
-        <AppContent />
+        <DrawerProvider>
+          <AppContent />
+        </DrawerProvider>
       </AccountsProvider>
     </RouterProvider>
   );
@@ -43,7 +46,6 @@ const AppContent: React.FC = () => {
   console.log('🚀 AppContent component loaded');
   const router = useRouter();
   const navigation = useNavigation();
-  const { reloadAccounts } = useAccounts();
   
   const [walletState, setWalletState] = useState<WalletState>({
     isInitialized: false,
@@ -196,16 +198,26 @@ const AppContent: React.FC = () => {
   const handleWalletCreated = async () => {
     console.log('App: Wallet created, setting state and going to dashboard');
     setWalletState(prev => ({ ...prev, isInitialized: true, isUnlocked: true }));
-    // Reload accounts to ensure they're available when dashboard loads
-    await reloadAccounts();
+    
+    // Trigger account refresh after wallet creation to ensure balances are loaded
+    setTimeout(() => {
+      console.log('App: Triggering account refresh after wallet creation...');
+      window.dispatchEvent(new CustomEvent('monkeymask:wallet-imported'));
+    }, 500); // Give the wallet time to be fully initialized
+    
     navigation.goToDashboard();
   };
 
   const handleWalletImported = async () => {
     console.log('App: Wallet imported, setting state and going to dashboard');
     setWalletState(prev => ({ ...prev, isInitialized: true, isUnlocked: true }));
-    // Reload accounts to ensure they're available when dashboard loads
-    await reloadAccounts();
+    
+    // Trigger account refresh after wallet import to ensure balances are loaded
+    setTimeout(() => {
+      console.log('App: Triggering account refresh after wallet import...');
+      window.dispatchEvent(new CustomEvent('monkeymask:wallet-imported'));
+    }, 500); // Give the wallet time to be fully initialized
+    
     navigation.goToDashboard();
   };
 
@@ -213,8 +225,11 @@ const AppContent: React.FC = () => {
     console.log('App: Wallet unlocked');
     setWalletState(prev => ({ ...prev, isUnlocked: true }));
     
-    // Reload accounts to ensure they're fresh when dashboard loads
-    await reloadAccounts();
+    // Trigger account loading after wallet unlock
+    setTimeout(() => {
+      console.log('App: Triggering account refresh after wallet unlock...');
+      window.dispatchEvent(new CustomEvent('monkeymask:wallet-imported'));
+    }, 100); // Small delay to ensure wallet state is updated
     
     // If we have a pending request, go to approval screen, otherwise go to dashboard
     if (pendingRequest) {
@@ -233,6 +248,14 @@ const AppContent: React.FC = () => {
 
   const handleSendComplete = (result: { success: boolean; hash?: string; error?: string; block?: any }) => {
     console.log('Transaction result:', result);
+    
+    // If transaction was successful, trigger account refresh
+    if (result.success) {
+      console.log('App: Transaction successful, triggering account refresh...');
+      // Dispatch custom event to trigger account refresh
+      window.dispatchEvent(new CustomEvent('monkeymask:transaction-complete'));
+    }
+    
     navigation.goToConfirmation(result);
   };
 
@@ -258,6 +281,13 @@ const AppContent: React.FC = () => {
       if (resultResponse.success && resultResponse.data) {
         console.log('App: Got transaction result:', resultResponse.data);
         setPendingRequest(null);
+        
+        // If transaction was successful, trigger account refresh (same as SendScreen)
+        if (resultResponse.data.success) {
+          console.log('App: dApp transaction successful, triggering account refresh...');
+          window.dispatchEvent(new CustomEvent('monkeymask:transaction-complete'));
+        }
+        
         navigation.goToConfirmation(resultResponse.data);
       } else {
         console.log('App: No transaction result found, going to dashboard');

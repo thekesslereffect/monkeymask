@@ -15,15 +15,15 @@ const PROVIDER_ERRORS = {
   INTERNAL_ERROR: { code: -32603, message: 'Internal error' }
 } as const;
 
-interface OriginPermissions {
+interface AccountPermission {
+  account: string;
   origin: string;
-  approvedAccounts: string[];
   approvedAt: number;
   lastUsed: number;
 }
 
 interface StoredPermissions {
-  [origin: string]: OriginPermissions;
+  [accountOriginKey: string]: AccountPermission; // Key format: "account:origin"
 }
 
 interface ApprovalResult {
@@ -39,7 +39,7 @@ class BackgroundService {
   private pendingApprovals: Map<string, any> = new Map();
   private approvalResolvers: Map<string, { resolve: Function; reject: Function }> = new Map();
   private transactionResults: Map<string, any> = new Map();
-  private permissions: Map<string, OriginPermissions> = new Map();
+  private permissions: Map<string, AccountPermission> = new Map();
   private connectedTabs: Map<number, string> = new Map(); // tabId -> origin
   private accountInfoCache: Map<string, { accountInfo: any; ts: number }> = new Map();
   private static readonly ACCOUNT_INFO_TTL_MS = 5000;
@@ -138,46 +138,158 @@ class BackgroundService {
     }
   }
 
-  private isOriginAuthorized(origin: string, requiredAccounts?: string[]): boolean {
-    const permission = this.permissions.get(origin);
+  private isAccountAuthorizedForOrigin(account: string, origin: string): boolean {
+    const key = `${account}:${origin}`;
+    const permission = this.permissions.get(key);
+    
     if (!permission) return false;
     
     // Update last used timestamp
     permission.lastUsed = Date.now();
     this.savePermissions(); // Fire and forget
     
-    // If specific accounts are required, check if they're approved
-    if (requiredAccounts && requiredAccounts.length > 0) {
-      return requiredAccounts.every(account => 
-        permission.approvedAccounts.includes(account)
-      );
-    }
-    
-    return permission.approvedAccounts.length > 0;
+    return true;
   }
 
-  private async authorizeOrigin(origin: string, accounts: string[]): Promise<void> {
-    const permission: OriginPermissions = {
-      origin,
-      approvedAccounts: accounts,
-      approvedAt: Date.now(),
-      lastUsed: Date.now()
-    };
+  private getAuthorizedAccountsForOrigin(origin: string): string[] {
+    const authorizedAccounts: string[] = [];
     
-    this.permissions.set(origin, permission);
+    this.permissions.forEach((permission, key) => {
+      if (permission.origin === origin) {
+        authorizedAccounts.push(permission.account);
+      }
+    });
+    
+    return authorizedAccounts;
+  }
+
+  private async authorizeAccountsForOrigin(origin: string, accounts: string[]): Promise<void> {
+    const now = Date.now();
+    
+    // Create individual permission entries for each account-origin pair
+    for (const account of accounts) {
+      const key = `${account}:${origin}`;
+      const permission: AccountPermission = {
+        account,
+        origin,
+        approvedAt: now,
+        lastUsed: now
+      };
+      
+      this.permissions.set(key, permission);
+      console.log(`Background: Authorized account ${account} for origin ${origin}`);
+    }
+    
     await this.savePermissions();
-    
-    console.log('Background: Authorized origin:', origin, 'for accounts:', accounts);
+    console.log('Background: Authorization complete for origin:', origin, 'accounts:', accounts);
   }
 
   private async revokeOriginPermission(origin: string): Promise<void> {
-    this.permissions.delete(origin);
+    // Remove all account permissions for this origin
+    const keysToDelete: string[] = [];
+    
+    this.permissions.forEach((permission, key) => {
+      if (permission.origin === origin) {
+        keysToDelete.push(key);
+      }
+    });
+    
+    keysToDelete.forEach(key => {
+      this.permissions.delete(key);
+    });
+    
     await this.savePermissions();
     
     // Emit disconnect event to all tabs from this origin
     this.emitProviderEvent('disconnect', null, origin);
     
-    console.log('Background: Revoked permission for origin:', origin);
+    console.log('Background: Revoked all account permissions for origin:', origin, 'removed keys:', keysToDelete);
+  }
+
+  private async revokeAccountPermissionForOrigin(account: string, origin: string): Promise<void> {
+    const key = `${account}:${origin}`;
+    this.permissions.delete(key);
+    await this.savePermissions();
+    
+    console.log(`Background: Revoked permission for account ${account} on origin ${origin}`);
+  }
+
+  private async handleRevokeAccountPermission(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      const { account, origin } = request;
+      
+      if (!account || !origin) {
+        sendResponse({ success: false, error: 'Missing account or origin' });
+        return;
+      }
+      
+      console.log(`Background: Revoking permission for account ${account} on origin ${origin}`);
+      
+      // Revoke the specific account permission
+      await this.revokeAccountPermissionForOrigin(account, origin);
+      
+      // Emit disconnect event to the specific origin for this account
+      // Note: This will disconnect all accounts from the site, but that's expected behavior
+      // when revoking permissions from the settings screen
+      this.emitProviderEvent('disconnect', null, origin);
+      
+      sendResponse({ success: true });
+      
+    } catch (error) {
+      console.error('Background: Error revoking account permission:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to revoke account permission'
+      });
+    }
+  }
+
+  private async handleRemoveAccount(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      const { address } = request;
+      
+      if (!address) {
+        sendResponse({ success: false, error: 'Missing account address' });
+        return;
+      }
+      
+      console.log(`Background: Removing account: ${address}`);
+      
+      // Check if wallet is unlocked
+      if (!this.walletManager.isWalletUnlocked()) {
+        sendResponse({ success: false, error: 'Wallet must be unlocked to remove accounts' });
+        return;
+      }
+      
+      // Remove the account
+      await this.walletManager.removeAccount(address);
+      
+      // Also remove all permissions for this account across all origins
+      const keysToDelete: string[] = [];
+      this.permissions.forEach((permission, key) => {
+        if (permission.account === address) {
+          keysToDelete.push(key);
+        }
+      });
+      
+      keysToDelete.forEach(key => {
+        this.permissions.delete(key);
+      });
+      
+      if (keysToDelete.length > 0) {
+        await this.savePermissions();
+        console.log(`Background: Removed ${keysToDelete.length} permissions for account ${address}`);
+      }
+      
+      sendResponse({ success: true });
+      
+    } catch (error) {
+      console.error('Background: Error removing account:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to remove account'
+      });
+    }
   }
 
   private createStandardError(message: string, code: number, data?: unknown): any {
@@ -336,6 +448,22 @@ class BackgroundService {
         
         case 'SET_AUTO_LOCK_TIMEOUT':
           await this.handleSetAutoLockTimeout(request, sendResponse);
+          break;
+        
+        case 'CREATE_NEW_ACCOUNT':
+          await this.handleCreateNewAccount(sendResponse);
+          break;
+        
+        case 'ACCOUNT_CHANGED':
+          await this.handleAccountChanged(request, sendResponse);
+          break;
+        
+        case 'REVOKE_ACCOUNT_PERMISSION':
+          await this.handleRevokeAccountPermission(request, sendResponse);
+          break;
+        
+        case 'REMOVE_ACCOUNT':
+          await this.handleRemoveAccount(request, sendResponse);
           break;
         
         default:
@@ -540,13 +668,13 @@ class BackgroundService {
         return;
       }
 
-      // Only process the primary account (first account)
+      // Process all accounts to get their balances
+      console.log('Background: Fetching balances for all accounts:', accounts.length);
+      
+      // First, handle pending transactions for primary account only (auto-receive)
       const primaryAccount = accounts[0];
       const primaryAddress = primaryAccount.address;
       
-      console.log('Background: Fetching balance for primary account:', primaryAddress);
-      
-      // First, get current balance info to check for pending on primary account only
       let pendingAmount = '0';
       try {
         const preBalanceResult = await Promise.race([
@@ -572,42 +700,39 @@ class BackgroundService {
         }
       }
       
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Balance fetch timeout')), 10000);
-      });
-      
-      const balanceResult = await Promise.race([
-        this.rpc.getAccountBalance(primaryAddress),
-        timeoutPromise
-      ]) as any;
-      
-      console.log('Background: Balance result for primary account:', balanceResult);
-      
-      if (!balanceResult.success) {
-        throw new Error(balanceResult.error);
-      }
-
-      // Update primary account balance, keep other accounts with existing data
-      const updatedAccounts = accounts.map((account, index) => {
-        if (index === 0) {
-          // Update primary account with fresh data
-          const balanceData = balanceResult.data;
-          if (balanceData) {
+      // Now fetch balances for ALL accounts
+      const updatedAccounts = await Promise.all(accounts.map(async (account, index) => {
+        try {
+          console.log(`Background: Fetching balance for account ${index}:`, account.address);
+          
+          const balanceResult = await Promise.race([
+            this.rpc.getAccountBalance(account.address),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Balance fetch timeout')), 10000))
+          ]) as any;
+          
+          console.log(`Background: Balance result for account ${index}:`, balanceResult);
+          
+          if (balanceResult.success && balanceResult.data) {
+            const balanceData = balanceResult.data;
             account.balance = BananoRPC.rawToBan(balanceData.balance || '0');
             const pendingRaw = balanceData.pending || '0';
             const pendingAmount = BananoRPC.rawToBan(pendingRaw);
             (account as any).pending = pendingAmount;
-            if (parseFloat(pendingAmount) > 0) {
-              console.log('Background: Primary account has pending balance:', pendingAmount);
-            }
+            
+            console.log(`Background: Updated account ${index} balance:`, account.balance, 'pending:', pendingAmount);
+          } else {
+            console.warn(`Background: Failed to get balance for account ${index}:`, balanceResult.error);
+            // Keep existing balance data if fetch fails
           }
+        } catch (error) {
+          console.error(`Background: Error fetching balance for account ${index}:`, error);
+          // Keep existing balance data if fetch fails
         }
-        // Secondary accounts keep their existing balance data
+        
         return account;
-      });
+      }));
 
-      console.log('Background: Updated primary account with balance:', updatedAccounts[0]);
+      console.log('Background: Updated all accounts with balances:', updatedAccounts.length);
 
       sendResponse({
         success: true,
@@ -738,25 +863,45 @@ class BackgroundService {
         return;
       }
 
-      // Check if origin is already authorized
-      if (this.isOriginAuthorized(origin)) {
-        const permission = this.permissions.get(origin)!;
-        const primaryAccount = accounts.find(acc => 
-          permission.approvedAccounts.includes(acc.address)
-        ) || accounts[0];
+      // Get the currently selected account from storage
+      let currentAccountIndex = 0;
+      try {
+        const result = await chrome.storage.local.get(['currentAccountIndex']);
+        currentAccountIndex = result.currentAccountIndex || 0;
+      } catch (error) {
+        console.log('Background: Could not get current account index, using 0');
+      }
+      
+      // Ensure the index is valid
+      if (currentAccountIndex >= accounts.length) {
+        currentAccountIndex = 0;
+      }
+      
+      const currentAccount = accounts[currentAccountIndex];
+      console.log('Background: Current selected account:', currentAccount.address, 'at index:', currentAccountIndex);
+      
+      // Check if the CURRENTLY SELECTED account is authorized for this origin
+      const isCurrentAccountAuthorized = this.isAccountAuthorizedForOrigin(currentAccount.address, origin);
+      
+      if (isCurrentAccountAuthorized) {
+        console.log('Background: Currently selected account is already authorized, connecting to:', currentAccount.address);
         
-        console.log('Background: Origin already authorized, connecting to:', primaryAccount.address);
+        // Get all authorized accounts for this origin (for the accounts array in response)
+        const authorizedAccounts = this.getAuthorizedAccountsForOrigin(origin);
         
         sendResponse({
           success: true,
           data: {
-            publicKey: primaryAccount.address,
-            address: primaryAccount.address, // For backward compatibility
-            accounts: permission.approvedAccounts
+            publicKey: currentAccount.address,
+            address: currentAccount.address, // For backward compatibility
+            accounts: authorizedAccounts
           }
         });
         return;
       }
+      
+      // If currently selected account is not authorized, we'll proceed to show approval screen
+      console.log('Background: Currently selected account is not authorized, will show approval screen');
 
       // If onlyIfTrusted is true and not authorized, reject silently
       if (onlyIfTrusted) {
@@ -777,6 +922,7 @@ class BackgroundService {
         type: 'connect',
         data: { 
           origin,
+          currentAccountAddress: currentAccount.address, // Include currently selected account
           accounts: accounts.map(acc => ({
             address: acc.address,
             name: acc.name,
@@ -817,7 +963,7 @@ class BackgroundService {
         if (approvalResult && approvalResult.approved) {
           // User approved - store authorization
           const selectedAccounts = approvalResult.accounts || [accounts[0].address];
-          await this.authorizeOrigin(origin, selectedAccounts);
+          await this.authorizeAccountsForOrigin(origin, selectedAccounts);
           
           // Emit connect event to the origin
           this.emitProviderEvent('connect', {
@@ -905,7 +1051,7 @@ class BackgroundService {
       }
 
       // Check if origin is authorized for this account
-      if (!this.isOriginAuthorized(origin, [block.account])) {
+      if (!this.isAccountAuthorizedForOrigin(block.account, origin)) {
         sendResponse(this.createStandardError(
           'Origin not authorized for this account',
           PROVIDER_ERRORS.UNAUTHORIZED.code
@@ -1463,6 +1609,29 @@ class BackgroundService {
       // Check if wallet is locked for extended timeout
       const walletIsLocked = !this.walletManager.isWalletUnlocked();
       console.log('Background: Sign message request, wallet locked:', walletIsLocked);
+
+      // Validate account exists - use stored accounts if wallet is locked
+      const requestPublicKey = request.publicKey;
+      if (requestPublicKey) {
+        let accounts;
+        if (walletIsLocked) {
+          // Wallet is locked, use stored accounts for validation
+          accounts = await this.walletManager.getStoredAccounts();
+        } else {
+          accounts = this.walletManager.getAccounts();
+        }
+        
+        const account = accounts.find(acc => acc.address === requestPublicKey || acc.publicKey === requestPublicKey);
+        if (!account) {
+          console.log('Background: Account not found for signing:', requestPublicKey);
+          sendResponse(this.createStandardError(
+            'Account not found',
+            PROVIDER_ERRORS.UNAUTHORIZED.code
+          ));
+          return;
+        }
+        console.log('Background: Account validated for signing:', account.address);
+      }
       
       // Check for existing pending requests from the same origin (but allow different messages)
       const existingRequests = Array.from(this.pendingApprovals.values())
@@ -1549,7 +1718,7 @@ class BackgroundService {
       }
 
       // Check if origin is authorized for this account
-      if (!this.isOriginAuthorized(origin, [publicKey])) {
+      if (!this.isAccountAuthorizedForOrigin(publicKey, origin)) {
         sendResponse(this.createStandardError(
           'Origin not authorized for this account',
           PROVIDER_ERRORS.UNAUTHORIZED.code
@@ -1772,21 +1941,39 @@ class BackgroundService {
         return;
       }
 
-      // Check if origin is authorized
-      if (this.isOriginAuthorized(origin)) {
-        const permission = this.permissions.get(origin)!;
-        const primaryAccount = accounts.find(acc => 
-          permission.approvedAccounts.includes(acc.address)
-        ) || accounts[0];
+      // Check if origin has any authorized accounts
+      const authorizedAccounts = this.getAuthorizedAccountsForOrigin(origin);
+      if (authorizedAccounts.length > 0) {
+        // Get the currently selected account from storage
+        let currentAccountIndex = 0;
+        try {
+          const result = await chrome.storage.local.get(['currentAccountIndex']);
+          currentAccountIndex = result.currentAccountIndex || 0;
+        } catch (error) {
+          console.log('Background: Could not get current account index, using 0');
+        }
         
-        console.log('Background: Origin is connected, returning connection info');
+        // Ensure the index is valid
+        if (currentAccountIndex >= accounts.length) {
+          currentAccountIndex = 0;
+        }
+        
+        const currentAccount = accounts[currentAccountIndex];
+        
+        // If the currently selected account is authorized for this origin, use it
+        // Otherwise, fall back to the first authorized account
+        const primaryAccount = authorizedAccounts.includes(currentAccount.address) 
+          ? currentAccount 
+          : accounts.find(acc => authorizedAccounts.includes(acc.address)) || accounts[0];
+        
+        console.log('Background: Origin is connected, returning connection info for currently selected account:', primaryAccount.address);
         
         sendResponse({
           success: true,
           data: {
             publicKey: primaryAccount.address,
             address: primaryAccount.address, // For backward compatibility
-            accounts: permission.approvedAccounts,
+            accounts: authorizedAccounts,
             isConnected: true
           }
         });
@@ -1866,6 +2053,101 @@ class BackgroundService {
         'Failed to set auto-lock timeout',
         PROVIDER_ERRORS.INTERNAL_ERROR.code
       ));
+    }
+  }
+
+  private async handleCreateNewAccount(sendResponse: (response: any) => void): Promise<void> {
+    try {
+      console.log('Background: Creating new account...');
+      
+      if (!this.walletManager.isWalletUnlocked()) {
+        sendResponse({
+          success: false,
+          error: 'Wallet must be unlocked to create new accounts'
+        });
+        return;
+      }
+
+      // Create new account using the next available index (auto-determined)
+      const newAccount = await this.walletManager.createNewAccount();
+      
+      console.log('Background: Created new account:', newAccount.address);
+      
+      sendResponse({
+        success: true,
+        data: {
+          address: newAccount.address,
+          name: newAccount.name,
+          balance: newAccount.balance
+        }
+      });
+    } catch (error) {
+      console.error('Background: Error creating new account:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create new account'
+      });
+    }
+  }
+
+  private async handleAccountChanged(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      console.log('Background: Account changed notification:', request);
+      
+      const { previousAccount, newAccount } = request;
+      
+      if (!previousAccount || !newAccount) {
+        sendResponse({ success: false, error: 'Missing account information' });
+        return;
+      }
+      
+      console.log('Background: Emitting account change events - from:', previousAccount, 'to:', newAccount);
+      
+      // First, emit disconnect event to all connected sites
+      this.emitProviderEvent('disconnect', null);
+      
+      // Small delay to ensure disconnect is processed, then check authorization per site
+      setTimeout(() => {
+        // Get all unique origins that have any authorized accounts
+        const origins = new Set<string>();
+        this.permissions.forEach((permission) => {
+          origins.add(permission.origin);
+        });
+        
+        // Check each origin to see if the new account is authorized
+        origins.forEach((origin) => {
+          const isNewAccountAuthorized = this.isAccountAuthorizedForOrigin(newAccount, origin);
+          
+          if (isNewAccountAuthorized) {
+            console.log(`Background: New account ${newAccount} is authorized for ${origin}, emitting connect event`);
+            
+            // Get all authorized accounts for this origin
+            const authorizedAccounts = this.getAuthorizedAccountsForOrigin(origin);
+            
+            // Emit connect event to this specific origin since the account is authorized
+            this.emitProviderEvent('connect', {
+              publicKey: newAccount,
+              accounts: authorizedAccounts // Send all approved accounts for this origin
+            }, origin);
+          } else {
+            console.log(`Background: New account ${newAccount} is NOT authorized for ${origin}, keeping disconnected`);
+            
+            // The site remains disconnected (already sent disconnect above)
+            // No need to emit another disconnect event
+          }
+        });
+        
+        console.log('Background: Account change events processed for all sites');
+      }, 100);
+      
+      sendResponse({ success: true });
+      
+    } catch (error) {
+      console.error('Background: Error handling account change:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to handle account change'
+      });
     }
   }
 

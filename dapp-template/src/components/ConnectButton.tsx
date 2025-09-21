@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMonkeyMask } from '@/providers';
 import { Button } from '@/components/ui';
 
@@ -19,6 +19,28 @@ export function ConnectButton({ className = '' }: ConnectButtonProps) {
     error,
     clearError,
   } = useMonkeyMask();
+
+  const [previousPublicKey, setPreviousPublicKey] = useState<string | null>(null);
+  const [isAccountSwitching, setIsAccountSwitching] = useState(false);
+
+  // Detect account switching
+  useEffect(() => {
+    if (publicKey && previousPublicKey && publicKey !== previousPublicKey) {
+      setIsAccountSwitching(true);
+      console.log('dApp: Account switch detected:', previousPublicKey, '->', publicKey);
+      
+      // Clear the switching state after a short delay
+      const timer = setTimeout(() => {
+        setIsAccountSwitching(false);
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    if (publicKey) {
+      setPreviousPublicKey(publicKey);
+    }
+  }, [publicKey, previousPublicKey]);
 
   const onConnect = async () => {
     clearError();
@@ -47,8 +69,21 @@ export function ConnectButton({ className = '' }: ConnectButtonProps) {
 
   if (isConnected && publicKey) {
     return (
-      <Button onClick={onDisconnect} className={className} variant="secondary" size="md">
-        {publicKey.slice(0, 6)}...{publicKey.slice(-6)}
+      <Button 
+        onClick={onDisconnect} 
+        className={className} 
+        variant="secondary" 
+        size="md"
+        disabled={isAccountSwitching}
+      >
+        {isAccountSwitching ? (
+          <span className="flex items-center gap-2">
+            <span className="animate-pulse">🔄</span>
+            Account Switched
+          </span>
+        ) : (
+          `${publicKey.slice(0, 6)}...${publicKey.slice(-6)}`
+        )}
       </Button>
     );
   }

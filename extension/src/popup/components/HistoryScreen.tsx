@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Header, ContentContainer, Footer, Separator, PageName, Card } from './ui';
+import { Header, ContentContainer, Footer, Separator, PageName, Card, TransactionSkeleton } from './ui';
 import { Icon } from '@iconify/react';
 import { useNavigation } from '../hooks/useRouter';
 import { useAccounts } from '../hooks/useAccounts';
@@ -19,7 +19,7 @@ interface GroupedTransactions {
 
 export const HistoryScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { accounts } = useAccounts();
+  const { accounts, currentAccount } = useAccounts();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -42,7 +42,7 @@ export const HistoryScreen: React.FC = () => {
 
       const response = await chrome.runtime.sendMessage({
         type: 'GET_ACCOUNT_HISTORY',
-        address: accounts[0].address,
+        address: currentAccount?.address || '',
         count: 20, // Fetch 20 transactions per page
         head: head || undefined
       });
@@ -137,8 +137,17 @@ export const HistoryScreen: React.FC = () => {
         <Header active/>
         <ContentContainer>
           <PageName name="History" back={true} />
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-tertiary">Loading history...</div>
+          <div className="w-full space-y-4">
+            {/* Skeleton for grouped transactions */}
+            {Array.from({ length: 3 }).map((_, groupIndex) => (
+              <Card key={groupIndex} label="" className="w-full">
+                <div className="space-y-3">
+                  {Array.from({ length: 2 }).map((_, transactionIndex) => (
+                    <TransactionSkeleton key={transactionIndex} />
+                  ))}
+                </div>
+              </Card>
+            ))}
           </div>
         </ContentContainer>
         <Footer />

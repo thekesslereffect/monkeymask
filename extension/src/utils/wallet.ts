@@ -18,6 +18,8 @@ export class WalletManager {
   private accounts: Account[] = [];
   private isUnlocked = false;
   private currentSeed: string | null = null;
+  private currentPasswordHash: string | null = null;
+  private currentSalt: string | null = null;
   private rpc: BananoRPC;
 
   constructor() {
@@ -156,6 +158,155 @@ export class WalletManager {
   }
 
   /**
+   * Find the next available account index (fills gaps from removed accounts)
+   */
+  getNextAvailableAccountIndex(): number {
+    // Get all existing account indices by parsing the account names
+    const existingIndices = new Set<number>();
+    
+    this.accounts.forEach((account, arrayIndex) => {
+      // For the first account, it's always index 0
+      if (arrayIndex === 0) {
+        existingIndices.add(0);
+        return;
+      }
+      
+      // Try to extract index from account name (e.g., "Account 2" -> index 1)
+      const match = account.name.match(/Account (\d+)/);
+      if (match) {
+        const accountNumber = parseInt(match[1]);
+        const accountIndex = accountNumber - 1; // Account 1 = index 0, Account 2 = index 1, etc.
+        existingIndices.add(accountIndex);
+      } else {
+        // If we can't parse the name, assume it's the next sequential index
+        existingIndices.add(arrayIndex);
+      }
+    });
+    
+    // Find the lowest available index starting from 1 (since 0 is always the primary account)
+    for (let i = 1; i < 1000; i++) { // Reasonable upper limit
+      if (!existingIndices.has(i)) {
+        return i;
+      }
+    }
+    
+    // Fallback to the next sequential index
+    return this.accounts.length;
+  }
+
+  /**
+   * Sort accounts by their index (Account 1, Account 2, Account 3, etc.)
+   */
+  private sortAccountsByIndex(): void {
+    this.accounts.sort((a, b) => {
+      // Extract account numbers from names
+      const getAccountNumber = (account: Account): number => {
+        const match = account.name.match(/Account (\d+)/);
+        return match ? parseInt(match[1]) : 999; // Put accounts without numbers at the end
+      };
+      
+      const aNum = getAccountNumber(a);
+      const bNum = getAccountNumber(b);
+      
+      return aNum - bNum;
+    });
+  }
+
+  /**
+   * Create a new account using the current seed at the specified index
+   */
+  async createNewAccount(index?: number): Promise<Account> {
+    if (!this.isUnlocked || !this.currentSeed) {
+      throw new Error('Wallet must be unlocked to create new accounts');
+    }
+
+    try {
+      // Use provided index or find the next available one
+      const accountIndex = index !== undefined ? index : this.getNextAvailableAccountIndex();
+      console.log('WalletManager: Creating new account at index:', accountIndex);
+      
+      // Check if account already exists at this index
+      const existingAccount = this.accounts.find(acc => {
+        const match = acc.name.match(/Account (\d+)/);
+        if (match) {
+          const accountNumber = parseInt(match[1]);
+          return (accountNumber - 1) === accountIndex;
+        }
+        return false;
+      });
+      
+      if (existingAccount) {
+        throw new Error(`Account at index ${accountIndex} already exists`);
+      }
+      
+      // Derive the new account from the current seed
+      const newAccount = await this.deriveAccountFromSeed(this.currentSeed, accountIndex);
+      
+      // Add to accounts array and sort by account index
+      this.accounts.push(newAccount);
+      this.sortAccountsByIndex();
+      
+      // Try to automatically save the updated accounts to storage
+      try {
+        await this.saveAccountsToStorage();
+        console.log('WalletManager: Created and saved new account:', newAccount.address);
+      } catch (saveError) {
+        console.warn('WalletManager: Failed to auto-save account, but account created in memory:', saveError);
+        // Don't throw the error - the account is still created and will be saved on next wallet operation
+      }
+      
+      return newAccount;
+    } catch (error) {
+      console.error('WalletManager: Error creating new account:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove an account by address
+   * Note: Cannot remove the first account (index 0) as it's the primary account
+   */
+  async removeAccount(address: string): Promise<void> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet must be unlocked to remove accounts');
+    }
+
+    try {
+      console.log('WalletManager: Removing account:', address);
+      
+      // Find the account index
+      const accountIndex = this.accounts.findIndex(acc => acc.address === address);
+      
+      if (accountIndex === -1) {
+        throw new Error('Account not found');
+      }
+      
+      // Prevent removing the first account (primary account)
+      if (accountIndex === 0) {
+        throw new Error('Cannot remove the primary account');
+      }
+      
+      // Remove the account from the array
+      const removedAccount = this.accounts.splice(accountIndex, 1)[0];
+      
+      // Try to automatically save the updated accounts to storage
+      try {
+        await this.saveAccountsToStorage();
+        console.log('WalletManager: Removed and saved account removal:', removedAccount.address);
+      } catch (saveError) {
+        console.warn('WalletManager: Failed to auto-save after account removal:', saveError);
+        // Re-add the account back since save failed
+        this.accounts.splice(accountIndex, 0, removedAccount);
+        throw new Error('Failed to save account removal');
+      }
+      
+    } catch (error) {
+      console.error('WalletManager: Error removing account:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Import wallet from private key
    */
   async importFromPrivateKey(privateKey: string, name: string = 'Imported Account'): Promise<Account> {
@@ -249,6 +400,132 @@ export class WalletManager {
   }
 
   /**
+   * Save current accounts to storage (used when adding new accounts)
+   */
+  async saveAccounts(password: string): Promise<void> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet must be unlocked to save accounts');
+    }
+
+    try {
+      console.log('WalletManager: Saving updated accounts...');
+      
+      // Get the current wallet data to preserve the salt
+      const walletData = await this.loadWallet();
+      if (!walletData) {
+        throw new Error('No wallet data found');
+      }
+
+      // Re-encrypt accounts with the same password and salt
+      const { encryptedData, salt } = this.encryptAccounts(this.accounts, password);
+      
+      // Encrypt the seed if we have one
+      let encryptedSeed = '';
+      if (this.currentSeed) {
+        const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
+        encryptedSeed = CryptoJS.AES.encrypt(this.currentSeed, key.toString()).toString();
+      }
+      
+      const updatedWalletData: StoredWallet = {
+        encryptedAccounts: encryptedData,
+        encryptedSeed,
+        salt,
+        isInitialized: true
+      };
+
+      // Also store account addresses separately for connection purposes
+      const accountAddresses = this.accounts.map(acc => acc.address);
+
+      await chrome.storage.local.set({ 
+        wallet: updatedWalletData,
+        accountAddresses: accountAddresses 
+      });
+      
+      console.log('WalletManager: Successfully saved updated accounts');
+    } catch (error) {
+      console.error('WalletManager: Error saving accounts:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Save accounts to storage using stored password hash (for automatic saves)
+   */
+  private async saveAccountsToStorage(): Promise<void> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet must be unlocked to save accounts');
+    }
+
+    // If we don't have stored credentials, use a temporary storage approach
+    if (!this.currentPasswordHash || !this.currentSalt) {
+      console.warn('WalletManager: No stored credentials, using temporary account storage');
+      await this.saveAccountsTemporarily();
+      return;
+    }
+
+    try {
+      console.log('WalletManager: Auto-saving accounts to storage...');
+      
+      // Encrypt accounts using the stored password hash
+      const accountsJson = JSON.stringify(this.accounts);
+      const encryptedData = CryptoJS.AES.encrypt(accountsJson, this.currentPasswordHash).toString();
+      
+      // Encrypt the seed if we have one
+      let encryptedSeed = '';
+      if (this.currentSeed) {
+        encryptedSeed = CryptoJS.AES.encrypt(this.currentSeed, this.currentPasswordHash).toString();
+      }
+      
+      const updatedWalletData: StoredWallet = {
+        encryptedAccounts: encryptedData,
+        encryptedSeed,
+        salt: this.currentSalt,
+        isInitialized: true
+      };
+
+      // Also store account addresses separately for connection purposes
+      const accountAddresses = this.accounts.map(acc => acc.address);
+
+      await chrome.storage.local.set({ 
+        wallet: updatedWalletData,
+        accountAddresses: accountAddresses 
+      });
+      
+      console.log('WalletManager: Successfully auto-saved accounts to storage');
+    } catch (error) {
+      console.error('WalletManager: Error auto-saving accounts:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Temporarily store accounts in memory-based storage (fallback when credentials not available)
+   */
+  private async saveAccountsTemporarily(): Promise<void> {
+    try {
+      console.log('WalletManager: Temporarily storing accounts...');
+      
+      // Store accounts in a temporary location that will be merged on next unlock
+      const tempAccountsData = {
+        accounts: this.accounts,
+        timestamp: Date.now()
+      };
+      
+      // Also update accountAddresses so getStoredAccounts() can find new accounts when wallet is locked
+      const accountAddresses = this.accounts.map(acc => acc.address);
+      
+      await chrome.storage.local.set({ 
+        tempAccounts: tempAccountsData,
+        accountAddresses: accountAddresses 
+      });
+      console.log('WalletManager: Accounts and addresses stored temporarily');
+    } catch (error) {
+      console.error('WalletManager: Error storing accounts temporarily:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Load wallet from browser storage
    */
   async loadWallet(): Promise<StoredWallet | null> {
@@ -271,16 +548,43 @@ export class WalletManager {
       password
     );
 
+    // Store password hash and salt for later use when saving accounts
+    const key = CryptoJS.PBKDF2(password, walletData.salt, { keySize: 256/32, iterations: 10000 });
+    this.currentPasswordHash = key.toString();
+    this.currentSalt = walletData.salt;
+
     // Decrypt the seed if it exists
     if (walletData.encryptedSeed) {
       try {
-        const key = CryptoJS.PBKDF2(password, walletData.salt, { keySize: 256/32, iterations: 10000 });
         const decryptedSeed = CryptoJS.AES.decrypt(walletData.encryptedSeed, key.toString()).toString(CryptoJS.enc.Utf8);
         this.currentSeed = decryptedSeed;
         console.log('WalletManager: Decrypted seed for receive operations');
       } catch (error) {
         console.warn('WalletManager: Failed to decrypt seed:', error);
       }
+    }
+
+    // Check for temporarily stored accounts and merge them
+    try {
+      const tempResult = await chrome.storage.local.get(['tempAccounts']);
+      if (tempResult.tempAccounts && tempResult.tempAccounts.accounts) {
+        console.log('WalletManager: Found temporarily stored accounts, merging...');
+        const tempAccounts = tempResult.tempAccounts.accounts;
+        
+        // Merge temp accounts with loaded accounts (avoid duplicates)
+        const existingAddresses = new Set(accounts.map(acc => acc.address));
+        const newAccounts = tempAccounts.filter((acc: Account) => !existingAddresses.has(acc.address));
+        
+        if (newAccounts.length > 0) {
+          accounts.push(...newAccounts);
+          console.log('WalletManager: Merged', newAccounts.length, 'temporarily stored accounts');
+          
+          // Clear the temporary storage
+          await chrome.storage.local.remove(['tempAccounts']);
+        }
+      }
+    } catch (error) {
+      console.warn('WalletManager: Error merging temporary accounts:', error);
     }
 
     this.accounts = accounts;
@@ -294,6 +598,8 @@ export class WalletManager {
   lockWallet(): void {
     this.accounts = [];
     this.currentSeed = null;
+    this.currentPasswordHash = null;
+    this.currentSalt = null;
     this.isUnlocked = false;
   }
 
