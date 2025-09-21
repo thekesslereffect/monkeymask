@@ -236,7 +236,31 @@ npm run build`}</code>
                 defaultExpanded
               >
                 <pre className="text-sm bg-[var(--panel)] p-4 rounded border border-[var(--border)] overflow-x-auto">
-                  <code>{`// app/layout.tsx
+                  <code>{`// providers/index.tsx
+import { MonkeyMaskProvider } from './MonkeyMaskProvider';
+
+export function Providers({ children }) {
+  return (
+    <MonkeyMaskProvider
+      config={{
+        autoConnect: true,
+        onConnect: (publicKey) => {
+          console.log('Wallet connected:', publicKey);
+        },
+        onDisconnect: () => {
+          console.log('Wallet disconnected');
+        },
+        onError: (error) => {
+          console.error('Wallet error:', error);
+        },
+      }}
+    >
+      {children}
+    </MonkeyMaskProvider>
+  );
+}
+
+// app/layout.tsx
 import { Providers } from '@/providers';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -256,14 +280,53 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 icon="mdi:connection"
               >
                 <pre className="text-sm bg-[var(--panel)] p-4 rounded border border-[var(--border)] overflow-x-auto">
-                  <code>{`import { ConnectButton } from '@/components/ConnectButton';
+                  <code>{`// Use the pre-built ConnectButton component
+import { ConnectButton } from '@/components/ConnectButton';
 
 export default function Page() {
   return (
     <div>
       <h1>My Banano dApp</h1>
       <ConnectButton />
-</div>
+    </div>
+  );
+}
+
+// Or create a custom connect button
+import { useMonkeyMask } from '@/providers';
+
+function CustomConnectButton() {
+  const { 
+    isConnected, 
+    isConnecting, 
+    publicKey, 
+    connect, 
+    disconnect, 
+    error, 
+    clearError,
+    isInstalled 
+  } = useMonkeyMask();
+
+  if (!isInstalled) {
+    return <button>Install MonkeyMask</button>;
+  }
+
+  if (error) {
+    return <button onClick={clearError}>Error — Dismiss</button>;
+  }
+
+  if (isConnected && publicKey) {
+    return (
+      <button onClick={disconnect}>
+        {publicKey.slice(0, 6)}...{publicKey.slice(-6)}
+      </button>
+    );
+  }
+
+  return (
+    <button onClick={connect} disabled={isConnecting}>
+      {isConnecting ? 'Connecting…' : 'Connect Wallet'}
+    </button>
   );
 }`}</code>
                 </pre>
@@ -525,9 +588,9 @@ function AccountsList() {
 
                 <ApiMethod
                   name="getBalance()"
-                  signature="getBalance(address?: string): Promise<string>"
+                  signature="getBalance(address?: string): Promise<string | null>"
                   description="Get the balance for an account. Uses connected account if no address provided."
-                  returns="Promise<string>"
+                  returns="Promise<string | null>"
                   example={`// Using the React hook
 import { useMonkeyMask } from '@/providers';
 
@@ -564,9 +627,9 @@ function BalanceDisplay() {
 
                 <ApiMethod
                   name="getAccountInfo()"
-                  signature="getAccountInfo(address?: string): Promise<AccountInfo>"
+                  signature="getAccountInfo(address?: string): Promise<AccountInfo | null>"
                   description="Get detailed account information including balance, pending, and raw values."
-                  returns="Promise<AccountInfo>"
+                  returns="Promise<AccountInfo | null>"
                   example={`// Using the React hook
 import { useMonkeyMask } from '@/providers';
 
@@ -623,9 +686,9 @@ function AccountInfo() {
               <div className="space-y-3">
                 <ApiMethod
                   name="sendTransaction()"
-                  signature="sendTransaction(from: string, to: string, amount: string): Promise<{ hash: string; block: any }>"
-                  description="Send a Banano transaction. Supports BNS name resolution for the recipient."
-                  returns="Promise<{ hash: string; block: any }>"
+                  signature="sendTransaction(to: string, amount: string): Promise<string | null>"
+                  description="Send a Banano transaction. Supports BNS name resolution for the recipient. Uses the currently connected account as sender."
+                  returns="Promise<string | null>"
                   example={`// Using the React hook
 import { useMonkeyMask } from '@/providers';
 
@@ -643,8 +706,10 @@ function SendForm() {
     try {
       // Supports both Banano addresses and BNS names
       const hash = await sendTransaction(recipient, amount);
-      console.log('Transaction sent:', hash);
-      alert('Transaction sent successfully!');
+      if (hash) {
+        console.log('Transaction sent:', hash);
+        alert('Transaction sent successfully!');
+      }
     } catch (error) {
       console.error('Transaction failed:', error);
       alert('Transaction failed: ' + error.message);
@@ -675,9 +740,9 @@ function SendForm() {
 
                 <ApiMethod
                   name="signMessage()"
-                  signature="signMessage(message: string | Uint8Array, display?: 'utf8' | 'hex'): Promise<{ signature: Uint8Array; publicKey: string }>"
-                  description="Sign an arbitrary message for authentication or verification purposes."
-                  returns="Promise<{ signature: Uint8Array; publicKey: string }>"
+                  signature="signMessage(message: string, encoding?: 'utf8' | 'hex'): Promise<string | null>"
+                  description="Sign an arbitrary message for authentication or verification purposes. Returns signature as hex string."
+                  returns="Promise<string | null>"
                   example={`// Using the React hook
 import { useMonkeyMask } from '@/providers';
 
@@ -694,8 +759,10 @@ function MessageSigner() {
     try {
       // Sign the message (returns hex string)
       const sig = await signMessage(message);
-      setSignature(sig);
-      console.log('Message signed:', sig);
+      if (sig) {
+        setSignature(sig);
+        console.log('Message signed:', sig);
+      }
     } catch (error) {
       console.error('Signing failed:', error);
       alert('Signing failed: ' + error.message);
@@ -840,9 +907,9 @@ function BlockSender() {
               <div className="space-y-3">
                 <ApiMethod
                   name="resolveBNS()"
-                  signature="resolveBNS(bnsName: string): Promise<string>"
+                  signature="resolveBNS(bnsName: string): Promise<string | null>"
                   description="Resolve a BNS name to a Banano address. Supports .ban and .banano domains."
-                  returns="Promise<string>"
+                  returns="Promise<string | null>"
                   example={`// Using the React hook
 import { useMonkeyMask } from '@/providers';
 
@@ -858,8 +925,12 @@ function BNSResolver() {
     setResolving(true);
     try {
       const address = await resolveBNS(bnsName);
-      setResolvedAddress(address);
-      console.log(\`\${bnsName} resolves to \${address}\`);
+      if (address) {
+        setResolvedAddress(address);
+        console.log(\`\${bnsName} resolves to \${address}\`);
+      } else {
+        setResolvedAddress('Not found');
+      }
     } catch (error) {
       console.error('BNS resolution failed:', error);
       setResolvedAddress('Not found');
@@ -899,9 +970,9 @@ function BNSResolver() {
               <div className="space-y-3">
                 <ApiMethod
                   name="verifySignedMessage()"
-                  signature="verifySignedMessage(message: string, signature: string, publicKey: string, display?: 'utf8' | 'hex'): Promise<boolean>"
-                  description="Verify a signed message against a public key. Useful for authentication flows."
-                  returns="Promise<boolean>"
+                  signature="verifySignedMessage(message: string, signatureHex: string, publicKey?: string, encoding?: 'utf8' | 'hex'): Promise<boolean | null>"
+                  description="Verify a signed message against a public key. Uses connected account's public key if not provided. Useful for authentication flows."
+                  returns="Promise<boolean | null>"
                   example={`// Using the React hook
 import { useMonkeyMask } from '@/providers';
 
@@ -921,10 +992,12 @@ function SignatureVerifier() {
       const isValid = await verifySignedMessage(message, signature, publicKey);
       setVerificationResult(isValid);
       
-      if (isValid) {
+      if (isValid === true) {
         console.log('Signature is valid - user authenticated!');
-      } else {
+      } else if (isValid === false) {
         console.log('Invalid signature');
+      } else {
+        console.log('Verification failed');
       }
     } catch (error) {
       console.error('Verification failed:', error);
@@ -1053,17 +1126,38 @@ function DisconnectionListener() {
                 <ApiMethod
                   name="on('accountChanged')"
                   signature="on('accountChanged', handler: (publicKey: string) => void): void"
-                  description="Listen for account changes when user switches accounts."
+                  description="Listen for account changes when user switches accounts. Note: The new per-account permission system uses disconnect -> connect flow for better security."
                   category="event"
-                  example={`// Using the React hook with config
-import { MonkeyMaskProvider } from '@/providers';
+                  example={`// Account changes are handled automatically by the provider
+// The provider will emit disconnect -> connect events when accounts change
+// This ensures proper permission handling per account
 
+function AccountChangeListener() {
+  const { publicKey, isConnected } = useMonkeyMask();
+  
+  useEffect(() => {
+    if (isConnected && publicKey) {
+      console.log('Connected to account:', publicKey);
+      // Refresh account-specific data
+    } else {
+      console.log('Disconnected from wallet');
+      // Clear account-specific data
+    }
+  }, [isConnected, publicKey]);
+  
+  return null;
+}
+
+// The provider config handles connection events
 function App() {
   const config = {
-    onAccountChanged: (newPublicKey) => {
-      console.log('Account changed to:', newPublicKey);
-      // Update UI or refresh data
-      toast.info('Account switched');
+    onConnect: (publicKey) => {
+      console.log('Wallet connected:', publicKey);
+      // Update UI or trigger side effects
+    },
+    onDisconnect: () => {
+      console.log('Wallet disconnected');
+      // Update UI or trigger side effects
     }
   };
 
@@ -1072,20 +1166,6 @@ function App() {
       <YourAppComponents />
     </MonkeyMaskProvider>
   );
-}
-
-// Or listen for account changes in components
-function AccountChangeListener() {
-  const { publicKey } = useMonkeyMask();
-  
-  useEffect(() => {
-    if (publicKey) {
-      console.log('Current account:', publicKey);
-      // Refresh account-specific data
-    }
-  }, [publicKey]);
-  
-  return null;
 }`}
                 />
               </div>
@@ -1209,6 +1289,7 @@ function AuthenticationComponent() {
       
       // 3. Sign the message
       const signature = await signMessage(message);
+      if (!signature) throw new Error('Failed to sign message');
     
     // 4. Send to server for verification
     const response = await fetch('/api/auth/login', {
@@ -1216,10 +1297,8 @@ function AuthenticationComponent() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message,
-        signature: Array.from(signature.signature, 
-          byte => byte.toString(16).padStart(2, '0')
-        ).join(''),
-        publicKey: connection.publicKey,
+        signature, // Already a hex string
+        publicKey: publicKey,
         timestamp
       })
     });
@@ -1328,7 +1407,7 @@ function SmartAddressInput() {
       const resolvedAddress = await handleAddressInput(bnsName);
       
       const result = await sendTransaction(
-        resolvedAddress, // or just use bnsName directly
+        bnsName, // MonkeyMask handles BNS resolution automatically
         amount
       );
     
