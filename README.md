@@ -20,7 +20,7 @@ MonkeyMask brings the power of Banano to your browser with a user-friendly inter
 ```
 monkeymask/
 ├── extension/          # Browser extension (Chrome/Edge/Firefox)
-├── dapp-template/      # Next.js dApp template for developers
+├── monkeymask-nextjs-starter/      # Next.js dApp template for developers
 └── README.md          # This file
 ```
 
@@ -54,7 +54,7 @@ monkeymask/
 
 1. **Navigate to template**
    ```bash
-   cd dapp-template
+   cd monkeymask-nextjs-starter
    ```
 
 2. **Install dependencies**
@@ -84,7 +84,7 @@ npm test       # Run tests (if available)
 
 ### dApp Template Development
 ```bash
-cd dapp-template
+cd monkeymask-nextjs-starter
 npm run dev        # Start Next.js dev server
 npm run build      # Build for production
 npm run start      # Start production server
@@ -94,8 +94,7 @@ npm run lint       # Run ESLint
 ## 📚 Documentation
 
 - **Extension**: See `extension/README.md` for detailed setup and architecture
-- **dApp Template**: See `dapp-template/README.md` and `dapp-template/INTEGRATION_GUIDE.md`
-- **Quick Start**: See `dapp-template/GETTING_STARTED.md` for API usage examples
+- **dApp Template**: See `monkeymask-nextjs-starter/README.md`
 
 ## 🏗️ Architecture
 
