@@ -84,17 +84,15 @@ npm test       # Run tests (if available)
 
 ### dApp Template Development
 ```bash
+git clone https://github.com/thekesslereffect/monkeymask-nextjs-starter.git
 cd monkeymask-nextjs-starter
-npm run dev        # Start Next.js dev server
-npm run build      # Build for production
-npm run start      # Start production server
-npm run lint       # Run ESLint
+npm i
+npm run dev
 ```
 
 ## 📚 Documentation
 
 - **Extension**: See `extension/README.md` for detailed setup and architecture
-- **dApp Template**: See `monkeymask-nextjs-starter/README.md`
 
 ## 🏗️ Architecture
 
