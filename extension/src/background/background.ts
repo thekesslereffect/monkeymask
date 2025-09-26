@@ -124,13 +124,42 @@ class BackgroundService {
     }
   }
 
+  private async getCurrentAccountIndex(): Promise<number> {
+    try {
+      const result = await chrome.storage.local.get(['currentAccountIndex']);
+      return result.currentAccountIndex || 0;
+    } catch (error) {
+      console.warn('Background: Failed to get current account index, using 0:', error);
+      return 0;
+    }
+  }
+
+  private async getCurrentAccountAddress(): Promise<string | null> {
+    try {
+      const accounts = this.walletManager.isWalletUnlocked()
+        ? this.walletManager.getAccounts()
+        : await this.walletManager.getStoredAccounts();
+
+      if (accounts.length === 0) {
+        return null;
+      }
+
+      const currentAccountIndex = await this.getCurrentAccountIndex();
+      const currentAccount = accounts[currentAccountIndex] || accounts[0];
+      return currentAccount.address;
+    } catch (error) {
+      console.warn('Background: Failed to get current account address:', error);
+      return null;
+    }
+  }
+
   private async savePermissions(): Promise<void> {
     try {
       const stored: StoredPermissions = {};
       for (const [origin, permission] of this.permissions.entries()) {
         stored[origin] = permission;
       }
-      
+
       await chrome.storage.local.set({ permissions: stored });
       console.log('Background: Saved permissions for', this.permissions.size, 'origins');
     } catch (error) {
@@ -671,32 +700,33 @@ class BackgroundService {
       // Process all accounts to get their balances
       console.log('Background: Fetching balances for all accounts:', accounts.length);
       
-      // First, handle pending transactions for primary account only (auto-receive)
-      const primaryAccount = accounts[0];
-      const primaryAddress = primaryAccount.address;
-      
+      // First, handle pending transactions for current account (auto-receive)
+      const currentAccountIndex = await this.getCurrentAccountIndex();
+      const currentAccount = accounts[currentAccountIndex] || accounts[0]; // Fallback to first account if index is invalid
+      const currentAddress = currentAccount.address;
+
       let pendingAmount = '0';
       try {
         const preBalanceResult = await Promise.race([
-          this.rpc.getAccountBalance(primaryAddress),
+          this.rpc.getAccountBalance(currentAddress),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Pre-balance timeout')), 5000))
         ]) as any;
-        
+
         if (preBalanceResult.success && preBalanceResult.data?.pending && preBalanceResult.data.pending !== '0') {
           pendingAmount = BananoRPC.rawToBan(preBalanceResult.data.pending);
-          console.log('Background: Found pending amount for primary account:', pendingAmount);
+          console.log('Background: Found pending amount for current account:', pendingAmount);
         }
       } catch (error) {
         console.warn('Background: Failed to get pre-balance for pending check:', error);
       }
-      
-      // Try to auto-receive any pending transactions on primary account only
+
+      // Try to auto-receive any pending transactions on current account
       if (pendingAmount !== '0') {
         try {
-          console.log('Background: Auto-receiving pending for primary account:', primaryAddress, 'amount:', pendingAmount);
-          await this.walletManager.autoReceivePending(primaryAddress, pendingAmount);
+          console.log('Background: Auto-receiving pending for current account:', currentAddress, 'amount:', pendingAmount);
+          await this.walletManager.autoReceivePending(currentAddress, pendingAmount);
         } catch (error) {
-          console.warn('Background: Failed to auto-receive pending for primary account:', error);
+          console.warn('Background: Failed to auto-receive pending for current account:', error);
         }
       }
       
@@ -795,15 +825,17 @@ class BackgroundService {
         return;
       }
 
-      // Only update primary account
-      const primaryAddress = accounts[0].address;
+      // Update current account (or primary if no current account set)
+      const currentAccountIndex = await this.getCurrentAccountIndex();
+      const currentAccount = accounts[currentAccountIndex] || accounts[0]; // Fallback to first account if index is invalid
+      const currentAddress = currentAccount.address;
 
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Balance fetch timeout')), 10000);
       });
 
       const balanceResult = await Promise.race([
-        this.rpc.getAccountBalance(primaryAddress),
+        this.rpc.getAccountBalance(currentAddress),
         timeoutPromise
       ]) as any;
 
@@ -811,12 +843,12 @@ class BackgroundService {
         throw new Error(balanceResult?.error || 'Unknown balance fetch error');
       }
 
-      // Update only the primary account
+      // Update only the current account
       if (balanceResult.data) {
-        accounts[0].balance = BananoRPC.rawToBan(balanceResult.data.balance || '0');
+        currentAccount.balance = BananoRPC.rawToBan(balanceResult.data.balance || '0');
       }
       
-      console.log('Background: updateBalancesAsync completed for primary account');
+      console.log('Background: updateBalancesAsync completed for current account');
     } catch (error) {
       console.warn('Background: updateBalancesAsync failed:', error);
     }
@@ -1402,11 +1434,18 @@ class BackgroundService {
   private async handleGetBalance(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
       console.log('Background: Get balance request for:', request.address);
-      
-      const { address } = request;
+
+      let { address } = request;
+
+      // If no address provided, default to current account
       if (!address) {
-        sendResponse({ success: false, error: 'Address is required' });
-        return;
+        const currentAddress = await this.getCurrentAccountAddress();
+        if (!currentAddress) {
+          sendResponse({ success: false, error: 'No accounts available' });
+          return;
+        }
+        address = currentAddress;
+        console.log('Background: Using current account for balance request:', address);
       }
 
       // Serve from cache if fresh
@@ -1445,11 +1484,18 @@ class BackgroundService {
   private async handleGetAccountInfo(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
       console.log('Background: Get account info request for:', request.address);
-      
-      const { address } = request;
+
+      let { address } = request;
+
+      // If no address provided, default to current account
       if (!address) {
-        sendResponse({ success: false, error: 'Address is required' });
-        return;
+        const currentAddress = await this.getCurrentAccountAddress();
+        if (!currentAddress) {
+          sendResponse({ success: false, error: 'No accounts available' });
+          return;
+        }
+        address = currentAddress;
+        console.log('Background: Using current account for account info request:', address);
       }
 
       // Serve from cache if fresh
@@ -1533,11 +1579,18 @@ class BackgroundService {
   private async handleGetAccountHistory(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
       console.log('Background: Get account history request for:', request.address);
-      
-      const { address, count = 10, head } = request;
+
+      let { address, count = 10, head } = request;
+
+      // If no address provided, default to current account
       if (!address) {
-        sendResponse({ success: false, error: 'Address is required' });
-        return;
+        const currentAddress = await this.getCurrentAccountAddress();
+        if (!currentAddress) {
+          sendResponse({ success: false, error: 'No accounts available' });
+          return;
+        }
+        address = currentAddress;
+        console.log('Background: Using current account for account history request:', address);
       }
 
       // Use bananojs getAccountHistory method with optional head parameter for pagination
