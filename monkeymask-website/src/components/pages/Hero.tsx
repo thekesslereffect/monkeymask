@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Button } from '@/components/ui';
+import { Button, Alert, AlertTitle, AlertDescription } from '@/components/ui';
 import { Icon } from "@iconify/react";
 import { TryMe } from './TryMe';
 import FunctionalitySection from './FunctionalitySection';
@@ -17,6 +17,12 @@ export function Hero() {
             <h1 className="md:text-8xl text-5xl font-bold tracking-tight w-full text-center md:text-left">
               A Banano wallet for the modern Web
             </h1>
+            <Alert className="mt-6" variant="warning">
+              <AlertTitle>Announcement</AlertTitle>
+              <AlertDescription className="text-accent-foreground">
+                {`If you have v0.1.1 or earlier, please transfer funds to Kalium or TheBananoStand until v0.1.2 is released. We've fixed an issue with mnemonic generation and added some new features.`}
+              </AlertDescription>
+            </Alert>
             <div className="mt-8 flex flex-col md:flex-row gap-6 md:gap-3 items-center">
 
               <Button variant="default" size="lg" asChild>
