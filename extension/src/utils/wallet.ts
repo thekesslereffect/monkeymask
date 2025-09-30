@@ -54,34 +54,27 @@ export class WalletManager {
    * Generate a BIP39 mnemonic for user-friendly backup
    */
   generateMnemonic(): string {
-    return bip39.generateMnemonic(256); // 24 words
+    // 24-word mnemonic representing 256 bits of entropy
+    return bip39.generateMnemonic(256);
   }
 
   /**
    * Convert BIP39 mnemonic to Banano hex seed
    */
   async mnemonicToSeed(mnemonic: string): Promise<string> {
-    if (!bip39.validateMnemonic(mnemonic)) {
+    // Normalize spacing/casing per BIP39 expectations
+    const normalized = mnemonic.trim().toLowerCase().split(/\s+/).join(' ');
+    if (!bip39.validateMnemonic(normalized)) {
       throw new Error('Invalid mnemonic seed');
     }
-    
+
     try {
-      // Convert mnemonic to seed buffer and take first 32 bytes as hex
-      const seedBuffer = await bip39.mnemonicToSeed(mnemonic);
-      
-      // Convert to Uint8Array first, then to hex
-      const uint8Array = new Uint8Array(seedBuffer);
-      const first32Bytes = uint8Array.subarray(0, 32);
-      
-      // Convert to hex string
-      const hexSeed = Array.from(first32Bytes)
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-      
-      const result = hexSeed.toUpperCase();
-      console.log('WalletManager: Converted mnemonic to hex seed:', result.substring(0, 16) + '...');
+      // For Banano/Nano, seeds are 32-byte hex. When using BIP39 to represent a seed,
+      // use the mnemonic's entropy directly, not PBKDF2. This returns 64 hex chars (32 bytes).
+      const entropyHex = bip39.mnemonicToEntropy(normalized);
+      const result = entropyHex.toUpperCase();
+      console.log('WalletManager: Converted mnemonic entropy to hex seed:', result.substring(0, 16) + '...');
       console.log('WalletManager: Hex seed length:', result.length);
-      
       return result;
     } catch (error) {
       console.error('Error converting mnemonic to seed:', error);
