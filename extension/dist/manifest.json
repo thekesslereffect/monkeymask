@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MonkeyMask - Banano Wallet",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Browser extension wallet for Banano cryptocurrency",
   "icons": {
     "128": "icons/icon-128.png"
