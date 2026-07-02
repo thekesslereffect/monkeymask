@@ -10,7 +10,9 @@ export const ContentContainer: React.FC<ContentContainerProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`flex flex-col font-semibold bg-background justify-start overflow-y-auto items-center px-4 pt-[74px] pb-[74px] gap-4 ${className}`}>
+    <div
+      className={`flex min-h-0 flex-1 w-full min-w-0 flex-col gap-4 overflow-x-hidden overflow-y-auto bg-background px-4 pb-[74px] pt-[74px] font-semibold ${className}`}
+    >
       {children}
     </div>
   );

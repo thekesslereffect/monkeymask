@@ -48,7 +48,7 @@ export const FaucetScreen: React.FC<FaucetScreenProps> = ({ account }) => {
           </div>
         </div>
 
-        <Card hintText="Donate" hintOnClick={() => console.log('Donate')} className="w-full px-6 py-4 h-full">
+        <Card hintText="Donate" hintOnClick={() => {}} className="w-full px-6 py-4 h-full">
           <div className="flex items-center justify-center text-sm text-tertiary">
             Daily Claim Limit = 0.1 BAN
           </div>

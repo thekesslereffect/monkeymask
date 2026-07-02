@@ -511,6 +511,10 @@ class BackgroundService {
         case 'GET_NFTS':
           await this.handleGetNFTs(request, sendResponse);
           break;
+
+        case 'GET_EXPLORE':
+          await this.handleGetExplore(sendResponse);
+          break;
         
         case 'GET_PENDING_APPROVAL':
           // Add debugging to track where these calls are coming from
@@ -2069,6 +2073,20 @@ class BackgroundService {
       sendResponse({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to fetch NFTs',
+      });
+    }
+  }
+
+  private async handleGetExplore(sendResponse: (response: any) => void): Promise<void> {
+    try {
+      const { fetchExploreCatalog } = await import('../utils/explore');
+      const catalog = await fetchExploreCatalog();
+      sendResponse({ success: true, data: catalog });
+    } catch (error) {
+      console.error('Background: Error fetching explore catalog:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch explore catalog',
       });
     }
   }

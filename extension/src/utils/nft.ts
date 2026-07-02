@@ -27,6 +27,8 @@ export interface MonkeyNFT {
   heldCount?: number;
   /** Human label for the supply model. */
   supplyType?: 'unique' | 'limited' | 'unlimited';
+  /** Collection supply locked via `#finish_supply`. */
+  finished?: boolean;
 }
 
 export interface NFTFetchResult {
@@ -51,9 +53,30 @@ const NFT_API_BASE = 'https://cwispy.app/nft_api';
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 const REQUEST_TIMEOUT_MS = 8000;
 
-// Optional MonkeyMask Convex NFT index (injected at build time). When set, it
-// replaces the flaky community indexer for NFTs received from others.
-const CONVEX_URL = (process.env.MONKEYMASK_CONVEX_URL || '').replace(/\/$/, '');
+// Optional MonkeyMask Convex NFT index (injected at build time, overridable in
+// chrome.storage). When set, it replaces the flaky community indexer for NFTs
+// received from others (e.g. on secondary accounts).
+const BUILD_CONVEX_URL = (process.env.MONKEYMASK_CONVEX_URL || '').replace(/\/$/, '');
+
+let resolvedConvexUrl: string | undefined;
+
+/** Resolve the Convex HTTP-actions base URL (build-time env or storage override). */
+async function resolveConvexSiteUrl(): Promise<string> {
+  if (resolvedConvexUrl !== undefined) return resolvedConvexUrl;
+  try {
+    const stored = await chrome.storage.local.get(['convexSiteUrl']);
+    const fromStorage =
+      typeof stored.convexSiteUrl === 'string' ? stored.convexSiteUrl.trim().replace(/\/$/, '') : '';
+    if (fromStorage) {
+      resolvedConvexUrl = fromStorage;
+      return resolvedConvexUrl;
+    }
+  } catch {
+    // Non-extension contexts (tests) fall through to the build-time URL.
+  }
+  resolvedConvexUrl = BUILD_CONVEX_URL;
+  return resolvedConvexUrl;
+}
 
 async function fetchJson(url: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<unknown> {
   const controller = new AbortController();
@@ -311,10 +334,10 @@ export async function fetchMintedNFTsForAddress(address: string): Promise<Monkey
 }
 
 /** Fetch owned NFTs from the MonkeyMask Convex index. Never throws. */
-async function fetchConvexNFTs(address: string): Promise<NFTFetchResult> {
-  if (!CONVEX_URL) return { nfts: [], error: 'Convex index not configured' };
+async function fetchConvexNFTs(address: string, siteUrl: string): Promise<NFTFetchResult> {
+  if (!siteUrl) return { nfts: [], error: 'Convex index not configured' };
   try {
-    const payload = (await fetchJson(`${CONVEX_URL}/nfts?address=${address}`)) as {
+    const payload = (await fetchJson(`${siteUrl}/nfts?address=${encodeURIComponent(address)}`)) as {
       nfts?: MonkeyNFT[];
       error?: string;
     };
@@ -325,32 +348,55 @@ async function fetchConvexNFTs(address: string): Promise<NFTFetchResult> {
 }
 
 /**
+ * Merge NFT lists by metadata CID (collections) or asset rep (singletons).
+ * Mirrors the website `/api/nfts` merge so secondary accounts get the same
+ * held counts whether the card came from self-crawl or the Convex index.
+ */
+function mergeByAsset(minted: MonkeyNFT[], ...lists: MonkeyNFT[][]): MonkeyNFT[] {
+  const byCid = new Map<string, MonkeyNFT>();
+  const byAsset = new Map<string, MonkeyNFT>();
+  const finishedCids = new Set<string>();
+  for (const list of [minted, ...lists]) {
+    for (const nft of list) {
+      if (nft.metadataCid) {
+        if (nft.finished) finishedCids.add(nft.metadataCid);
+        const existing = byCid.get(nft.metadataCid);
+        if (!existing || (nft.heldCount ?? 0) > (existing.heldCount ?? 0)) {
+          byCid.set(nft.metadataCid, nft);
+        }
+      } else {
+        const key = nft.assetRepresentative ?? nft.id;
+        if (!byAsset.has(key)) byAsset.set(key, nft);
+      }
+    }
+  }
+  for (const [cid, nft] of byCid) {
+    if (finishedCids.has(cid)) nft.finished = true;
+  }
+  return [...byCid.values(), ...byAsset.values()];
+}
+
+/**
  * Merge reliable self-indexed mints with an "owned" list. Prefers the MonkeyMask
  * Convex index when configured, falling back to the community indexer otherwise.
- * De-duplicates by asset representative.
  */
 export async function fetchAllNFTsForAddress(address: string): Promise<NFTFetchResult> {
   if (!address) return { nfts: [], error: 'No address provided' };
-  const [minted, owned] = await Promise.all([
-    fetchMintedNFTsForAddress(address),
-    CONVEX_URL ? fetchConvexNFTs(address) : fetchNFTsForAddress(address),
-  ]);
+  const convexUrl = await resolveConvexSiteUrl();
+  const minted = await fetchMintedNFTsForAddress(address);
 
-  const byAsset = new Map<string, MonkeyNFT>();
-  // Self-indexed collections are grouped into one card per metadata CID; every
-  // edition shares that CID. Skip any flat "owned" asset whose CID is already
-  // covered so editions don't reappear as duplicate cards.
-  const coveredCids = new Set<string>();
-  for (const nft of minted) {
-    byAsset.set(nft.assetRepresentative ?? nft.id, nft);
-    if (nft.metadataCid) coveredCids.add(nft.metadataCid);
-  }
-  for (const nft of owned.nfts) {
-    if (nft.metadataCid && coveredCids.has(nft.metadataCid)) continue;
-    const key = nft.assetRepresentative ?? nft.id;
-    if (!byAsset.has(key)) byAsset.set(key, nft);
+  let owned: NFTFetchResult;
+  if (convexUrl) {
+    owned = await fetchConvexNFTs(address, convexUrl);
+    // Received NFTs on secondary accounts live in the index; if both sources are
+    // empty, still try the community indexer as a last resort.
+    if (owned.nfts.length === 0 && minted.length === 0) {
+      owned = await fetchNFTsForAddress(address);
+    }
+  } else {
+    owned = await fetchNFTsForAddress(address);
   }
 
-  const nfts = Array.from(byAsset.values());
+  const nfts = mergeByAsset(minted, owned.nfts);
   return { nfts, error: nfts.length === 0 ? owned.error : undefined };
 }

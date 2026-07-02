@@ -38,6 +38,8 @@ export const NFTsScreen: React.FC = () => {
 
     const loadNFTs = async () => {
       if (!address) {
+        setNfts([]);
+        setError(null);
         setLoading(false);
         return;
       }
@@ -48,6 +50,10 @@ export const NFTsScreen: React.FC = () => {
       if (entry) {
         setNfts(entry.nfts);
         setError(entry.error);
+      } else {
+        // Clear the previous account's gallery while we load the new one.
+        setNfts([]);
+        setError(null);
       }
       if (isFresh) {
         setLoading(false);

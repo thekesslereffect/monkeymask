@@ -10,7 +10,11 @@
 
 import type * as crawler from "../crawler.js";
 import type * as crons from "../crons.js";
+import type * as exploreSites from "../exploreSites.js";
+import type * as exploreSitesActions from "../exploreSitesActions.js";
 import type * as http from "../http.js";
+import type * as lib_explorePreview from "../lib/explorePreview.js";
+import type * as lib_exploreSeedData from "../lib/exploreSeedData.js";
 import type * as lib_nftCodec from "../lib/nftCodec.js";
 import type * as nfts from "../nfts.js";
 import type * as siwb from "../siwb.js";
@@ -24,7 +28,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   crawler: typeof crawler;
   crons: typeof crons;
+  exploreSites: typeof exploreSites;
+  exploreSitesActions: typeof exploreSitesActions;
   http: typeof http;
+  "lib/explorePreview": typeof lib_explorePreview;
+  "lib/exploreSeedData": typeof lib_exploreSeedData;
   "lib/nftCodec": typeof lib_nftCodec;
   nfts: typeof nfts;
   siwb: typeof siwb;

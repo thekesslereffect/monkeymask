@@ -11,7 +11,8 @@
     "lib": ["ES2021", "dom"],
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "noEmit": true
+    "noEmit": true,
+    "resolveJsonModule": true
   },
   "include": ["./**/*"],
   "exclude": ["./_generated"]

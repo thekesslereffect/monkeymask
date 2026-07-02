@@ -5,7 +5,7 @@ import { Button } from '@/components/ui';
 // import { Alert, AlertTitle, AlertDescription } from '@/components/ui';
 import { Icon } from "@iconify/react";
 import { TryMe } from './TryMe';
-import FunctionalitySection from './FunctionalitySection';
+import { SpotlightLayout } from './layouts/SpotlightLayout';
 import ExploreSection from './ExploreSection';
 
 export function Hero() {
@@ -52,8 +52,7 @@ export function Hero() {
           </div>
         </div>
           
-        <FunctionalitySection />
-          
+        <SpotlightLayout />
 
         <ExploreSection />
 

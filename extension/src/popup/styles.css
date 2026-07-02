@@ -6,6 +6,12 @@
   * {
     font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
+
+  html,
+  body,
+  #root {
+    background-color: hsl(var(--background));
+  }
   
   :root {
     /* Dark theme colors */
@@ -30,14 +36,15 @@
     --bars-border: 0 0% 21%;
     --bars-icon: 0 0% 35%;
     --bars-icon-active: 0 0% 95%;
-    /* --destructive: 338, 86%, 21.6%;
-    --destructive-foreground: 338, 100%, 36.6%; */
-    --destructive: 48.42,95%,52.94%;
-    --destructive-foreground: 0 0% 13%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
     --border: 0 0% 16%;
     --input: 0 0% 16%;
     --ring: 0 0% 95%;
-    --radius: 0.5rem;    
+    --radius: 0.5rem;
+    --text-primary: 0 0% 95%;
+    --text-secondary: 0 0% 70%;
+    --text-tertiary: 0 0% 46%;
   }
 }
 
@@ -232,7 +239,16 @@
   }
 }
 
-/* Custom scrollbar */
+/* Hide scrollbars where overflow is intentional (e.g. category filters) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Hide number input spinners */
 input[type=number].no-spinner::-webkit-outer-spin-button,
 input[type=number].no-spinner::-webkit-inner-spin-button {

@@ -192,7 +192,7 @@ export function MintNftForm() {
       {FEE_ENABLED && (
         <p className="text-xs text-[var(--text-secondary)]">
           A {FEE_AMOUNT} BAN MonkeyMask fee applies per mint. It&apos;s only sent after the mint
-          succeeds — a failed mint never costs you the fee.
+          succeeds. A failed mint never costs you the fee.
         </p>
       )}
 

@@ -5,68 +5,50 @@ import { Icon } from '@iconify/react';
 import { useMonkeyMask, useSendAllNfts } from '@/providers';
 import { Button, StatusBox } from '@/components/ui';
 import type { NormalizedNFT } from '@/lib/nft';
+import { supplyBadge } from '@/lib/nftDisplay';
 import { NftDetailModal } from '@/components/NftDetailModal';
 
-/** Short supply label, e.g. "1 of 1", "Limited 3/10", "Unlimited (x2)". */
-export function supplyBadge(nft: {
-  supplyType?: 'unique' | 'limited' | 'unlimited';
-  maxSupply?: number;
-  mintedCount?: number;
-  heldCount?: number;
-}): { label: string; icon: string } | null {
-  if (!nft.supplyType) return null;
-  const held = nft.heldCount ?? 0;
-  const minted = nft.mintedCount ?? held;
-  if (nft.supplyType === 'unique') return { label: '1 of 1', icon: 'lucide:gem' };
-  if (nft.supplyType === 'unlimited') {
-    return { label: held > 1 ? `Unlimited · hold ${held}` : 'Unlimited', icon: 'lucide:infinity' };
-  }
-  return { label: `Limited ${minted}/${nft.maxSupply}`, icon: 'lucide:layers' };
-}
+export { supplyBadge } from '@/lib/nftDisplay';
 
 function NftTile({ nft, onSelect }: { nft: NormalizedNFT; onSelect: (nft: NormalizedNFT) => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   const showImage = nft.image && !imageFailed;
-  const badge = supplyBadge(nft);
-  const held = nft.heldCount ?? 0;
+  const badge = supplyBadge(nft, { includeHeld: true });
 
   return (
     <button
       type="button"
       onClick={() => onSelect(nft)}
-      className="text-left rounded-md border border-[var(--border)] overflow-hidden bg-white hover:shadow-md transition-shadow"
+      aria-label={nft.name}
+      className="group relative aspect-square w-full overflow-hidden rounded-xl border border-border bg-secondary transition-all hover:shadow-md hover:ring-2 hover:ring-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <div className="relative aspect-square flex items-center justify-center bg-secondary overflow-hidden">
-        {showImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={nft.image}
-            alt={nft.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
+      {showImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={nft.image}
+          alt=""
+          className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <div className="flex size-full items-center justify-center">
           <Icon icon="lucide:image" className="size-10 text-muted-foreground" />
-        )}
-        {badge && (
-          <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
-            <Icon icon={badge.icon} className="size-3" />
-            {badge.label}
-          </span>
-        )}
-        {held > 1 && (
-          <span className="absolute top-1.5 right-1.5 inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-            x{held}
-          </span>
-        )}
-      </div>
-      <div className="p-2">
-        <div className="text-sm font-semibold truncate">{nft.name}</div>
-        {nft.collection && (
-          <div className="text-xs text-[var(--text-secondary)] truncate">{nft.collection}</div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {badge && (
+        <span className="absolute bottom-2 left-2 inline-flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
+          <Icon icon={badge.icon} className="size-3 shrink-0" />
+          <span className="truncate">{badge.label}</span>
+        </span>
+      )}
+
+      {nft.finished && (
+        <span className="absolute top-2 right-2 inline-flex items-center rounded-full bg-black/70 p-1 text-white backdrop-blur-sm">
+          <Icon icon="lucide:lock" className="size-3" aria-label="Supply locked" />
+        </span>
+      )}
     </button>
   );
 }
@@ -77,8 +59,6 @@ interface CacheEntry {
   ts: number;
 }
 
-// Module-level cache survives component unmount/remount (e.g. tab switching),
-// so navigating back to the gallery shows results instantly instead of reloading.
 const galleryCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 60_000;
 
@@ -154,7 +134,6 @@ export function NftGallery() {
     }
     const entry = galleryCache.get(publicKey);
     if (entry) {
-      // Seed from cache immediately; only revalidate if stale.
       setNfts(entry.nfts);
       setError(entry.error);
       setLoaded(true);
@@ -174,9 +153,9 @@ export function NftGallery() {
 
   if (loading && nfts.length === 0) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="aspect-square rounded-md bg-secondary animate-pulse" />
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="aspect-square rounded-xl bg-secondary animate-pulse" />
         ))}
       </div>
     );
@@ -223,7 +202,7 @@ export function NftGallery() {
       </div>
 
       {showSendAll && !sendAllHash && (
-        <div className="space-y-2 rounded-md border border-[var(--border)] p-3">
+        <div className="space-y-2 rounded-xl border border-border p-3">
           <label className="block text-sm font-medium">
             Send <strong>every</strong> NFT in this account to
           </label>
@@ -279,18 +258,19 @@ export function NftGallery() {
           </a>
         </StatusBox>
       )}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
         {nfts.map((nft) => (
           <NftTile key={nft.id} nft={nft} onSelect={setSelected} />
         ))}
       </div>
+
       {selected && (
         <NftDetailModal
           nft={selected}
           onClose={() => setSelected(null)}
           onTransferred={() => {
             if (publicKey) invalidateNftCache(publicKey);
-            // Give the crawler a moment to trace the transfer, then refresh.
             setTimeout(() => loadNFTs(), 2500);
           }}
         />

@@ -43,7 +43,7 @@ export function ConnectButton({ className = '' }: ConnectButtonProps) {
   if (error) {
     return (
       <Button onClick={clearError} className={className} variant="secondary" size="md">
-        Error — Dismiss
+        Dismiss error
       </Button>
     );
   }

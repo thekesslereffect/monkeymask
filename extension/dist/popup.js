@@ -27588,6 +27588,12 @@ video {
   * {
     font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
+
+  html,
+  body,
+  #root {
+    background-color: hsl(var(--background));
+  }
   
   :root {
     /* Dark theme colors */
@@ -27612,14 +27618,15 @@ video {
     --bars-border: 0 0% 21%;
     --bars-icon: 0 0% 35%;
     --bars-icon-active: 0 0% 95%;
-    /* --destructive: 338, 86%, 21.6%;
-    --destructive-foreground: 338, 100%, 36.6%; */
-    --destructive: 48.42,95%,52.94%;
-    --destructive-foreground: 0 0% 13%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
     --border: 0 0% 16%;
     --input: 0 0% 16%;
     --ring: 0 0% 95%;
-    --radius: 0.5rem;    
+    --radius: 0.5rem;
+    --text-primary: 0 0% 95%;
+    --text-secondary: 0 0% 70%;
+    --text-tertiary: 0 0% 46%;
   }
 .\\!container {
   width: 100% !important;
@@ -27809,26 +27816,23 @@ input[type="checkbox"]:disabled {
 .bottom-0 {
   bottom: 0px;
 }
+.bottom-1\\.5 {
+  bottom: 0.375rem;
+}
 .left-0 {
   left: 0px;
 }
-.left-1 {
-  left: 0.25rem;
+.left-1\\.5 {
+  left: 0.375rem;
 }
 .right-0 {
   right: 0px;
-}
-.right-1 {
-  right: 0.25rem;
 }
 .right-4 {
   right: 1rem;
 }
 .top-0 {
   top: 0px;
-}
-.top-1 {
-  top: 0.25rem;
 }
 .top-6 {
   top: 1.5rem;
@@ -27875,9 +27879,6 @@ input[type="checkbox"]:disabled {
 .ml-2 {
   margin-left: 0.5rem;
 }
-.ml-auto {
-  margin-left: auto;
-}
 .mr-1 {
   margin-right: 0.25rem;
 }
@@ -27898,6 +27899,12 @@ input[type="checkbox"]:disabled {
 }
 .mt-4 {
   margin-top: 1rem;
+}
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .\\!block {
   display: block !important;
@@ -27926,9 +27933,21 @@ input[type="checkbox"]:disabled {
 .aspect-square {
   aspect-ratio: 1 / 1;
 }
+.size-12 {
+  width: 3rem;
+  height: 3rem;
+}
+.size-14 {
+  width: 3.5rem;
+  height: 3.5rem;
+}
 .size-4 {
   width: 1rem;
   height: 1rem;
+}
+.size-full {
+  width: 100%;
+  height: 100%;
 }
 .h-10 {
   height: 2.5rem;
@@ -27938,6 +27957,9 @@ input[type="checkbox"]:disabled {
 }
 .h-14 {
   height: 3.5rem;
+}
+.h-16 {
+  height: 4rem;
 }
 .h-2 {
   height: 0.5rem;
@@ -27973,11 +27995,17 @@ input[type="checkbox"]:disabled {
 .max-h-40 {
   max-height: 10rem;
 }
+.min-h-0 {
+  min-height: 0px;
+}
 .min-h-36 {
   min-height: 9rem;
 }
 .min-h-48 {
   min-height: 12rem;
+}
+.\\!w-auto {
+  width: auto !important;
 }
 .w-10 {
   width: 2.5rem;
@@ -28027,6 +28055,9 @@ input[type="checkbox"]:disabled {
 .w-full {
   width: 100%;
 }
+.\\!w-full {
+  width: 100% !important;
+}
 .min-w-0 {
   min-width: 0px;
 }
@@ -28037,8 +28068,14 @@ input[type="checkbox"]:disabled {
   min-width: -moz-max-content;
   min-width: max-content;
 }
+.max-w-\\[calc\\(100\\%-0\\.75rem\\)\\] {
+  max-width: calc(100% - 0.75rem);
+}
 .max-w-xs {
   max-width: 20rem;
+}
+.max-w-full {
+  max-width: 100%;
 }
 .flex-1 {
   flex: 1 1 0%;
@@ -28048,6 +28085,15 @@ input[type="checkbox"]:disabled {
 }
 .shrink-0 {
   flex-shrink: 0;
+}
+.grow {
+  flex-grow: 1;
+}
+.basis-\\[calc\\(33\\.333\\%-0\\.34rem\\)\\] {
+  flex-basis: calc(33.333% - 0.34rem);
+}
+.basis-auto {
+  flex-basis: auto;
 }
 .-translate-x-full {
   --tw-translate-x: -100%;
@@ -28090,6 +28136,9 @@ input[type="checkbox"]:disabled {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+.cursor-default {
+  cursor: default;
+}
 .cursor-help {
   cursor: help;
 }
@@ -28102,11 +28151,11 @@ input[type="checkbox"]:disabled {
 .grid-cols-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.grid-cols-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
 .grid-cols-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .flex-col {
   flex-direction: column;
@@ -28158,11 +28207,6 @@ input[type="checkbox"]:disabled {
   margin-right: calc(0.75rem * var(--tw-space-x-reverse));
   margin-left: calc(0.75rem * calc(1 - var(--tw-space-x-reverse)));
 }
-.space-y-0\\.5 > :not([hidden]) ~ :not([hidden]) {
-  --tw-space-y-reverse: 0;
-  margin-top: calc(0.125rem * calc(1 - var(--tw-space-y-reverse)));
-  margin-bottom: calc(0.125rem * var(--tw-space-y-reverse));
-}
 .space-y-1 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-y-reverse: 0;
   margin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));
@@ -28201,6 +28245,9 @@ input[type="checkbox"]:disabled {
 }
 .overflow-y-auto {
   overflow-y: auto;
+}
+.overflow-x-hidden {
+  overflow-x: hidden;
 }
 .truncate {
   overflow: hidden;
@@ -28288,6 +28335,9 @@ input[type="checkbox"]:disabled {
 .border-tertiary\\/10 {
   border-color: hsl(var(--tertiary) / 0.1);
 }
+.border-tertiary\\/15 {
+  border-color: hsl(var(--tertiary) / 0.15);
+}
 .border-tertiary\\/20 {
   border-color: hsl(var(--tertiary) / 0.2);
 }
@@ -28299,9 +28349,6 @@ input[type="checkbox"]:disabled {
 }
 .border-t-transparent {
   border-top-color: transparent;
-}
-.bg-accent {
-  background-color: hsl(var(--accent));
 }
 .bg-accent\\/15 {
   background-color: hsl(var(--accent) / 0.15);
@@ -28329,6 +28376,9 @@ input[type="checkbox"]:disabled {
 }
 .bg-destructive\\/10 {
   background-color: hsl(var(--destructive) / 0.1);
+}
+.bg-destructive\\/15 {
+  background-color: hsl(var(--destructive) / 0.15);
 }
 .bg-destructive\\/5 {
   background-color: hsl(var(--destructive) / 0.05);
@@ -28379,9 +28429,6 @@ input[type="checkbox"]:disabled {
 .bg-tertiary\\/60 {
   background-color: hsl(var(--tertiary) / 0.6);
 }
-.bg-transparent {
-  background-color: transparent;
-}
 .bg-white {
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
@@ -28408,10 +28455,6 @@ input[type="checkbox"]:disabled {
 }
 .p-4 {
   padding: 1rem;
-}
-.px-1\\.5 {
-  padding-left: 0.375rem;
-  padding-right: 0.375rem;
 }
 .px-2 {
   padding-left: 0.5rem;
@@ -28555,58 +28598,14 @@ input[type="checkbox"]:disabled {
 .leading-relaxed {
   line-height: 1.625;
 }
+.leading-tight {
+  line-height: 1.25;
+}
 .tracking-wide {
   letter-spacing: 0.025em;
 }
-.\\!text-amber-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(251 191 36 / var(--tw-text-opacity, 1)) !important;
-}
-.\\!text-cyan-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(34 211 238 / var(--tw-text-opacity, 1)) !important;
-}
 .\\!text-destructive {
   color: hsl(var(--destructive)) !important;
-}
-.\\!text-emerald-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(52 211 153 / var(--tw-text-opacity, 1)) !important;
-}
-.\\!text-indigo-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(129 140 248 / var(--tw-text-opacity, 1)) !important;
-}
-.\\!text-lime-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(163 230 53 / var(--tw-text-opacity, 1)) !important;
-}
-.\\!text-orange-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(251 146 60 / var(--tw-text-opacity, 1)) !important;
-}
-.\\!text-pink-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(244 114 182 / var(--tw-text-opacity, 1)) !important;
-}
-.\\!text-rose-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(251 113 133 / var(--tw-text-opacity, 1)) !important;
-}
-.\\!text-sky-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(56 189 248 / var(--tw-text-opacity, 1)) !important;
-}
-.\\!text-teal-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(45 212 191 / var(--tw-text-opacity, 1)) !important;
-}
-.\\!text-tertiary {
-  color: hsl(var(--tertiary)) !important;
-}
-.\\!text-yellow-400 {
-  --tw-text-opacity: 1 !important;
-  color: rgb(250 204 21 / var(--tw-text-opacity, 1)) !important;
 }
 .text-accent {
   color: hsl(var(--accent));
@@ -28672,9 +28671,6 @@ input[type="checkbox"]:disabled {
 .text-tertiary\\/80 {
   color: hsl(var(--tertiary) / 0.8);
 }
-.text-text-primary {
-  color: hsl(var(--text-primary));
-}
 .text-white {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
@@ -28699,6 +28695,10 @@ input[type="checkbox"]:disabled {
 }
 .filter {
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+.backdrop-blur-sm {
+  --tw-backdrop-blur: blur(4px);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
 }
 .transition {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
@@ -28743,7 +28743,16 @@ input[type="checkbox"]:disabled {
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
 
-/* Custom scrollbar */
+/* Hide scrollbars where overflow is intentional (e.g. category filters) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Hide number input spinners */
 input[type=number].no-spinner::-webkit-outer-spin-button,
 input[type=number].no-spinner::-webkit-inner-spin-button {
@@ -28801,6 +28810,10 @@ input[type=number].no-spinner {
   background-color: hsl(var(--background));
 }
 
+.hover\\:bg-destructive\\/10:hover {
+  background-color: hsl(var(--destructive) / 0.1);
+}
+
 .hover\\:bg-destructive\\/90:hover {
   background-color: hsl(var(--destructive) / 0.9);
 }
@@ -28842,8 +28855,16 @@ input[type=number].no-spinner {
   background-color: hsl(var(--tertiary) / 0.1);
 }
 
+.hover\\:bg-tertiary\\/20:hover {
+  background-color: hsl(var(--tertiary) / 0.2);
+}
+
 .hover\\:bg-tertiary\\/50:hover {
   background-color: hsl(var(--tertiary) / 0.5);
+}
+
+.hover\\:text-destructive:hover {
+  color: hsl(var(--destructive));
 }
 
 .hover\\:text-foreground:hover {
@@ -28877,6 +28898,16 @@ input[type=number].no-spinner {
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+.hover\\:ring-2:hover {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+.hover\\:ring-tertiary\\/20:hover {
+  --tw-ring-color: hsl(var(--tertiary) / 0.2);
+}
+
 .focus\\:border-transparent:focus {
   border-color: transparent;
 }
@@ -28900,6 +28931,21 @@ input[type=number].no-spinner {
   --tw-ring-offset-width: 2px;
 }
 
+.focus-visible\\:outline-none:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.focus-visible\\:ring-2:focus-visible {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+.focus-visible\\:ring-accent:focus-visible {
+  --tw-ring-color: hsl(var(--accent));
+}
+
 .disabled\\:cursor-not-allowed:disabled {
   cursor: not-allowed;
 }
@@ -28907,7 +28953,13 @@ input[type=number].no-spinner {
 .disabled\\:opacity-50:disabled {
   opacity: 0.5;
 }
-`, "",{"version":3,"sources":["webpack://./src/popup/styles.css"],"names":[],"mappings":"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","sourcesContent":["@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n@layer base {\n  * {\n    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n  }\n  \n  :root {\n    /* Dark theme colors */\n    --background: 0 0% 13%;\n    --foreground: 0, 0%, 95%;\n    --card: 0 0% 16%;\n    --card-foreground: 0 0% 46%;\n    --popover: 0 0% 19%;\n    --popover-foreground: 0 0% 46%;\n    --primary: 0 0% 95%;\n    --primary-foreground: 0 0% 19%;\n    --secondary: 0 0% 16%;\n    --secondary-foreground: 0, 0%, 95%;\n    --tertiary: 0 0% 46%;\n    --tertiary-foreground: 0 0% 95%;\n    --muted: 0 0% 16%;\n    --muted-foreground: 215 20.2% 65.1%;\n    --accent: 0 0% 16%;\n    --accent-foreground: 0 0% 46%;\n    --bars: 0 0% 16%;\n    --bars-foreground: 0 0% 46%;\n    --bars-border: 0 0% 21%;\n    --bars-icon: 0 0% 35%;\n    --bars-icon-active: 0 0% 95%;\n    /* --destructive: 338, 86%, 21.6%;\n    --destructive-foreground: 338, 100%, 36.6%; */\n    --destructive: 48.42,95%,52.94%;\n    --destructive-foreground: 0 0% 13%;\n    --border: 0 0% 16%;\n    --input: 0 0% 16%;\n    --ring: 0 0% 95%;\n    --radius: 0.5rem;    \n  }\n}\n\n@layer components {\n  .header {\n    @apply border-b;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .footer {\n    @apply border-t;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .icon-button {\n    @apply p-2 rounded-lg transition-colors;\n    color: hsl(var(--bars-icon));\n  }\n\n  .icon-button:hover {\n    color: hsl(var(--bars-icon-active));\n    background-color: hsl(var(--bars) / 0.5);\n  }\n\n  .btn {\n    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;\n  }\n  \n  .btn-primary {\n    @apply btn;\n    background-color: hsl(var(--primary));\n    color: hsl(var(--primary-foreground));\n  }\n  \n  .btn-primary:hover {\n    background-color: hsl(var(--primary) / 0.9);\n  }\n  \n  .btn-primary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-secondary {\n    @apply btn;\n    background-color: hsl(var(--secondary));\n    color: hsl(var(--secondary-foreground));\n  }\n  \n  .btn-secondary:hover {\n    background-color: hsl(var(--secondary) / 0.8);\n  }\n  \n  .btn-secondary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-danger {\n    @apply btn;\n    background-color: hsl(var(--destructive));\n    color: hsl(var(--destructive-foreground));\n  }\n  \n  .btn-danger:hover {\n    background-color: hsl(var(--destructive) / 0.9);\n  }\n  \n  .btn-danger:focus {\n    --tw-ring-color: hsl(var(--destructive));\n  }\n  \n  .card {\n    background-color: hsl(var(--card));\n    border: 1px solid hsl(var(--border));\n    color: hsl(var(--card-foreground));\n  }\n  \n  \n  /* Utility classes for common patterns */\n  .bg-background {\n    background-color: hsl(var(--background));\n  }\n  \n  .text-foreground {\n    color: hsl(var(--foreground));\n  }\n  \n  \n  .bg-muted {\n    background-color: hsl(var(--muted));\n  }\n  \n  .text-muted-foreground {\n    color: hsl(var(--muted-foreground));\n  }\n  \n  .border-border {\n    border-color: hsl(var(--border));\n  }\n\n  /* Custom radio button styling */\n  input[type=\"radio\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 50%;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"radio\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"radio\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 50%;\n    left: 50%;\n    transform: translate(-50%, -50%);\n    width: 6px;\n    height: 6px;\n    border-radius: 50%;\n    background-color: hsl(var(--destructive-foreground));\n  }\n\n  input[type=\"radio\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"radio\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"radio\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n\n  /* Custom checkbox styling */\n  input[type=\"checkbox\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 0.25rem;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"checkbox\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"checkbox\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 1px;\n    left: 4px;\n    width: 4px;\n    height: 8px;\n    border: solid hsl(var(--destructive-foreground));\n    border-width: 0 2px 2px 0;\n    transform: rotate(45deg);\n  }\n\n  input[type=\"checkbox\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"checkbox\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"checkbox\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n}\n\n/* Custom scrollbar */\n/* Hide number input spinners */\ninput[type=number].no-spinner::-webkit-outer-spin-button,\ninput[type=number].no-spinner::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\ninput[type=number].no-spinner {\n  -moz-appearance: textfield;\n}\n\n/* Custom scrollbar */\n::-webkit-scrollbar {\n  width: 6px;\n  height: 6px;\n}\n\n::-webkit-scrollbar-track {\n  background: #2A2A2A;\n}\n\n::-webkit-scrollbar-thumb {\n  background: #5A5A5A;\n  border-radius: 3px;\n}\n\n::-webkit-scrollbar-thumb:hover {\n  background: #5A5A5A;\n}\n"],"sourceRoot":""}]);
+
+.group:hover .group-hover\\:scale-\\[1\\.03\\] {
+  --tw-scale-x: 1.03;
+  --tw-scale-y: 1.03;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+`, "",{"version":3,"sources":["webpack://./src/popup/styles.css"],"names":[],"mappings":"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","sourcesContent":["@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n@layer base {\n  * {\n    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n  }\n\n  html,\n  body,\n  #root {\n    background-color: hsl(var(--background));\n  }\n  \n  :root {\n    /* Dark theme colors */\n    --background: 0 0% 13%;\n    --foreground: 0, 0%, 95%;\n    --card: 0 0% 16%;\n    --card-foreground: 0 0% 46%;\n    --popover: 0 0% 19%;\n    --popover-foreground: 0 0% 46%;\n    --primary: 0 0% 95%;\n    --primary-foreground: 0 0% 19%;\n    --secondary: 0 0% 16%;\n    --secondary-foreground: 0, 0%, 95%;\n    --tertiary: 0 0% 46%;\n    --tertiary-foreground: 0 0% 95%;\n    --muted: 0 0% 16%;\n    --muted-foreground: 215 20.2% 65.1%;\n    --accent: 0 0% 16%;\n    --accent-foreground: 0 0% 46%;\n    --bars: 0 0% 16%;\n    --bars-foreground: 0 0% 46%;\n    --bars-border: 0 0% 21%;\n    --bars-icon: 0 0% 35%;\n    --bars-icon-active: 0 0% 95%;\n    --destructive: 0 72% 51%;\n    --destructive-foreground: 0 0% 98%;\n    --border: 0 0% 16%;\n    --input: 0 0% 16%;\n    --ring: 0 0% 95%;\n    --radius: 0.5rem;\n    --text-primary: 0 0% 95%;\n    --text-secondary: 0 0% 70%;\n    --text-tertiary: 0 0% 46%;\n  }\n}\n\n@layer components {\n  .header {\n    @apply border-b;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .footer {\n    @apply border-t;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .icon-button {\n    @apply p-2 rounded-lg transition-colors;\n    color: hsl(var(--bars-icon));\n  }\n\n  .icon-button:hover {\n    color: hsl(var(--bars-icon-active));\n    background-color: hsl(var(--bars) / 0.5);\n  }\n\n  .btn {\n    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;\n  }\n  \n  .btn-primary {\n    @apply btn;\n    background-color: hsl(var(--primary));\n    color: hsl(var(--primary-foreground));\n  }\n  \n  .btn-primary:hover {\n    background-color: hsl(var(--primary) / 0.9);\n  }\n  \n  .btn-primary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-secondary {\n    @apply btn;\n    background-color: hsl(var(--secondary));\n    color: hsl(var(--secondary-foreground));\n  }\n  \n  .btn-secondary:hover {\n    background-color: hsl(var(--secondary) / 0.8);\n  }\n  \n  .btn-secondary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-danger {\n    @apply btn;\n    background-color: hsl(var(--destructive));\n    color: hsl(var(--destructive-foreground));\n  }\n  \n  .btn-danger:hover {\n    background-color: hsl(var(--destructive) / 0.9);\n  }\n  \n  .btn-danger:focus {\n    --tw-ring-color: hsl(var(--destructive));\n  }\n  \n  .card {\n    background-color: hsl(var(--card));\n    border: 1px solid hsl(var(--border));\n    color: hsl(var(--card-foreground));\n  }\n  \n  \n  /* Utility classes for common patterns */\n  .bg-background {\n    background-color: hsl(var(--background));\n  }\n  \n  .text-foreground {\n    color: hsl(var(--foreground));\n  }\n  \n  \n  .bg-muted {\n    background-color: hsl(var(--muted));\n  }\n  \n  .text-muted-foreground {\n    color: hsl(var(--muted-foreground));\n  }\n  \n  .border-border {\n    border-color: hsl(var(--border));\n  }\n\n  /* Custom radio button styling */\n  input[type=\"radio\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 50%;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"radio\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"radio\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 50%;\n    left: 50%;\n    transform: translate(-50%, -50%);\n    width: 6px;\n    height: 6px;\n    border-radius: 50%;\n    background-color: hsl(var(--destructive-foreground));\n  }\n\n  input[type=\"radio\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"radio\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"radio\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n\n  /* Custom checkbox styling */\n  input[type=\"checkbox\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 0.25rem;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"checkbox\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"checkbox\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 1px;\n    left: 4px;\n    width: 4px;\n    height: 8px;\n    border: solid hsl(var(--destructive-foreground));\n    border-width: 0 2px 2px 0;\n    transform: rotate(45deg);\n  }\n\n  input[type=\"checkbox\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"checkbox\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"checkbox\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n}\n\n/* Hide scrollbars where overflow is intentional (e.g. category filters) */\n.no-scrollbar {\n  -ms-overflow-style: none;\n  scrollbar-width: none;\n}\n\n.no-scrollbar::-webkit-scrollbar {\n  display: none;\n}\n\n/* Hide number input spinners */\ninput[type=number].no-spinner::-webkit-outer-spin-button,\ninput[type=number].no-spinner::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\ninput[type=number].no-spinner {\n  -moz-appearance: textfield;\n}\n\n/* Custom scrollbar */\n::-webkit-scrollbar {\n  width: 6px;\n  height: 6px;\n}\n\n::-webkit-scrollbar-track {\n  background: #2A2A2A;\n}\n\n::-webkit-scrollbar-thumb {\n  background: #5A5A5A;\n  border-radius: 3px;\n}\n\n::-webkit-scrollbar-thumb:hover {\n  background: #5A5A5A;\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -107297,33 +107349,35 @@ const AppContent = () => {
     const [pendingRequest, setPendingRequest] = (0, react_1.useState)(null);
     (0, react_1.useEffect)(() => {
         console.log('App: useEffect triggered - initializing...');
-        // Check for pending requests first, then wallet state
+        // Flip the loading spinner off exactly once, whether init finishes normally
+        // or the safety net trips.
+        let loadingSettled = false;
+        const finishLoading = () => {
+            if (loadingSettled)
+                return;
+            loadingSettled = true;
+            setLoading(false);
+        };
         const initializeApp = async () => {
-            console.log('App: Starting app initialization...');
-            const initWork = async () => {
-                console.log('App: Step 1 - Checking for pending requests...');
-                await checkPendingRequests();
-                await new Promise((resolve) => setTimeout(resolve, 100));
-                console.log('App: Step 2 - Checking wallet state...');
-                await checkWalletState();
-            };
-            const timeout = new Promise((resolve) => {
-                setTimeout(() => {
-                    console.warn('App: Initialization timed out — showing UI anyway');
-                    resolve();
-                }, 5000);
-            });
             try {
-                await Promise.race([initWork(), timeout]);
-                console.log('App: App initialization complete');
+                // Order matters: resolve a pending approval request first so it wins
+                // over the default route, then reconcile wallet lock state. Each call
+                // has its own timeout and swallows its own errors, so this always
+                // settles quickly even if the background worker is briefly unreachable.
+                await checkPendingRequests();
+                await checkWalletState();
             }
             catch (error) {
                 console.error('App: Error during initialization:', error);
             }
             finally {
-                setLoading(false);
+                finishLoading();
             }
         };
+        // Safety net so the popup never sticks on a spinner if the background
+        // service worker is unusually slow to wake. Normal init settles well before
+        // this, and it fires silently rather than surfacing a warning.
+        const loadingSafety = setTimeout(finishLoading, 8000);
         initializeApp();
         // Check for pending requests when the popup becomes visible
         const handleVisibilityChange = () => {
@@ -107354,6 +107408,7 @@ const AppContent = () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleFocus);
             clearTimeout(delayedCheck);
+            clearTimeout(loadingSafety);
         };
     }, []);
     // Track route changes for debugging
@@ -107365,7 +107420,7 @@ const AppContent = () => {
             console.log('App: Checking for pending requests...');
             const response = await Promise.race([
                 chrome.runtime.sendMessage({ type: 'GET_PENDING_APPROVAL' }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('GET_PENDING_APPROVAL timeout')), 4000)),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('GET_PENDING_APPROVAL timeout')), 3000)),
             ]);
             console.log('App: Pending approval response:', response);
             if (response?.success && response.data) {
@@ -107401,7 +107456,7 @@ const AppContent = () => {
             console.log('App: Checking wallet state...');
             const response = await Promise.race([
                 chrome.runtime.sendMessage({ type: 'GET_WALLET_STATE' }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('GET_WALLET_STATE timeout')), 4000)),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('GET_WALLET_STATE timeout')), 3000)),
             ]);
             console.log('App: Wallet state response:', response);
             if (response?.success) {
@@ -107571,7 +107626,7 @@ const AppContent = () => {
     if (loading) {
         return ((0, jsx_runtime_1.jsx)("div", { className: "flex items-center justify-center h-full bg-background text-foreground", children: (0, jsx_runtime_1.jsx)("div", { className: "text-lg font-semibold", children: "Loading..." }) }));
     }
-    return ((0, jsx_runtime_1.jsx)("div", { className: "h-full bg-background", children: (0, jsx_runtime_1.jsx)(Router_1.Router, { walletState: walletState, onWalletCreated: handleWalletCreated, onWalletImported: handleWalletImported, onWalletUnlocked: handleWalletUnlocked, onWalletLocked: handleWalletLocked, onSendComplete: handleSendComplete, onApproveTransaction: handleApproveTransaction, onRejectTransaction: handleRejectTransaction, onApproveConnection: handleApproveConnection }) }));
+    return ((0, jsx_runtime_1.jsx)("div", { className: "flex h-full min-h-0 flex-col overflow-hidden bg-background", children: (0, jsx_runtime_1.jsx)(Router_1.Router, { walletState: walletState, onWalletCreated: handleWalletCreated, onWalletImported: handleWalletImported, onWalletUnlocked: handleWalletUnlocked, onWalletLocked: handleWalletLocked, onSendComplete: handleSendComplete, onApproveTransaction: handleApproveTransaction, onRejectTransaction: handleRejectTransaction, onApproveConnection: handleApproveConnection }) }));
 };
 
 
@@ -107869,558 +107924,70 @@ const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modul
 const react_1 = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 const ui_1 = __webpack_require__(/*! ./ui */ "./src/popup/components/ui/index.ts");
 const react_2 = __webpack_require__(/*! @iconify/react */ "./node_modules/@iconify/react/dist/iconify.cjs");
-const featuredSites = [
-    {
-        name: 'Banano.cc',
-        description: 'The memecoin that started it all. Here you find the yellow paper, help, and more!',
-        url: 'https://banano.cc',
-        category: 'Resources',
-        featured: true
-    },
-    {
-        name: 'Banano Hub',
-        description: 'Explore the Banano ecosystem and find the best projects.',
-        url: 'https://hub.banano.network/',
-        category: 'Resources',
-        featured: true
-    },
-    {
-        name: 'MonkeyTalks',
-        description: 'The official Banano on-chain messaging platform. Connect with fellow monkeys worldwide.',
-        url: 'https://monkeytalks.cc',
-        category: 'Faucets',
-        featured: true
-    }
-];
-const sites = [
-    {
-        name: "Kalium",
-        description: "Mobile wallet for BANANO on iOS & Android",
-        url: "https://kalium.banano.cc",
-        category: "Wallets",
-    },
-    {
-        name: "The Banano Stand",
-        description: "Browser-based lightwallet, supports Ledger Nano S",
-        url: "https://thebananostand.com",
-        category: "Wallets",
-    },
-    {
-        name: "Paper Wallet Generator",
-        description: "Generate & print a paper wallet for BANANO",
-        url: "https://banano.cc",
-        category: "Wallets",
-    },
-    {
-        name: "Camo-Banano",
-        description: "Privacy-focused light wallet for BANANO (camo transactions)",
-        url: "https://github.com", // link goes to GitHub repo
-        category: "Wallets",
-    },
-    {
-        name: "Ledger",
-        description: "Hardware wallet for secure private key storage",
-        url: "https://www.ledger.com",
-        category: "Wallets",
-    },
-    {
-        name: "Discord Tipbot",
-        description: "Tip BANANO on Discord",
-        url: "https://chat.banano.cc",
-        category: "Wallets",
-    },
-    {
-        name: "Reddit Tipbot",
-        description: "Tip BANANO on Reddit",
-        url: "https://www.reddit.com",
-        category: "Wallets",
-    },
-    {
-        name: "Tip.cc",
-        description: "Multi-chain tipping service (Discord) supporting BANANO",
-        url: "https://tip.cc",
-        category: "Wallets",
-    },
-    {
-        name: "Wrkzcoin TipBot",
-        description: "Multi-chain Discord tipbot for BANANO",
-        url: "https://github.com", // repo
-        category: "Wallets",
-    },
-    {
-        name: "cctip_bot",
-        description: "Telegram tipping bot for BANANO",
-        url: "https://t.me",
-        category: "Wallets",
-    },
-    {
-        name: "NanChat",
-        description: "Wallet + end-to-end encrypted messaging using BANANO",
-        url: "https://nanchat.com",
-        category: "Wallets",
-    },
-    {
-        name: "Potassius",
-        description: "Fork of Kalium with extra messaging & watch-only features",
-        url: "https://apps.apple.com",
-        category: "Wallets",
-    },
-    {
-        name: "Potassius (Android)",
-        description: "Fork of Kalium with extra messaging & watch-only features",
-        url: "https://play.google.com",
-        category: "Wallets",
-    },
-    // Faucets
-    {
-        name: "Banano Miner",
-        description: "Earn BANANO by contributing compute (protein folding) via Folding@Home",
-        url: "https://bananominer.com",
-        category: "Faucets",
-    },
-    {
-        name: "JungleTV",
-        description: "Watch videos to earn BANANO in a community-driven video platform",
-        url: "https://jungletv.live",
-        category: "Faucets",
-    },
-    {
-        name: "Monkey Talks",
-        description: "On-chain messaging with built-in faucet",
-        url: "https://monkeytalks.cc",
-        category: "Faucets",
-    },
-    {
-        name: "NanSwap Faucet",
-        description: "Swap service with a basic faucet included",
-        url: "https://nanswap.com",
-        category: "Faucets",
-    },
-    {
-        name: "MonkeySlots",
-        description: "Slot-machine game to win BANANO",
-        url: "https://monkeyslots.banano.ch",
-        category: "Faucets",
-    },
-    {
-        name: "Get-Ban",
-        description: "Tasks & anonymous ways to earn BANANO",
-        url: "https://get-ban.com",
-        category: "Faucets",
-    },
-    {
-        name: "Free Banano Faucet",
-        description: "Claim BANANO once every 24 hours",
-        url: "https://thefreebananofaucet.com",
-        category: "Faucets",
-    },
-    {
-        name: "Banano-Faucet",
-        description: "Claim BANANO every 24 hours",
-        url: "https://banano-faucet.com",
-        category: "Faucets",
-    },
-    {
-        name: "I Can Haz Nano",
-        description: "Claim BANANO 3 times daily",
-        url: "https://icanhaznano.monke42.link",
-        category: "Faucets",
-    },
-    {
-        name: "Moonano",
-        description: "Claim BANANO once every 24 hours",
-        url: "https://moonano.net",
-        category: "Faucets",
-    },
-    {
-        name: "Gorilla Nation Faucet",
-        description: "Claim BANANO once every 24 hours",
-        url: "https://gorillanation.cc",
-        category: "Faucets",
-    },
-    {
-        name: "BANXNO Faucet",
-        description: "Claim BANANO once every 24 hours",
-        url: "https://faucet.banxno.com",
-        category: "Faucets",
-    },
-    {
-        name: "Prussia's Banano Faucet",
-        description: "Claim BANANO once every 24 hours",
-        url: "https://faucet.prussia.dev",
-        category: "Faucets",
-    },
-    {
-        name: "iamgabriel.dev Faucet",
-        description: "Claim BANANO once every 24 hours",
-        url: "https://faucet.iamgabriel.dev",
-        category: "Faucets",
-    },
-    {
-        name: "Monkle",
-        description: "Word-game to earn BANANO daily",
-        url: "https://monkle.vercel.app",
-        category: "Faucets",
-    },
-    {
-        name: "BanFaucet",
-        description: "Complete tasks to earn BANANO and other cryptos",
-        url: "https://banfaucet.com",
-        category: "Faucets",
-    },
-    // Exchanges
-    {
-        name: "Coinex",
-        description: "Centralized exchange listing BANANO",
-        url: "https://www.coinex.com",
-        category: "Exchanges",
-    },
-    {
-        name: "NanSwap",
-        description: "Swap service for BANANO & Nano tokens",
-        url: "https://nanswap.com",
-        category: "Exchanges",
-    },
-    {
-        name: "Banano.Trade",
-        description: "Platform to trade BANANO with Nano, USDC, USDT, etc.",
-        url: "https://banano.trade",
-        category: "Exchanges",
-    },
-    {
-        name: "Cyphergoat",
-        description: "Exchange aggregator for best swap rates",
-        url: "https://cyphergoat.com",
-        category: "Exchanges",
-    },
-    {
-        name: "FluffySwap",
-        description: "Exchange aggregator for BANANO swaps",
-        url: "https://fluffyswap.com",
-        category: "Exchanges",
-    },
-    {
-        name: "PancakeSwap",
-        description: "DEX supporting wBAN on multiple chains",
-        url: "https://pancakeswap.finance",
-        category: "Exchanges",
-    },
-    {
-        name: "UniSwap",
-        description: "DEX supporting wBAN on Ethereum",
-        url: "https://app.uniswap.org",
-        category: "Exchanges",
-    },
-    {
-        name: "SushiSwap",
-        description: "DEX supporting wBAN on Polygon & Arbitrum",
-        url: "https://www.sushi.com",
-        category: "Exchanges",
-    },
-    {
-        name: "SpookySwap",
-        description: "DEX on Fantom chain for wBAN swaps",
-        url: "https://spooky.fi",
-        category: "Exchanges",
-    },
-    {
-        name: "Zapper",
-        description: "Multichain swap & tracking tool supporting wBAN",
-        url: "https://zapper.xyz",
-        category: "Exchanges",
-    },
-    // Wrapped Banano (wBAN)
-    {
-        name: "Wrap.Banano",
-        description: "Bridge from BANANO → Wrapped BANANO on BSC, Polygon, Fantom, Ethereum & Arbitrum",
-        url: "https://wrap.banano.cc",
-        category: "Wrapped Banano",
-    },
-    {
-        name: "wBAN GitBook",
-        description: "Documentation for Wrapped BANANO",
-        url: "https://wrap-that-potassium.gitbook.io",
-        category: "Wrapped Banano",
-    },
-    // Gaming
-    {
-        name: "CryptoMonKeys",
-        description: "Community-driven digital trading cards (NFTs)",
-        url: "https://cryptocurrencycheckout.com",
-        category: "Gaming",
-    },
-    {
-        name: "Banano Bet",
-        description: "Provably fair dice game using BANANO",
-        url: "https://bananobet.com",
-        category: "Gaming",
-    },
-    {
-        name: "BC.Game",
-        description: "Online casino supporting BANANO and other cryptos",
-        url: "https://bc.game",
-        category: "Gaming",
-    },
-    {
-        name: "NanoGames.io",
-        description: "Huge game selection accepting BANANO",
-        url: "https://nanogames.io",
-        category: "Gaming",
-    },
-    {
-        name: "Banano Sports Pools",
-        description: "Bet on sports with BANANO",
-        url: "https://www.banano-sports-pools.xyz",
-        category: "Gaming",
-    },
-    {
-        name: "Banano.Place",
-        description: "Shared canvas project spending BANANO to paint pixels",
-        url: "https://banano.place",
-        category: "Gaming",
-    },
-    {
-        name: "BananoCraft",
-        description: "Minecraft server plugin to earn/spend BANANO in game",
-        url: "https://bananocraft.cc",
-        category: "Gaming",
-    },
-    {
-        name: "Banano Swiper",
-        description: "Endless runner Android game; collected coins convert to BANANO",
-        url: "https://0xshay.itch.io",
-        category: "Gaming",
-    },
-    // Shopping
-    {
-        name: "r/BananoMarket",
-        description: "Reddit community trading BANANO for goods & services",
-        url: "https://www.reddit.com",
-        category: "Shopping",
-    },
-    {
-        name: ".BAN Domains",
-        description: "Buy a .ban domain name for use with BANANO wallets/services",
-        url: "https://registrar.prussia.dev",
-        category: "Shopping",
-    },
-    {
-        name: "NanShop",
-        description: "Gift cards & more using BANANO via Bitrefill",
-        url: "https://nanswap.com",
-        category: "Shopping",
-    },
-    {
-        name: "NanoGPT",
-        description: "AI companion; pay BANANO for various tasks",
-        url: "https://nano-gpt.com",
-        category: "Shopping",
-    },
-    {
-        name: "Banano.Network",
-        description: "Get subdomain & pay in BANANO for hosting",
-        url: "https://banano.network",
-        category: "Shopping",
-    },
-    {
-        name: "Sticky Banano",
-        description: "Marketplace & merch that accepts BANANO",
-        url: "https://stickybanano.company.site",
-        category: "Shopping",
-    },
-    {
-        name: "Frostee",
-        description: "Store accepting BANANO for Banano-related goods",
-        url: "https://banano.frostee.org",
-        category: "Shopping",
-    },
-    {
-        name: "Banano-Merch",
-        description: "Official or fan merch store for BANANO themed products",
-        url: "https://my-store-c6a8e6.creator-spring.com",
-        category: "Shopping",
-    },
-    // Merchant Solutions
-    {
-        name: "CryptocurrencyCheckout",
-        description: "Payment gateway to accept BANANO & other cryptos",
-        url: "https://cryptocurrencycheckout.com",
-        category: "Merchant",
-    },
-    {
-        name: "Accept-Banano",
-        description: "Server program to accept BANANO payments in apps/websites",
-        url: "https://github.com", // source repo
-        category: "Merchant",
-    },
-    {
-        name: "WowPay (Hosted)",
-        description: "Hosted service to manage BANANO payments (no fees)",
-        url: "https://pay.pilou.cc",
-        category: "Merchant",
-    },
-    {
-        name: "WowPay (Source)",
-        description: "Open source code for WowPay",
-        url: "https://github.com",
-        category: "Merchant",
-    },
-    // Developer Tools & Resources
-    {
-        name: "BananoCoin GitHub",
-        description: "Official repo of the BANANO cryptocurrency project",
-        url: "https://github.com",
-        category: "Developer",
-    },
-    {
-        name: "Spyglass API",
-        description: "REST API for Banano blockchain data",
-        url: "https://spyglass-api.web.app",
-        category: "Developer",
-    },
-    {
-        name: "Bananode Wiki",
-        description: "Documentation to bootstrap a Banano node",
-        url: "https://banano.fandom.com",
-        category: "Developer",
-    },
-    {
-        name: "Learn.Banano.Trade",
-        description: "Tutorials, guides & tools to understand Banano",
-        url: "https://learn.banano.trade",
-        category: "Developer",
-    },
-    {
-        name: "Banano-Awesome",
-        description: "Community-curated list of BANANO resources & projects",
-        url: "https://zh.thedev.id",
-        category: "Developer",
-    },
-    {
-        name: "BananoPie",
-        description: "Python library for interacting with BANANO blockchain",
-        url: "https://github.com",
-        category: "Developer",
-    },
-    {
-        name: "Banano Go",
-        description: "Go library for interacting with BANANO blockchain",
-        url: "https://github.com",
-        category: "Developer",
-    },
-    {
-        name: "Banano-Node-Docker",
-        description: "Scripts to setup Banano node using Docker",
-        url: "https://github.com",
-        category: "Developer",
-    },
-    {
-        name: "NFT Meta-protocol",
-        description: "Protocol for implementing NFTs on Banano",
-        url: "https://github.com",
-        category: "Developer",
-    },
-    {
-        name: "Banano Name Service (BNS)",
-        description: "Protocol for top level domains on Banano",
-        url: "https://github.com",
-        category: "Developer",
-    },
-    {
-        name: "BNS Domain Resolver",
-        description: "Tool for resolving Banano Name Service domains",
-        url: "https://github.com",
-        category: "Developer",
-    },
-    {
-        name: "Banano Wallet Charts",
-        description: "Visualize transaction network of your wallet",
-        url: "https://banano-viz.vercel.app",
-        category: "Resources",
-    },
-    {
-        name: "Banfts",
-        description: "Mint, buy, & explore NFTs on the Banano network",
-        url: "https://banfts.prussia.dev",
-        category: "Resources",
-    },
-    {
-        name: "Rewards Calculator",
-        description: "Estimate your BANANO earning with Folding@Home",
-        url: "https://malkaroy-vrrp.github.io",
-        category: "Resources",
-    },
-    {
-        name: "Banano@Home",
-        description: "Visual client for Folding@Home in browser",
-        url: "https://chromewebstore.google.com",
-        category: "Resources",
-    },
-    {
-        name: "Vanity Address Generator",
-        description: "Generate BANANO address with custom prefix",
-        url: "https://github.com",
-        category: "Resources",
-    }
-];
-const getCategoryColor = (category) => {
-    switch (category.toLowerCase()) {
-        case 'wallet':
-        case 'wallets':
-            return '!text-indigo-400';
-        case 'faucet':
-        case 'faucets':
-            return '!text-cyan-400';
-        case 'exchange':
-        case 'exchanges':
-            return '!text-orange-400';
-        case 'wrapped banano':
-        case 'wban':
-            return '!text-amber-400';
-        case 'gaming':
-            return '!text-lime-400';
-        case 'shopping':
-            return '!text-emerald-400';
-        case 'merchant':
-        case 'merchant solutions':
-            return '!text-rose-400';
-        case 'developer':
-        case 'dev':
-            return '!text-sky-400';
-        case 'resources':
-            return '!text-teal-400';
-        case 'earn':
-            return '!text-yellow-400';
-        case 'entertainment':
-            return '!text-pink-400';
-        default:
-            return '!text-tertiary';
-    }
-};
+function SitePreview({ site, size = 'md' }) {
+    const [failed, setFailed] = (0, react_1.useState)(false);
+    const dim = size === 'lg' ? 'size-14' : 'size-12';
+    const showImage = site.iconUrl && !failed;
+    return ((0, jsx_runtime_1.jsx)("div", { className: `${dim} shrink-0 overflow-hidden rounded-xl border border-tertiary/10 bg-tertiary/10 flex items-center justify-center`, children: showImage ? ((0, jsx_runtime_1.jsx)("img", { src: site.iconUrl, alt: "", className: "size-full object-cover", loading: "lazy", onError: () => setFailed(true) })) : ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:globe", className: `${size === 'lg' ? 'text-2xl' : 'text-xl'} text-tertiary/60` })) }));
+}
 const ExploreScreen = () => {
+    const [featuredSites, setFeaturedSites] = (0, react_1.useState)([]);
+    const [sites, setSites] = (0, react_1.useState)([]);
+    const [loading, setLoading] = (0, react_1.useState)(true);
+    const [error, setError] = (0, react_1.useState)(null);
     const [selectedCategory, setSelectedCategory] = (0, react_1.useState)(null);
+    (0, react_1.useEffect)(() => {
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const response = await chrome.runtime.sendMessage({ type: 'GET_EXPLORE' });
+                if (cancelled)
+                    return;
+                if (response?.success) {
+                    setFeaturedSites(response.data.featured ?? []);
+                    setSites(response.data.sites ?? []);
+                }
+                else {
+                    setError(response?.error || 'Failed to load explore catalog');
+                }
+            }
+            catch (err) {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : 'Failed to load explore catalog');
+                }
+            }
+            finally {
+                if (!cancelled)
+                    setLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
     const allCategories = (0, react_1.useMemo)(() => {
         const set = new Set();
-        sites.forEach(s => set.add(s.category));
-        featuredSites.forEach(s => set.add(s.category));
-        return Array.from(set);
-    }, []);
+        sites.forEach((s) => set.add(s.category));
+        featuredSites.forEach((s) => set.add(s.category));
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [sites, featuredSites]);
     const filteredSites = (0, react_1.useMemo)(() => {
         if (!selectedCategory)
             return sites;
-        return sites.filter(s => s.category === selectedCategory);
-    }, [selectedCategory]);
+        return sites.filter((s) => s.category === selectedCategory);
+    }, [selectedCategory, sites]);
     const toggleCategory = (category) => {
-        setSelectedCategory(prev => (prev === category ? null : category));
+        setSelectedCategory((prev) => (prev === category ? null : category));
     };
     const handleVisitSite = (url) => {
         window.open(url, '_blank');
     };
-    const handleFilterByCategory = (category) => toggleCategory(category);
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: "Explore", back: true }), (0, jsx_runtime_1.jsxs)("div", { className: "w-full space-y-4", children: [(0, jsx_runtime_1.jsxs)("div", { className: "space-y-3", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-tertiary font-semibold", children: "Featured" }), (0, jsx_runtime_1.jsx)(ui_1.Carousel, { autoPlay: true, intervalMs: 3000, holdIntervalMs: 5000, children: featuredSites.map((site, i) => ((0, jsx_runtime_1.jsx)(ui_1.Card, { className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex flex-col w-full items-start space-x-3 p-2", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex min-w-0 w-full items-start justify-between", children: [(0, jsx_runtime_1.jsx)("div", { className: "flex items-start gap-2", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex flex-col items-start", children: [(0, jsx_runtime_1.jsx)("div", { className: "mb-1", children: (0, jsx_runtime_1.jsx)("div", { className: "text-lg font-semibold text-primary", children: site.name }) }), (0, jsx_runtime_1.jsx)("div", { className: `text-xs font-semibold mb-2 ${getCategoryColor(site.category)}`, children: site.category })] }) }), (0, jsx_runtime_1.jsx)("div", { children: (0, jsx_runtime_1.jsx)(ui_1.Button, { variant: "primary", size: "sm", onClick: () => handleVisitSite(site.url), className: "ml-auto", children: "Visit Site" }) })] }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary/80 leading-relaxed", children: site.description })] }) }, i))) })] }), (0, jsx_runtime_1.jsx)("div", { className: "flex items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-2", children: allCategories.map((category) => {
-                                    const active = selectedCategory === category;
-                                    return ((0, jsx_runtime_1.jsx)(ui_1.Button, { variant: active ? 'secondary' : "ghost", size: "sm", className: `whitespace-nowrap min-w-max ${getCategoryColor(category)}`, onClick: () => handleFilterByCategory(category), "aria-pressed": active, children: category }, category));
-                                }) }), (0, jsx_runtime_1.jsxs)("div", { className: "space-y-1", children: [(0, jsx_runtime_1.jsx)("div", { className: "flex items-center justify-between", children: (0, jsx_runtime_1.jsx)("div", { className: "text-tertiary font-semibold text-2xl", children: "Sites" }) }), (0, jsx_runtime_1.jsx)("div", { className: "grid grid-cols-1 gap-2", children: filteredSites.map((site, i) => ((0, jsx_runtime_1.jsx)(ui_1.Card, { hover: true, onClick: () => handleVisitSite(site.url), children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-center space-x-3 p-2", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex-1 min-w-0", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between", children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold text-primary", children: site.name }), (0, jsx_runtime_1.jsx)("div", { className: `text-xs font-semibold ${getCategoryColor(site.category)}`, children: site.category })] }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary/70 truncate", children: site.description })] }), (0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:external-link", className: "text-tertiary/50 text-sm flex-shrink-0" })] }) }, i))) })] })] })] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "flex h-full min-h-0 flex-col overflow-hidden font-semibold", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: "Explore", back: true }), (0, jsx_runtime_1.jsxs)("div", { className: "w-full space-y-4", children: [loading && ((0, jsx_runtime_1.jsx)("div", { className: "space-y-2", children: Array.from({ length: 4 }).map((_, i) => ((0, jsx_runtime_1.jsx)("div", { className: "h-16 rounded-xl bg-tertiary/10 animate-pulse" }, i))) })), !loading && error && ((0, jsx_runtime_1.jsx)(ui_1.Card, { children: (0, jsx_runtime_1.jsx)("div", { className: "p-3 text-sm text-destructive", children: error }) })), !loading && !error && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [featuredSites.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "space-y-3", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-tertiary font-semibold", children: "Featured" }), (0, jsx_runtime_1.jsx)(ui_1.Carousel, { autoPlay: true, intervalMs: 3000, holdIntervalMs: 5000, children: featuredSites.map((site) => ((0, jsx_runtime_1.jsx)(ui_1.Card, { className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex w-full gap-3 p-2", children: [(0, jsx_runtime_1.jsx)(SitePreview, { site: site, size: "lg" }), (0, jsx_runtime_1.jsxs)("div", { className: "flex min-w-0 flex-1 flex-col", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-start justify-between gap-2", children: [(0, jsx_runtime_1.jsxs)("div", { className: "min-w-0", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-lg font-semibold text-primary truncate", children: site.name }), (0, jsx_runtime_1.jsx)("div", { className: "text-xs font-semibold text-tertiary/70", children: site.category })] }), (0, jsx_runtime_1.jsx)(ui_1.Button, { variant: "primary", size: "sm", onClick: () => handleVisitSite(site.url), className: "!w-auto shrink-0", children: "Visit Site" })] }), (0, jsx_runtime_1.jsx)("div", { className: "mt-2 text-sm text-tertiary/80 leading-relaxed", children: site.description })] })] }) }, site.slug))) })] })), allCategories.length > 0 && ((0, jsx_runtime_1.jsx)("div", { className: "flex w-full flex-wrap gap-2", children: allCategories.map((category) => {
+                                            const active = selectedCategory === category;
+                                            return ((0, jsx_runtime_1.jsx)(ui_1.Button, { variant: active ? 'secondary' : 'ghost', size: "sm", className: `max-w-full shrink-0 grow basis-auto !w-auto whitespace-nowrap ${active ? 'border border-tertiary/30' : ''}`, onClick: () => toggleCategory(category), "aria-pressed": active, children: category }, category));
+                                        }) })), (0, jsx_runtime_1.jsxs)("div", { className: "space-y-1", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-tertiary font-semibold text-2xl", children: "Sites" }), (0, jsx_runtime_1.jsx)("div", { className: "grid grid-cols-1 gap-2", children: filteredSites.map((site) => ((0, jsx_runtime_1.jsx)(ui_1.Card, { hover: true, onClick: () => handleVisitSite(site.url), children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-center gap-3 p-2", children: [(0, jsx_runtime_1.jsx)(SitePreview, { site: site }), (0, jsx_runtime_1.jsxs)("div", { className: "flex-1 min-w-0", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between gap-2", children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold text-primary truncate", children: site.name }), (0, jsx_runtime_1.jsx)("div", { className: "text-xs font-semibold shrink-0 text-tertiary/70", children: site.category })] }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary/70 truncate", children: site.description })] })] }) }, site.slug))) })] })] }))] })] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
 };
 exports.ExploreScreen = ExploreScreen;
 
@@ -108461,7 +108028,7 @@ const FaucetScreen = ({ account }) => {
             setLoading(false);
         }
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(PageName_1.PageName, { name: "Faucet", back: true }), (0, jsx_runtime_1.jsxs)("div", { className: "flex flex-col items-center gap-2 h-full min-h-36 justify-center", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-5xl text-primary", children: "69,696,969" }), (0, jsx_runtime_1.jsx)("div", { className: "text-xl text-tertiary", children: priceLoading ? ((0, jsx_runtime_1.jsx)("span", { className: "animate-pulse", children: "Loading price..." })) : (`$${getUsdBalance('69696969')}`) })] }), (0, jsx_runtime_1.jsx)(ui_1.Card, { hintText: "Donate", hintOnClick: () => console.log('Donate'), className: "w-full px-6 py-4 h-full", children: (0, jsx_runtime_1.jsx)("div", { className: "flex items-center justify-center text-sm text-tertiary", children: "Daily Claim Limit = 0.1 BAN" }) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { variant: "primary", size: "lg", onClick: handleClaim, disabled: loading, children: loading ? 'Requesting…' : 'Claim' }), message && ((0, jsx_runtime_1.jsx)("div", { className: "text-center text-xs text-tertiary mt-3", children: message }))] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(PageName_1.PageName, { name: "Faucet", back: true }), (0, jsx_runtime_1.jsxs)("div", { className: "flex flex-col items-center gap-2 h-full min-h-36 justify-center", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-5xl text-primary", children: "69,696,969" }), (0, jsx_runtime_1.jsx)("div", { className: "text-xl text-tertiary", children: priceLoading ? ((0, jsx_runtime_1.jsx)("span", { className: "animate-pulse", children: "Loading price..." })) : (`$${getUsdBalance('69696969')}`) })] }), (0, jsx_runtime_1.jsx)(ui_1.Card, { hintText: "Donate", hintOnClick: () => { }, className: "w-full px-6 py-4 h-full", children: (0, jsx_runtime_1.jsx)("div", { className: "flex items-center justify-center text-sm text-tertiary", children: "Daily Claim Limit = 0.1 BAN" }) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { variant: "primary", size: "lg", onClick: handleClaim, disabled: loading, children: loading ? 'Requesting…' : 'Claim' }), message && ((0, jsx_runtime_1.jsx)("div", { className: "text-center text-xs text-tertiary mt-3", children: message }))] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
 };
 exports.FaucetScreen = FaucetScreen;
 
@@ -108668,26 +108235,32 @@ exports.nftSupplyBadge = nftSupplyBadge;
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 const react_1 = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 const react_2 = __webpack_require__(/*! @iconify/react */ "./node_modules/@iconify/react/dist/iconify.cjs");
-/** Short supply label for a collection tile. */
-function nftSupplyBadge(nft) {
+/** Short supply label for a gallery tile. */
+function nftSupplyBadge(nft, opts) {
     if (!nft.supplyType)
         return null;
     const held = nft.heldCount ?? 0;
     const minted = nft.mintedCount ?? held;
-    if (nft.supplyType === 'unique')
-        return { label: '1/1', icon: 'lucide:gem' };
-    if (nft.supplyType === 'unlimited') {
-        return { label: held > 1 ? `∞ ·${held}` : '∞', icon: 'lucide:infinity' };
+    const heldSuffix = opts?.includeHeld && held > 1 ? ` · ×${held}` : '';
+    if (nft.supplyType === 'unique') {
+        return { label: `1 of 1${heldSuffix}`, icon: 'lucide:gem' };
     }
-    return { label: `${minted}/${nft.maxSupply}`, icon: 'lucide:layers' };
+    if (nft.supplyType === 'unlimited') {
+        return {
+            label: held > 1 && !opts?.includeHeld ? `Unlimited · ×${held}` : `Unlimited${heldSuffix}`,
+            icon: 'lucide:infinity',
+        };
+    }
+    return { label: `Limited ${minted}/${nft.maxSupply}${heldSuffix}`, icon: 'lucide:layers' };
 }
-/** Square collectible tile with graceful image fallback. */
+/** Image-only collectible tile with a supply badge overlay. */
 const NFTCard = ({ nft, onClick }) => {
     const [imageFailed, setImageFailed] = (0, react_1.useState)(false);
     const showImage = nft.image && !imageFailed;
-    const badge = nftSupplyBadge(nft);
-    const held = nft.heldCount ?? 0;
-    return ((0, jsx_runtime_1.jsxs)("div", { onClick: onClick ? () => onClick(nft) : undefined, className: `bg-card rounded-xl overflow-hidden aspect-square flex flex-col ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`, children: [(0, jsx_runtime_1.jsxs)("div", { className: "relative flex-1 flex items-center justify-center bg-tertiary/10 overflow-hidden", children: [showImage ? ((0, jsx_runtime_1.jsx)("img", { src: nft.image, alt: nft.name, className: "w-full h-full object-cover", loading: "lazy", onError: () => setImageFailed(true) })) : ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:image", className: "text-4xl text-tertiary/50" })), badge && ((0, jsx_runtime_1.jsxs)("span", { className: "absolute top-1 left-1 inline-flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] font-medium text-white", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: badge.icon, className: "text-[10px]" }), badge.label] })), held > 1 && ((0, jsx_runtime_1.jsxs)("span", { className: "absolute top-1 right-1 inline-flex items-center rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-semibold text-white", children: ["x", held] }))] }), (0, jsx_runtime_1.jsxs)("div", { className: "p-2 space-y-0.5", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-xs font-semibold text-primary truncate", children: nft.name }), nft.collection && (0, jsx_runtime_1.jsx)("div", { className: "text-[10px] text-tertiary/70 truncate", children: nft.collection })] })] }));
+    const badge = nftSupplyBadge(nft, { includeHeld: true });
+    return ((0, jsx_runtime_1.jsxs)("button", { type: "button", onClick: onClick ? () => onClick(nft) : undefined, disabled: !onClick, "aria-label": nft.name, className: `group relative aspect-square w-full overflow-hidden rounded-xl border border-tertiary/15 bg-tertiary/10 transition-all ${onClick
+            ? 'cursor-pointer hover:shadow-md hover:ring-2 hover:ring-tertiary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'
+            : 'cursor-default'}`, children: [showImage ? ((0, jsx_runtime_1.jsx)("img", { src: nft.image, alt: "", className: "size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]", loading: "lazy", onError: () => setImageFailed(true) })) : ((0, jsx_runtime_1.jsx)("div", { className: "flex size-full items-center justify-center", children: (0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:image", className: "text-4xl text-tertiary/50" }) })), badge && ((0, jsx_runtime_1.jsxs)("span", { className: "absolute bottom-1.5 left-1.5 inline-flex max-w-[calc(100%-0.75rem)] items-center gap-0.5 rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-medium text-white backdrop-blur-sm", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: badge.icon, className: "shrink-0 text-[10px]" }), (0, jsx_runtime_1.jsx)("span", { className: "truncate", children: badge.label })] }))] }));
 };
 exports.NFTCard = NFTCard;
 
@@ -108822,7 +108395,13 @@ const NFTDetail = ({ nft, onClose, fromAddress, onTransferred }) => {
                                                 ? '1 of 1'
                                                 : nft.supplyType === 'unlimited'
                                                     ? `Unlimited · ${nft.mintedCount ?? 0} minted`
-                                                    : `Limited · ${nft.mintedCount ?? 0} of ${nft.maxSupply}`] }), (nft.heldCount ?? 0) > 0 && ((0, jsx_runtime_1.jsxs)("span", { className: "inline-flex items-center rounded-full bg-accent/15 px-2 py-0.5 font-medium text-accent", children: ["You hold ", nft.heldCount] }))] })), nft.description && (0, jsx_runtime_1.jsx)("p", { className: "text-sm text-primary/90", children: nft.description }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-3 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: handleDownload, disabled: !nft.image || downloading, children: downloading ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ((0, jsx_runtime_1.jsxs)("span", { className: "flex items-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:download", className: "text-base" }), " Save"] })) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => nft.assetRepresentative && (0, format_1.openCreeperHash)(nft.assetRepresentative), disabled: !nft.assetRepresentative, children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:external-link", className: "text-base" }), " Creeper"] }) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => metadataUrl && window.open(metadataUrl, '_blank', 'noopener,noreferrer'), disabled: !metadataUrl, children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:file-json", className: "text-base" }), " Meta"] }) })] }), canTransfer && !done && !showBurn && ((0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: showTransfer ? 'primary' : 'secondary', onClick: () => setShowTransfer((v) => !v), className: "w-full", children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center justify-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:send", className: "text-base" }), " Transfer"] }) })), canTransfer && !done && !showTransfer && ((0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: showBurn ? 'danger' : 'ghost', onClick: () => setShowBurn((v) => !v), className: "w-full", children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center justify-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:flame", className: "text-base" }), " Burn"] }) })), showBurn && !done && ((0, jsx_runtime_1.jsxs)("div", { className: "space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2 text-destructive", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:flame", className: "text-base shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { className: "text-xs", children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold", children: "Permanently destroy this NFT?" }), (0, jsx_runtime_1.jsx)("div", { className: "opacity-90", children: "It will be sent to a black-hole account and can never be recovered." })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-2 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "danger", onClick: handleBurn, disabled: burning, children: burning ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ('Burn forever') }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => setShowBurn(false), disabled: burning, children: "Cancel" })] }), burnError && (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: burnError })] })), burnHash && ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: "NFT burned. It will leave your gallery once the index updates." })), showTransfer && !done && ((0, jsx_runtime_1.jsxs)("div", { className: "space-y-2 rounded-lg border border-tertiary/10 p-3", children: [(0, jsx_runtime_1.jsx)(ui_1.Input, { label: "Send this NFT to", value: recipient, onChange: (e) => setRecipient(e.target.value), placeholder: "ban_1... or name.ban", disabled: transferring, size: "sm" }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-2 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", onClick: handleTransfer, disabled: transferring, children: transferring ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ('Confirm') }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => setShowTransfer(false), disabled: transferring, children: "Cancel" })] }), transferError && (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: transferError })] })), transferHash && ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "success", children: "Transfer sent. It will leave your gallery once the index updates." })), nft.assetRepresentative && ((0, jsx_runtime_1.jsxs)("div", { className: "pt-1", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-[10px] uppercase tracking-wide text-tertiary/70", children: "Asset representative" }), (0, jsx_runtime_1.jsx)("div", { className: "font-mono text-xs text-primary/80 break-all", children: nft.assetRepresentative })] }))] })] })] }));
+                                                    : `Limited · ${nft.mintedCount ?? 0} of ${nft.maxSupply}`] }), (nft.heldCount ?? 0) > 0 && ((0, jsx_runtime_1.jsxs)("span", { className: "inline-flex items-center rounded-full bg-accent/15 px-2 py-0.5 font-medium text-accent", children: ["You hold ", nft.heldCount] }))] })), nft.description && (0, jsx_runtime_1.jsx)("p", { className: "text-sm text-primary/90", children: nft.description }), (0, jsx_runtime_1.jsxs)("div", { className: "flex gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: handleDownload, disabled: !nft.image || downloading, className: "flex-1 min-w-0", children: downloading ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ((0, jsx_runtime_1.jsxs)("span", { className: "flex items-center justify-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:download", className: "text-base" }), " Save"] })) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => nft.assetRepresentative && (0, format_1.openCreeperHash)(nft.assetRepresentative), disabled: !nft.assetRepresentative, className: "flex-1 min-w-0", children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center justify-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:external-link", className: "text-base" }), " Creeper"] }) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => metadataUrl && window.open(metadataUrl, '_blank', 'noopener,noreferrer'), disabled: !metadataUrl, className: "flex-1 min-w-0", children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center justify-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:file-json", className: "text-base" }), " Meta"] }) }), canTransfer && !done && !showTransfer && ((0, jsx_runtime_1.jsx)(ui_1.IconButton, { icon: (0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:flame", className: "text-xl" }), variant: "danger", size: "md", className: `shrink-0 ${showBurn ? 'bg-destructive/15' : ''}`, onClick: () => {
+                                            setShowTransfer(false);
+                                            setShowBurn((v) => !v);
+                                        }, "aria-label": "Burn NFT", "aria-pressed": showBurn }))] }), canTransfer && !done && !showBurn && ((0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: showTransfer ? 'primary' : 'secondary', onClick: () => {
+                                    setShowBurn(false);
+                                    setShowTransfer((v) => !v);
+                                }, className: "w-full", children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center justify-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:send", className: "text-base" }), " Transfer"] }) })), showBurn && !done && ((0, jsx_runtime_1.jsxs)("div", { className: "space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2 text-destructive", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:flame", className: "text-base shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { className: "text-xs", children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold", children: "Permanently destroy this NFT?" }), (0, jsx_runtime_1.jsx)("div", { className: "opacity-90", children: "It will be sent to a black-hole account and can never be recovered." })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-2 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "danger", onClick: handleBurn, disabled: burning, children: burning ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ('Burn forever') }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => setShowBurn(false), disabled: burning, children: "Cancel" })] }), burnError && (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: burnError })] })), burnHash && ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: "NFT burned. It will leave your gallery once the index updates." })), showTransfer && !done && ((0, jsx_runtime_1.jsxs)("div", { className: "space-y-2 rounded-lg border border-tertiary/10 p-3", children: [(0, jsx_runtime_1.jsx)(ui_1.Input, { label: "Send this NFT to", value: recipient, onChange: (e) => setRecipient(e.target.value), placeholder: "ban_1... or name.ban", disabled: transferring, size: "sm" }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-2 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", onClick: handleTransfer, disabled: transferring, children: transferring ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ('Confirm') }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => setShowTransfer(false), disabled: transferring, children: "Cancel" })] }), transferError && (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: transferError })] })), transferHash && ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "success", children: "Transfer sent. It will leave your gallery once the index updates." })), nft.assetRepresentative && ((0, jsx_runtime_1.jsxs)("div", { className: "pt-1", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-[10px] uppercase tracking-wide text-tertiary/70", children: "Asset representative" }), (0, jsx_runtime_1.jsx)("div", { className: "font-mono text-xs text-primary/80 break-all", children: nft.assetRepresentative })] }))] })] })] }));
 };
 exports.NFTDetail = NFTDetail;
 
@@ -108868,6 +108447,8 @@ const NFTsScreen = () => {
         let cancelled = false;
         const loadNFTs = async () => {
             if (!address) {
+                setNfts([]);
+                setError(null);
                 setLoading(false);
                 return;
             }
@@ -108877,6 +108458,11 @@ const NFTsScreen = () => {
             if (entry) {
                 setNfts(entry.nfts);
                 setError(entry.error);
+            }
+            else {
+                // Clear the previous account's gallery while we load the new one.
+                setNfts([]);
+                setError(null);
             }
             if (isFresh) {
                 setLoading(false);
@@ -109865,7 +109451,7 @@ const Button = ({ variant = 'primary', size = 'md', className = '', children, ..
         primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90',
         danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        ghost: 'bg-transparent text-text-primary hover:bg-muted'
+        ghost: 'bg-tertiary/10 text-primary hover:bg-tertiary/20 border border-tertiary/20',
     };
     const sizeClasses = {
         sm: 'px-3 py-2 text-sm',
@@ -110011,7 +109597,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ContentContainer = void 0;
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 const ContentContainer = ({ children, className = '' }) => {
-    return ((0, jsx_runtime_1.jsx)("div", { className: `flex flex-col font-semibold bg-background justify-start overflow-y-auto items-center px-4 pt-[74px] pb-[74px] gap-4 ${className}`, children: children }));
+    return ((0, jsx_runtime_1.jsx)("div", { className: `flex min-h-0 flex-1 w-full min-w-0 flex-col gap-4 overflow-x-hidden overflow-y-auto bg-background px-4 pb-[74px] pt-[74px] font-semibold ${className}`, children: children }));
 };
 exports.ContentContainer = ContentContainer;
 
@@ -110183,7 +109769,7 @@ const Footer = ({ active = true, className = '' }) => {
     const navigation = (0, useRouter_1.useNavigation)();
     const router = (0, useRouter_1.useRouter)();
     const currentRoute = router.currentRoute;
-    return ((0, jsx_runtime_1.jsx)("div", { className: `footer px-4 h-14 fixed bottom-0 left-0 right-0 z-10 ${className}`, children: active && ((0, jsx_runtime_1.jsxs)("div", { className: "flex items-center w-full h-full justify-between", children: [(0, jsx_runtime_1.jsx)("button", { onClick: () => navigation.goToDashboard(), className: `${currentRoute === 'dashboard' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`, children: (0, jsx_runtime_1.jsx)(react_1.Icon, { icon: "lucide:home", className: "text-2xl" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: () => navigation.goToNFTs(), className: `${currentRoute === 'nfts' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`, children: (0, jsx_runtime_1.jsx)(react_1.Icon, { icon: "lucide:layout-grid", className: "text-2xl" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: () => navigation.goToHistory(), className: `${currentRoute === 'history' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`, children: (0, jsx_runtime_1.jsx)(react_1.Icon, { icon: "lucide:clock", className: "text-2xl" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: () => navigation.goToExplore(), className: `${currentRoute === 'explore' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`, children: (0, jsx_runtime_1.jsx)(react_1.Icon, { icon: "lucide:compass", className: "text-2xl" }) })] })) }));
+    return ((0, jsx_runtime_1.jsx)("div", { className: `footer px-4 h-14 fixed bottom-0 left-0 right-0 z-10 ${className}`, children: active && ((0, jsx_runtime_1.jsxs)("div", { className: "flex items-center w-full h-full justify-between", children: [(0, jsx_runtime_1.jsx)("button", { onClick: () => navigation.goToDashboard(), className: `${currentRoute === 'dashboard' ? 'text-primary' : 'text-tertiary hover:text-primary'} transition-colors`, children: (0, jsx_runtime_1.jsx)(react_1.Icon, { icon: "lucide:home", className: "text-2xl" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: () => navigation.goToNFTs(), className: `${currentRoute === 'nfts' ? 'text-primary' : 'text-tertiary hover:text-primary'} transition-colors`, children: (0, jsx_runtime_1.jsx)(react_1.Icon, { icon: "lucide:layout-grid", className: "text-2xl" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: () => navigation.goToHistory(), className: `${currentRoute === 'history' ? 'text-primary' : 'text-tertiary hover:text-primary'} transition-colors`, children: (0, jsx_runtime_1.jsx)(react_1.Icon, { icon: "lucide:clock", className: "text-2xl" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: () => navigation.goToExplore(), className: `${currentRoute === 'explore' ? 'text-primary' : 'text-tertiary hover:text-primary'} transition-colors`, children: (0, jsx_runtime_1.jsx)(react_1.Icon, { icon: "lucide:compass", className: "text-2xl" }) })] })) }));
 };
 exports.Footer = Footer;
 
@@ -110229,7 +109815,8 @@ const IconButton = ({ icon, size = 'md', variant = 'default', className = '', ..
     const baseClasses = 'rounded-lg transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50';
     const variantClasses = {
         default: 'text-tertiary hover:text-primary',
-        ghost: 'p-2 text-tertiary hover:text-primary hover:bg-muted'
+        ghost: 'p-2 text-tertiary hover:text-primary hover:bg-muted',
+        danger: 'p-2 text-destructive hover:bg-destructive/10 hover:text-destructive',
     };
     const sizeClasses = {
         sm: 'p-1',

@@ -20,25 +20,25 @@ export const Footer: React.FC<FooterProps> = ({
       <div className="flex items-center w-full h-full justify-between">
           <button 
             onClick={() => navigation.goToDashboard()} 
-            className={`${currentRoute === 'dashboard' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`}
+            className={`${currentRoute === 'dashboard' ? 'text-primary' : 'text-tertiary hover:text-primary'} transition-colors`}
           >
             <Icon icon="lucide:home" className="text-2xl" />
           </button>
           <button 
             onClick={() => navigation.goToNFTs()} 
-            className={`${currentRoute === 'nfts' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`}
+            className={`${currentRoute === 'nfts' ? 'text-primary' : 'text-tertiary hover:text-primary'} transition-colors`}
           >
             <Icon icon="lucide:layout-grid" className="text-2xl" />
           </button>
           <button 
             onClick={() => navigation.goToHistory()} 
-            className={`${currentRoute === 'history' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`}
+            className={`${currentRoute === 'history' ? 'text-primary' : 'text-tertiary hover:text-primary'} transition-colors`}
           >
             <Icon icon="lucide:clock" className="text-2xl" />
           </button>
           <button 
             onClick={() => navigation.goToExplore()} 
-            className={`${currentRoute === 'explore' ? 'text-primary' : 'text-text-primary hover:text-primary'} transition-colors`}
+            className={`${currentRoute === 'explore' ? 'text-primary' : 'text-tertiary hover:text-primary'} transition-colors`}
           >
             <Icon icon="lucide:compass" className="text-2xl" />
           </button>

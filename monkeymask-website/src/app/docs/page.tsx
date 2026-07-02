@@ -10,7 +10,7 @@ import { Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 /* ------------------------------------------------------------------ */
-/* Navigation model — keep ids in sync with the <Section> / <Sub> ids. */
+/* Navigation model: keep ids in sync with the <Section> / <Sub> ids. */
 /* ------------------------------------------------------------------ */
 
 const NAV: { group: string; items: [string, string][] }[] = [
@@ -197,7 +197,7 @@ export default function DocsPage() {
 
       {/* Hero */}
       <section className="mx-auto max-w-[1500px] px-6 pt-10 md:px-10">
-        <div className="rounded-2xl border border-border bg-secondary/40 p-8 md:p-12">
+        <div className="p-8 md:p-12">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-white px-3 py-1 text-xs font-semibold text-muted-foreground">
             <Icon icon="mdi:code-braces" className="size-4" />
             Developer Documentation
@@ -207,7 +207,7 @@ export default function DocsPage() {
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
             Integration is via the <strong>Wallet Standard</strong> on the <code>banano:</code>{' '}
-            namespace — with <strong>Sign In With Banano</strong>, structured block intents,
+            namespace, with <strong>Sign In With Banano</strong>, structured block intents,
             first-class NFTs, airdrops, payment URIs, and spending sessions. Everything below is
             copy-paste ready.
           </p>
@@ -248,11 +248,11 @@ export default function DocsPage() {
               <CodeBlock language="bash">{`npm install @monkeymask/react @monkeymask/wallet-standard`}</CodeBlock>
               <ul className="list-disc space-y-1 pl-6 text-sm text-muted-foreground">
                 <li>
-                  <code>@monkeymask/react</code> — <code>MonkeyMaskProvider</code>, hooks, wallet
+                  <code>@monkeymask/react</code>: <code>MonkeyMaskProvider</code>, hooks, wallet
                   discovery.
                 </li>
                 <li>
-                  <code>@monkeymask/wallet-standard</code> — chain IDs, feature/operation types, SIWB
+                  <code>@monkeymask/wallet-standard</code>: chain IDs, feature/operation types, SIWB
                   build/verify, NFT codecs, error codes. Safe to import server-side.
                 </li>
               </ul>
@@ -261,7 +261,7 @@ export default function DocsPage() {
             <Section id="quickstart" title="Quickstart">
               <P>
                 A complete component: connect the wallet, show the balance, and send BAN. This is the
-                golden path — everything else is a variation on it.
+                golden path. Everything else is a variation on it.
               </P>
               <CodeBlock>{`'use client';
 import {
@@ -349,7 +349,7 @@ export default function RootLayout({ children }) {
             <Section id="agent" title="Agent cheat sheet">
               <P>
                 Everything an AI agent needs to wire a dApp, condensed. Rules of thumb:{' '}
-                <strong>every action hook returns a Promise</strong> — always{' '}
+                <strong>every action hook returns a Promise</strong>. Always{' '}
                 <code>try/catch</code>; a rejected request throws with{' '}
                 <code>code === 4001</code>; <code>amount</code> is always a decimal BAN string;
                 recipients accept a <code>ban_…</code> address <em>or</em> a <code>.ban</code> BNS
@@ -409,19 +409,19 @@ buildBananoUri({ address, amount, label });   // -> "ban:ban_1...?amount=..."
   useSignMessage,  // (message: Uint8Array, account?) => output
   useSignTransaction,        // (op, account?) => { signedBlock }
   useSignAndSendTransaction, // (op, account?) => { hash, hashes, results? }
-  useSend,         // (params, account?) => { hash, hashes, results? } — one or many recipients
-  useReceive,      // (params?, account?) => { hash, hashes } — claim receivables
+  useSend,         // (params, account?) => { hash, hashes, results? }: one or many recipients
+  useReceive,      // (params?, account?) => { hash, hashes }: claim receivables
   useReceivable,   // (address?, count?) => BananoReceivable[]
   useAccountHistory, // (address?, count?, head?) => BananoHistoryEntry[]
-  useReverseBNS,   // (address?, tld?) => string[] — address → BNS name(s)
-  useSweep,        // ({ to, name? }, account?) => { hash } — send entire balance
-  useSpendingSession, // { request, get, revoke } — per-origin auto-approve allowance
+  useReverseBNS,   // (address?, tld?) => string[]: address → BNS name(s)
+  useSweep,        // ({ to, name? }, account?) => { hash }: send entire balance
+  useSpendingSession, // { request, get, revoke }: per-origin auto-approve allowance
   useMintNFT,      // (params, account?) => { hash, hashes }
-  useMintEdition,  // (params, account?) => { hash, hashes } — extra copy of a collection
-  useTransferNFT,  // (params, account?) => { hash, hashes, results? } — one or many NFTs
-  useBurnNFT,      // (params, account?) => { hash, hashes } — destroy an NFT (send#burn)
-  useFinishSupply, // (params, account?) => { hash } — lock a collection (#finish_supply)
-  useSendAllNfts,  // (params, account?) => { hash } — move every held NFT (send#all_nfts)
+  useMintEdition,  // (params, account?) => { hash, hashes }: extra copy of a collection
+  useTransferNFT,  // (params, account?) => { hash, hashes, results? }: one or many NFTs
+  useBurnNFT,      // (params, account?) => { hash, hashes }: destroy an NFT (send#burn)
+  useFinishSupply, // (params, account?) => { hash }: lock a collection (#finish_supply)
+  useSendAllNfts,  // (params, account?) => { hash }: move every held NFT (send#all_nfts)
   // pure ban: payment-URI + QR helpers
   buildBananoUri, parseBananoUri, isBananoUri, banToRaw, rawToBan,
 } from '@monkeymask/react';
@@ -466,7 +466,7 @@ const {
   // permanently destroy an NFT (send#burn to a black-hole account)
   | { type: 'burn'; assetRepresentative: string;
       to?: string; amount?: string; name?: string }
-  // lock a collection you issued — no more editions can be minted
+  // lock a collection you issued: no more editions can be minted
   | { type: 'finishSupply'; metadataCid: string; name?: string }
   // move every NFT the account holds to one recipient in a single block
   | { type: 'sendAllNfts'; to: string; amount?: string; name?: string }
@@ -482,7 +482,7 @@ const {
 
             <Section id="accounts" title="Accounts">
               <P>
-                Accounts update reactively — read them from the hook. <code>getAccountInfo</code>{' '}
+                Accounts update reactively. Read them from the hook. <code>getAccountInfo</code>{' '}
                 proxies balance/representative/frontier info from the wallet.
               </P>
               <CodeBlock>{`const { accounts, publicKey } = useAccounts();
@@ -514,12 +514,12 @@ const { signedBlock } = await signTx({ type: 'send', to: 'ban_1...', amount: '0.
             <Section id="airdrop" title="Send & airdrop">
               <P>
                 <code>useSend</code> covers both a single payment and a multi-send / airdrop with one
-                method — pass <code>{`{ to, amount }`}</code> or a <code>sends</code> array. The
+                method. Pass <code>{`{ to, amount }`}</code> or a <code>sends</code> array. The
                 wallet verifies the balance covers the total up front, then publishes the airdrop as a
                 single locally-chained block sequence: it reads <code>account_info</code> once, tracks
                 the frontier and balance in memory, and pre-computes proof-of-work for the next block
                 while the current one broadcasts (no per-block round-trip, no frontier race). It runs
-                best-effort — a failed recipient is skipped, not fatal — and Banano can&apos;t publish
+                best-effort: a failed recipient is skipped, not fatal, and Banano can&apos;t publish
                 an atomic batch, so <code>results</code> reports each recipient&apos;s{' '}
                 <code>hash</code> or <code>error</code>. Recipients accept <code>ban_…</code> or{' '}
                 <code>.ban</code> names.
@@ -539,13 +539,13 @@ const { hashes, results } = await send({
     { to: 'ban_3...',   amount: '5' },
   ],
 });
-// results: { to, amount, hash? | error? }[] — one entry per recipient`}</CodeBlock>
+// results: { to, amount, hash? | error? }[]: one entry per recipient`}</CodeBlock>
             </Section>
 
             <Section id="receive" title="Receive & history">
               <P>
                 <code>useReceivable</code> lists an account&apos;s pending (claimable) blocks and{' '}
-                <code>useReceive</code> claims them — pass a <code>blockHash</code> to claim one
+                <code>useReceive</code> claims them. Pass a <code>blockHash</code> to claim one
                 specific receivable, or nothing to claim them all. It publishes one receive/open block
                 per claim and returns every <code>hash</code>. <code>useAccountHistory</code> reads
                 recent confirmed transactions. The read hooks default to the current account; pass an
@@ -553,7 +553,7 @@ const { hashes, results } = await send({
               </P>
               <P>
                 MonkeyMask also <strong>auto-claims</strong> pending funds whenever the wallet
-                refreshes — these primitives are for dApps that need to force a claim on demand.
+                refreshes. These primitives are for dApps that need to force a claim on demand.
               </P>
               <CodeBlock>{`import { useReceive, useReceivable, useAccountHistory } from '@monkeymask/react';
 
@@ -589,7 +589,7 @@ await sweep({ to: 'coldwallet.ban' }); // claims pending, then sends everything`
               <P>
                 Pure helpers build and parse <code>ban:</code> URIs (the Banano flavour of the
                 Nano/BIP21 scheme). They speak BAN decimals at the edges and convert to/from raw
-                internally — no bananojs needed — so you can generate scannable payment codes
+                internally (no bananojs needed), so you can generate scannable payment codes
                 anywhere.
               </P>
               <CodeBlock>{`import { buildBananoUri, parseBananoUri } from '@monkeymask/react';
@@ -614,14 +614,14 @@ await send({ to: req.address, amount: req.amount ?? '0', name: req.label });`}</
                 A dApp can request a per-origin allowance so small <code>send</code>s are
                 auto-approved (no popup) until the limit or expiry is reached. The user approves the
                 allowance once; each auto-approved send is debited from the remaining balance. Only
-                single-recipient <code>send</code>s within the limit qualify — anything larger, or any
+                single-recipient <code>send</code>s within the limit qualify. Anything larger, or any
                 other operation, still prompts.
               </P>
               <P>
                 Auto-confirmation is an <strong>advanced, opt-in</strong> feature that is{' '}
                 <strong>off by default</strong>. The user must explicitly enable it (Settings →
                 Advanced, or via the warning shown when a site first requests one) before any
-                allowance can be granted — so <code>session.request(...)</code> will reject unless
+                allowance can be granted, so <code>session.request(...)</code> will reject unless
                 the user turns it on and approves. While the feature is off, every payment always
                 prompts.
               </P>
@@ -630,7 +630,7 @@ await send({ to: req.address, amount: req.amount ?? '0', name: req.label });`}</
                 wallet&apos;s <strong>Connected Sites</strong> screen (which shows the limit, spent,
                 remaining, and expiry per site), disconnecting a site clears its allowance, and
                 turning the feature off in Settings revokes <em>all</em> active allowances at once.
-                So the wallet — not the dApp — is the ultimate kill switch;{' '}
+                So the wallet, not the dApp, is the ultimate kill switch;{' '}
                 <code>session.revoke()</code> is just a convenience for dApps that want to offer it.
               </P>
               <CodeBlock>{`const session = useSpendingSession();
@@ -656,7 +656,7 @@ await send({ to: 'game.ban', amount: '0.01' }); // auto-approved`}</CodeBlock>
               <CodeBlock>{`const { resolveBNS } = useMonkeyMask();
 const address = await resolveBNS('mycoolname.ban'); // -> ban_1...`}</CodeBlock>
               <P>
-                Reverse resolution goes the other way — address → name(s). It&apos;s best-effort (an
+                Reverse resolution goes the other way: address → name(s). It&apos;s best-effort (an
                 address can have several names, or none) and crawls the ledger, so it&apos;s slower
                 than a forward lookup. Pass no address to look up the connected account.
               </P>
@@ -742,7 +742,7 @@ const { hash } = await mint({
               <P>
                 Building a mint platform? Attach a <code>fees</code> array to the mint. Each entry is a
                 plain send published <strong>after</strong> a successful mint, and the wallet verifies
-                the balance covers the mint <em>plus every fee</em> before publishing anything — so a
+                the balance covers the mint <em>plus every fee</em> before publishing anything, so a
                 failed mint never costs the user a fee. Every leg is itemized in the approval UI. Fees
                 are opt-in and set by the calling app (honor system): charge your own mint price and,
                 if you like, a MonkeyMask protocol fee.
@@ -762,7 +762,7 @@ const { hash } = await mint({
               <P>
                 Mint a collection with <code>maxSupply &gt; 1</code> (0 = unlimited) to allow multiple
                 copies. Later, mint additional editions of a collection you issued with{' '}
-                <code>useMintEdition</code> — the wallet reuses the collection&apos;s metadata and
+                <code>useMintEdition</code>. The wallet reuses the collection&apos;s metadata and
                 rejects the mint if the edition limit is reached or the collection has been finished.
                 Each edition is its own self-delimiting <code>change#supply → send#mint</code> pair, so
                 an ordinary send can never be miscounted as an edition, and each copy gets its own
@@ -781,8 +781,8 @@ await mintEdition({ metadataCid, to: recipient });`}</CodeBlock>
             <Section id="nft-transfer" title="Transfer">
               <P>
                 Send an owned NFT to another account. The wallet pockets any pending balance for the
-                asset, then publishes a <code>send#asset</code> block — a normal send whose{' '}
-                <code>representative</code> is the asset representative — which the indexer follows to
+                asset, then publishes a <code>send#asset</code> block: a normal send whose{' '}
+                <code>representative</code> is the asset representative, which the indexer follows to
                 move ownership. Pass a <code>transfers</code> array to move several NFTs in one
                 approval: the wallet pockets pending once, publishes each block as a locally-chained
                 sequence (frontier tracked in memory, work pre-computed for the next block while the
@@ -812,7 +812,7 @@ const { hashes, results } = await transfer({
             <Section id="nft-burn" title="Burn">
               <P>
                 Permanently destroy an owned NFT. This is a <code>send#asset</code> to a canonical
-                burn account (the 73-meta-tokens <code>send#burn</code> convention) — a black-hole
+                burn account (the 73-meta-tokens <code>send#burn</code> convention): a black-hole
                 address with no recoverable key, so the asset can never be moved again. The wallet
                 surfaces a distinct red, destructive confirmation. <strong>Irreversible.</strong> The
                 default target is the canonical burn account; pass <code>to</code> only to pick a
@@ -953,7 +953,7 @@ try {
                   <tbody className="text-muted-foreground">
                     {[
                       ['4001', 'User rejected the request'],
-                      ['4100', 'Unauthorized — not connected'],
+                      ['4100', 'Unauthorized: not connected'],
                       ['4200', 'Unsupported method'],
                       ['4900', 'Provider is disconnected'],
                       ['-32602', 'Invalid method parameters'],
@@ -973,7 +973,7 @@ try {
 
             <Section id="events" title="Events">
               <P>
-                Prefer the reactive hooks — <code>accounts</code>/<code>publicKey</code>/
+                Prefer the reactive hooks: <code>accounts</code>/<code>publicKey</code>/
                 <code>connected</code> update automatically when the user switches or disconnects
                 accounts (via the Wallet Standard <code>standard:events</code> <code>change</code>{' '}
                 event). Lifecycle callbacks are available on the provider config:
@@ -1004,7 +1004,7 @@ useEffect(() => { /* refetch data for the active account */ }, [publicKey]);`}</
               <P>
                 The dApp template ships an optional <strong>Convex</strong> backend (
                 <code>monkeymask-website/convex/</code>) that makes SIWB nonces/sessions durable and
-                powers the NFT index with a 24/7 crawler cron. It&apos;s fully optional — without it
+                powers the NFT index with a 24/7 crawler cron. It&apos;s fully optional. Without it
                 the app uses an in-memory SIWB store and a self-crawl NFT source. Enable it with{' '}
                 <code>npx convex dev</code> and set <code>NEXT_PUBLIC_CONVEX_URL</code> /{' '}
                 <code>NEXT_PUBLIC_CONVEX_SITE_URL</code>. See the repository README for details.

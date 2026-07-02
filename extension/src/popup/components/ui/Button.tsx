@@ -19,7 +19,7 @@ export const Button: React.FC<ButtonProps> = ({
     primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
     secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90',
     danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-    ghost: 'bg-transparent text-text-primary hover:bg-muted'
+    ghost: 'bg-tertiary/10 text-primary hover:bg-tertiary/20 border border-tertiary/20',
   };
   
   const sizeClasses = {

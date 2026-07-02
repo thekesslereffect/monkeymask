@@ -7,60 +7,66 @@ interface NFTCardProps {
   onClick?: (nft: MonkeyNFT) => void;
 }
 
-/** Short supply label for a collection tile. */
-export function nftSupplyBadge(nft: MonkeyNFT): { label: string; icon: string } | null {
+/** Short supply label for a gallery tile. */
+export function nftSupplyBadge(
+  nft: MonkeyNFT,
+  opts?: { includeHeld?: boolean },
+): { label: string; icon: string } | null {
   if (!nft.supplyType) return null;
   const held = nft.heldCount ?? 0;
   const minted = nft.mintedCount ?? held;
-  if (nft.supplyType === 'unique') return { label: '1/1', icon: 'lucide:gem' };
-  if (nft.supplyType === 'unlimited') {
-    return { label: held > 1 ? `∞ ·${held}` : '∞', icon: 'lucide:infinity' };
+  const heldSuffix = opts?.includeHeld && held > 1 ? ` · ×${held}` : '';
+
+  if (nft.supplyType === 'unique') {
+    return { label: `1 of 1${heldSuffix}`, icon: 'lucide:gem' };
   }
-  return { label: `${minted}/${nft.maxSupply}`, icon: 'lucide:layers' };
+  if (nft.supplyType === 'unlimited') {
+    return {
+      label: held > 1 && !opts?.includeHeld ? `Unlimited · ×${held}` : `Unlimited${heldSuffix}`,
+      icon: 'lucide:infinity',
+    };
+  }
+  return { label: `Limited ${minted}/${nft.maxSupply}${heldSuffix}`, icon: 'lucide:layers' };
 }
 
-/** Square collectible tile with graceful image fallback. */
+/** Image-only collectible tile with a supply badge overlay. */
 export const NFTCard: React.FC<NFTCardProps> = ({ nft, onClick }) => {
   const [imageFailed, setImageFailed] = useState(false);
   const showImage = nft.image && !imageFailed;
-  const badge = nftSupplyBadge(nft);
-  const held = nft.heldCount ?? 0;
+  const badge = nftSupplyBadge(nft, { includeHeld: true });
 
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick ? () => onClick(nft) : undefined}
-      className={`bg-card rounded-xl overflow-hidden aspect-square flex flex-col ${
-        onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
+      disabled={!onClick}
+      aria-label={nft.name}
+      className={`group relative aspect-square w-full overflow-hidden rounded-xl border border-tertiary/15 bg-tertiary/10 transition-all ${
+        onClick
+          ? 'cursor-pointer hover:shadow-md hover:ring-2 hover:ring-tertiary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'
+          : 'cursor-default'
       }`}
     >
-      <div className="relative flex-1 flex items-center justify-center bg-tertiary/10 overflow-hidden">
-        {showImage ? (
-          <img
-            src={nft.image}
-            alt={nft.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
+      {showImage ? (
+        <img
+          src={nft.image}
+          alt=""
+          className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <div className="flex size-full items-center justify-center">
           <Icon icon="lucide:image" className="text-4xl text-tertiary/50" />
-        )}
-        {badge && (
-          <span className="absolute top-1 left-1 inline-flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] font-medium text-white">
-            <Icon icon={badge.icon} className="text-[10px]" />
-            {badge.label}
-          </span>
-        )}
-        {held > 1 && (
-          <span className="absolute top-1 right-1 inline-flex items-center rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-semibold text-white">
-            x{held}
-          </span>
-        )}
-      </div>
-      <div className="p-2 space-y-0.5">
-        <div className="text-xs font-semibold text-primary truncate">{nft.name}</div>
-        {nft.collection && <div className="text-[10px] text-tertiary/70 truncate">{nft.collection}</div>}
-      </div>
-    </div>
+        </div>
+      )}
+
+      {badge && (
+        <span className="absolute bottom-1.5 left-1.5 inline-flex max-w-[calc(100%-0.75rem)] items-center gap-0.5 rounded-full bg-black/70 px-2 py-0.5 text-[9px] font-medium text-white backdrop-blur-sm">
+          <Icon icon={badge.icon} className="shrink-0 text-[10px]" />
+          <span className="truncate">{badge.label}</span>
+        </span>
+      )}
+    </button>
   );
 };

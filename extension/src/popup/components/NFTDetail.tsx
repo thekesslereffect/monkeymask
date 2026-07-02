@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Icon } from '@iconify/react';
-import { Button, Input, Alert } from './ui';
+import { Button, Input, Alert, IconButton } from './ui';
 import { openCreeperHash } from '../../utils/format';
 import type { MonkeyNFT } from '../../utils/nft';
 
@@ -169,12 +169,18 @@ export const NFTDetail: React.FC<NFTDetailProps> = ({ nft, onClose, fromAddress,
           )}
           {nft.description && <p className="text-sm text-primary/90">{nft.description}</p>}
 
-          <div className="grid grid-cols-3 gap-2">
-            <Button size="sm" variant="secondary" onClick={handleDownload} disabled={!nft.image || downloading}>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleDownload}
+              disabled={!nft.image || downloading}
+              className="flex-1 min-w-0"
+            >
               {downloading ? (
                 <Icon icon="mdi:loading" className="text-base animate-spin" />
               ) : (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center justify-center gap-1">
                   <Icon icon="lucide:download" className="text-base" /> Save
                 </span>
               )}
@@ -184,8 +190,9 @@ export const NFTDetail: React.FC<NFTDetailProps> = ({ nft, onClose, fromAddress,
               variant="secondary"
               onClick={() => nft.assetRepresentative && openCreeperHash(nft.assetRepresentative)}
               disabled={!nft.assetRepresentative}
+              className="flex-1 min-w-0"
             >
-              <span className="flex items-center gap-1">
+              <span className="flex items-center justify-center gap-1">
                 <Icon icon="lucide:external-link" className="text-base" /> Creeper
               </span>
             </Button>
@@ -194,35 +201,40 @@ export const NFTDetail: React.FC<NFTDetailProps> = ({ nft, onClose, fromAddress,
               variant="secondary"
               onClick={() => metadataUrl && window.open(metadataUrl, '_blank', 'noopener,noreferrer')}
               disabled={!metadataUrl}
+              className="flex-1 min-w-0"
             >
-              <span className="flex items-center gap-1">
+              <span className="flex items-center justify-center gap-1">
                 <Icon icon="lucide:file-json" className="text-base" /> Meta
               </span>
             </Button>
+            {canTransfer && !done && !showTransfer && (
+              <IconButton
+                icon={<Icon icon="lucide:flame" className="text-xl" />}
+                variant="danger"
+                size="md"
+                className={`shrink-0 ${showBurn ? 'bg-destructive/15' : ''}`}
+                onClick={() => {
+                  setShowTransfer(false);
+                  setShowBurn((v) => !v);
+                }}
+                aria-label="Burn NFT"
+                aria-pressed={showBurn}
+              />
+            )}
           </div>
 
           {canTransfer && !done && !showBurn && (
             <Button
               size="sm"
               variant={showTransfer ? 'primary' : 'secondary'}
-              onClick={() => setShowTransfer((v) => !v)}
+              onClick={() => {
+                setShowBurn(false);
+                setShowTransfer((v) => !v);
+              }}
               className="w-full"
             >
               <span className="flex items-center justify-center gap-1">
                 <Icon icon="lucide:send" className="text-base" /> Transfer
-              </span>
-            </Button>
-          )}
-
-          {canTransfer && !done && !showTransfer && (
-            <Button
-              size="sm"
-              variant={showBurn ? 'danger' : 'ghost'}
-              onClick={() => setShowBurn((v) => !v)}
-              className="w-full"
-            >
-              <span className="flex items-center justify-center gap-1">
-                <Icon icon="lucide:flame" className="text-base" /> Burn
               </span>
             </Button>
           )}

@@ -9,10 +9,10 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS, ...extraHeaders },
   });
 }
 
@@ -40,6 +40,22 @@ http.route({
   }),
 });
 http.route({ path: '/nfts', method: 'OPTIONS', handler: preflight });
+
+// --- Explore directory ---
+// GET /explore -> { featured: ExploreSite[], sites: ExploreSite[] }
+http.route({
+  path: '/explore',
+  method: 'GET',
+  handler: httpAction(async (ctx) => {
+    let catalog = await ctx.runQuery(api.exploreSites.list, {});
+    if (catalog.featured.length === 0 && catalog.sites.length === 0) {
+      await ctx.runMutation(internal.exploreSites.seedFromData, {});
+      catalog = await ctx.runQuery(api.exploreSites.list, {});
+    }
+    return json(catalog, 200, { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' });
+  }),
+});
+http.route({ path: '/explore', method: 'OPTIONS', handler: preflight });
 
 // --- SIWB durable storage ---
 http.route({

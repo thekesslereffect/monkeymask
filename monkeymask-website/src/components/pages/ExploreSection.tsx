@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Icon } from '@iconify/react';
 import { Badge } from '@/components/ui';
+import { ExploreSitesDirectory } from '@/components/ExploreSitesDirectory';
 
 // Feature card component
 const FeatureCard = ({ 
@@ -80,7 +81,7 @@ export default function ExploreSection() {
     {
       icon: 'mdi:image-multiple',
       title: 'NFTs Built In',
-      description: 'View, mint, transfer, and burn Banano NFTs — editions, supply locking, and a full gallery, all from the wallet.',
+      description: 'View, mint, transfer, and burn Banano NFTs, including editions, supply locking, and a full gallery, all from the wallet.',
       highlight: true
     },
     {
@@ -88,51 +89,6 @@ export default function ExploreSection() {
       title: 'Privacy Features',
       description: 'Advanced privacy options including stealth addresses and transaction mixing for enhanced anonymity.',
       comingSoon: true
-    }
-  ];
-
-  const dappIdeas = [
-    {
-      icon: 'mdi:gamepad-variant',
-      title: 'Gaming & Entertainment',
-      description: 'Build engaging games with instant, feeless microtransactions',
-      examples: ['Skill-based tournaments', 'NFT collectible games', 'Streaming reward platforms', 'Interactive quiz shows'],
-      features: ['Instant payouts', 'Micropayments', 'Tournament brackets', 'Leaderboards']
-    },
-    {
-      icon: 'mdi:chart-line',
-      title: 'DeFi & Trading',
-      description: 'Create financial applications with seamless wallet integration',
-      examples: ['Decentralized exchanges', 'Yield farming platforms', 'Prediction markets', 'Portfolio trackers'],
-      features: ['Swap interfaces', 'Liquidity pools', 'Price oracles', 'Trading bots']
-    },
-    {
-      icon: 'mdi:message-text',
-      title: 'Social & Communication',
-      description: 'Build social platforms with crypto-native features',
-      examples: ['Decentralized forums', 'Tip-enabled chat apps', 'Content creator platforms', 'Community DAOs'],
-      features: ['Message signing', 'Tip integration', 'Reputation systems', 'Governance voting']
-    },
-    {
-      icon: 'mdi:store',
-      title: 'E-commerce & Marketplaces',
-      description: 'Enable seamless crypto payments for online commerce',
-      examples: ['NFT marketplaces', 'Digital goods stores', 'Service platforms', 'Subscription services'],
-      features: ['Payment processing', 'Escrow systems', 'Digital receipts', 'Refund handling']
-    },
-    {
-      icon: 'mdi:school',
-      title: 'Education & Learning',
-      description: 'Gamify learning with blockchain-based rewards and certificates',
-      examples: ['Course completion rewards', 'Skill verification', 'Study groups with tips', 'Educational DAOs'],
-      features: ['Achievement NFTs', 'Progress tracking', 'Peer rewards', 'Certificate validation']
-    },
-    {
-      icon: 'mdi:charity',
-      title: 'Charity & Crowdfunding',
-      description: 'Create transparent donation and fundraising platforms',
-      examples: ['Charity platforms', 'Crowdfunding campaigns', 'Mutual aid networks', 'Impact tracking'],
-      features: ['Transparent donations', 'Goal tracking', 'Impact reports', 'Donor recognition']
     }
   ];
 
@@ -174,47 +130,8 @@ export default function ExploreSection() {
       )}
 
       {activeTab === 'ecosystem' && (
-        <div className="space-y-8 mb-16">          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {dappIdeas.map((idea, index) => (
-              <div key={index} className="p-6 bg-white rounded-xl border border-border transition-all duration-300">
-                <div className="flex items-center gap-3 mb-4">
-                  {/* <div className="p-3 rounded-xl bg-secondary">
-                    <Icon icon={idea.icon} className="size-6 text-secondary-foreground" />
-                  </div> */}
-                  <h4 className="text-xl font-bold">{idea.title}</h4>
-                </div>
-                
-                <p className="text-sm text-secondary-foreground mb-4 leading-relaxed">
-                  {idea.description}
-                </p>
-                
-                <div className="space-y-4">
-                  <div>
-                    <h5 className="text-sm font-semibold mb-2 text-foreground">Example dApps:</h5>
-                    <div className="flex flex-wrap gap-1">
-                      {idea.examples.map((example, exampleIndex) => (
-                        <Badge key={exampleIndex} variant="outline" className="text-xs bg-secondary/50">
-                          {example}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h5 className="text-sm font-semibold mb-2 text-foreground">Key Features:</h5>
-                    <div className="flex flex-wrap gap-1">
-                      {idea.features.map((feature, featureIndex) => (
-                        <Badge key={featureIndex} variant="outline" className="text-xs">
-                          {feature}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="mb-16">
+          <ExploreSitesDirectory />
         </div>
       )}
     </div>

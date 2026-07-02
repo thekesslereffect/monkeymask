@@ -3,7 +3,7 @@ import React from 'react';
 interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon: React.ReactNode;
   size?: 'sm' | 'md' | 'lg';
-  variant?: 'default' | 'ghost';
+  variant?: 'default' | 'ghost' | 'danger';
 }
 
 export const IconButton: React.FC<IconButtonProps> = ({
@@ -17,7 +17,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
   
   const variantClasses = {
     default: 'text-tertiary hover:text-primary',
-    ghost: 'p-2 text-tertiary hover:text-primary hover:bg-muted'
+    ghost: 'p-2 text-tertiary hover:text-primary hover:bg-muted',
+    danger: 'p-2 text-destructive hover:bg-destructive/10 hover:text-destructive',
   };
   
   const sizeClasses = {

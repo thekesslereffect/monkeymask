@@ -62,34 +62,35 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     console.log('App: useEffect triggered - initializing...');
     
-    // Check for pending requests first, then wallet state
+    // Flip the loading spinner off exactly once, whether init finishes normally
+    // or the safety net trips.
+    let loadingSettled = false;
+    const finishLoading = () => {
+      if (loadingSettled) return;
+      loadingSettled = true;
+      setLoading(false);
+    };
+
     const initializeApp = async () => {
-      console.log('App: Starting app initialization...');
-      const initWork = async () => {
-        console.log('App: Step 1 - Checking for pending requests...');
-        await checkPendingRequests();
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        console.log('App: Step 2 - Checking wallet state...');
-        await checkWalletState();
-      };
-
-      const timeout = new Promise<void>((resolve) => {
-        setTimeout(() => {
-          console.warn('App: Initialization timed out — showing UI anyway');
-          resolve();
-        }, 5000);
-      });
-
       try {
-        await Promise.race([initWork(), timeout]);
-        console.log('App: App initialization complete');
+        // Order matters: resolve a pending approval request first so it wins
+        // over the default route, then reconcile wallet lock state. Each call
+        // has its own timeout and swallows its own errors, so this always
+        // settles quickly even if the background worker is briefly unreachable.
+        await checkPendingRequests();
+        await checkWalletState();
       } catch (error) {
         console.error('App: Error during initialization:', error);
       } finally {
-        setLoading(false);
+        finishLoading();
       }
     };
-    
+
+    // Safety net so the popup never sticks on a spinner if the background
+    // service worker is unusually slow to wake. Normal init settles well before
+    // this, and it fires silently rather than surfacing a warning.
+    const loadingSafety = setTimeout(finishLoading, 8000);
+
     initializeApp();
     
     // Check for pending requests when the popup becomes visible
@@ -128,6 +129,7 @@ const AppContent: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
       clearTimeout(delayedCheck);
+      clearTimeout(loadingSafety);
     };
   }, []);
 
@@ -142,7 +144,7 @@ const AppContent: React.FC = () => {
       const response = await Promise.race([
         chrome.runtime.sendMessage({ type: 'GET_PENDING_APPROVAL' }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('GET_PENDING_APPROVAL timeout')), 4000),
+          setTimeout(() => reject(new Error('GET_PENDING_APPROVAL timeout')), 3000),
         ),
       ]);
       console.log('App: Pending approval response:', response);
@@ -180,7 +182,7 @@ const AppContent: React.FC = () => {
       const response = await Promise.race([
         chrome.runtime.sendMessage({ type: 'GET_WALLET_STATE' }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('GET_WALLET_STATE timeout')), 4000),
+          setTimeout(() => reject(new Error('GET_WALLET_STATE timeout')), 3000),
         ),
       ]);
       console.log('App: Wallet state response:', response);
@@ -378,7 +380,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="h-full bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
       <Router
         walletState={walletState}
         onWalletCreated={handleWalletCreated}

@@ -196,7 +196,7 @@ export function AirdropForm() {
       {results && (
         <StatusBox
           variant={failed === 0 ? 'success' : succeeded === 0 ? 'error' : 'info'}
-          title={`Sent ${succeeded}/${results.length}${failed ? ` — ${failed} failed` : ''}`}
+          title={`Sent ${succeeded}/${results.length}${failed ? ` (${failed} failed)` : ''}`}
         >
           <div className="space-y-1">
             {results.map((r, i) => (
