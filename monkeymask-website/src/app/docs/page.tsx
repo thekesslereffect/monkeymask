@@ -714,6 +714,13 @@ const { signedMessage, signature } = await signMessage(bytes);`}</CodeBlock>
               block, and the mint block hash becomes the asset representative. Art + metadata are
               pinned to IPFS by your app (v0 <code>Qm…</code> or v1 <code>b…</code> sha2-256 CIDs).
             </P>
+            <P>
+              The pinned metadata follows the standard ERC-721 / ERC-1155 JSON shape (
+              <code>name</code>, <code>description</code>, <code>image</code>, optional{' '}
+              <code>attributes</code>). The metaprotocol itself only reads the CID, so traits are
+              purely for display. The artwork&apos;s MIME type is auto-detected and stored under{' '}
+              <code>properties.content_type</code>.
+            </P>
 
             <Section id="nft-mint" title="Mint">
               <CodeBlock>{`import { useMintNFT } from '@monkeymask/react';
@@ -721,9 +728,13 @@ const mint = useMintNFT();
 
 // 1) Pin art + metadata to IPFS (server route; needs PINATA_JWT).
 const form = new FormData();
-form.append('image', file);
+form.append('file', file);
 form.append('name', 'My NFT');
 form.append('description', 'Minted with MonkeyMask');
+// Optional ERC-721 traits (shown by wallets/marketplaces):
+form.append('attributes', JSON.stringify([
+  { trait_type: 'Background', value: 'Volcano' },
+]));
 const { metadataCid, imageCid } = await fetch('/api/ipfs', {
   method: 'POST', body: form,
 }).then((r) => r.json());

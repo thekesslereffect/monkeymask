@@ -1,1 +1,977 @@
-(()=>{"use strict";var e={1901:(e,t,n)=>{n.r(t),n.d(t,{ATOMIC_SWAP_HEADER_HEX:()=>S,BANANO_CHAINS:()=>a,BANANO_MAINNET:()=>s,BANANO_TESTNET:()=>r,BURN_ACCOUNTS:()=>w,BananoSignAndSendTransaction:()=>p,BananoSignIn:()=>u,BananoSignMessage:()=>c,BananoSignTransaction:()=>d,CANCEL_SUPPLY_REPRESENTATIVE:()=>I,CANONICAL_BURN_ACCOUNT:()=>A,FINISH_SUPPLY_HEADER_HEX:()=>E,PROTOCOL_INIT_EVENT:()=>z,PROTOCOL_SOURCE_EVENT:()=>F,PROTOCOL_SOURCE_REQUEST:()=>V,PROTOCOL_SOURCE_RESPONSE:()=>K,PROVIDER_ERRORS:()=>i,SEND_ALL_NFTS_REPRESENTATIVE:()=>R,SPENDING_SESSION_EVENT:()=>X,SUPPLY_HEADER_HEX:()=>b,WALLET_STANDARD_APP_READY_EVENT:()=>G,WALLET_STANDARD_REGISTER_EVENT:()=>Y,accountToPublicKeyHex:()=>C,banToRaw:()=>ue,buildBananoUri:()=>pe,bytesToHex:()=>l,createBananoWalletAccount:()=>f,createProtocolError:()=>J,createProtocolSuccess:()=>Q,createProviderError:()=>o,createSignInMessageText:()=>te,decodeBase64:()=>m,deserializeSignInOutput:()=>ae,encodeBase64:()=>g,finishSupplyHeightFromRepresentative:()=>P,generateNonce:()=>ie,getProtocolTimeoutMs:()=>Z,hexToBytes:()=>h,isAtomicSwapRepresentative:()=>D,isBananoUri:()=>fe,isBurnAccount:()=>T,isCancelSupplyRepresentative:()=>H,isFinishSupplyRepresentative:()=>x,isSupplyRepresentative:()=>U,isValidMetadataRepresentative:()=>M,maxSupplyFromRepresentative:()=>B,metadataCidFromRepresentative:()=>_,parseAtomicSwapRepresentative:()=>W,parseBananoUri:()=>he,parseSignInMessage:()=>ne,rawToBan:()=>de,representativeMatchesAsset:()=>O,scanOwnedNFTs:()=>j,serializeSignInOutput:()=>re,verifySignIn:()=>se});var s="banano:mainnet",r="banano:testnet",a=[s,r],i={USER_REJECTED:{code:4001,message:"User rejected the request"},UNAUTHORIZED:{code:4100,message:"Unauthorized - not connected to MonkeyMask"},UNSUPPORTED_METHOD:{code:4200,message:"Unsupported method"},DISCONNECTED:{code:4900,message:"Provider is disconnected"},CHAIN_DISCONNECTED:{code:4901,message:"Chain is disconnected"},INVALID_PARAMS:{code:-32602,message:"Invalid method parameters"},INTERNAL_ERROR:{code:-32603,message:"Internal error"},PARSE_ERROR:{code:-32700,message:"Parse error"},INVALID_REQUEST:{code:-32600,message:"Invalid request"},METHOD_NOT_FOUND:{code:-32601,message:"Method not found"}};function o(e,t=i.INTERNAL_ERROR.code,n){const s=new Error(e);return s.code=t,s.data=n,s}var c="banano:signMessage",u="banano:signIn",d="banano:signTransaction",p="banano:signAndSendTransaction";function f(e,t,n=[c,u,d,p],r){return{address:e,publicKey:t,chains:[s],features:n,...r?{label:r}:{}}}function h(e){const t=e.startsWith("0x")?e.slice(2):e;if(t.length%2!=0)throw new Error("Invalid hex string");const n=new Uint8Array(t.length/2);for(let e=0;e<n.length;e++)n[e]=parseInt(t.slice(2*e,2*e+2),16);return n}function l(e){return Array.from(e).map(e=>e.toString(16).padStart(2,"0")).join("")}function g(e){let t="";for(const n of e)t+=String.fromCharCode(n);return btoa(t)}function m(e){const t=atob(e),n=new Uint8Array(t.length);for(let e=0;e<t.length;e++)n[e]=t.charCodeAt(e);return n}var v="13456789abcdefghijkmnopqrstuwxyz",y="123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz",b="51BACEED6078000000",E="3614865E0051BA0033BB581E",S="23559C159E22C",R="ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits",I="ban_1nftsupp1ycance1111oops1111that1111was1111my1111bad1hq5sjhey",A="ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w",w=new Set([A,"ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp","ban_1ban116su1fur16uo1cano16su1fur16161616161616161616166a1sf7xw","ban_1111111111111111111111111111111111111111111111111111hifc8npp"]);function T(e){return w.has(e)}var N=new Set(["ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w","ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp","ban_1ban116su1fur16uo1cano16su1fur16161616161616161616166a1sf7xw","ban_1111111111111111111111111111111111111111111111111111hifc8npp","ban_1nftsupp1ycance1111oops1111that1111was1111my1111bad1hq5sjhey"]);function C(e){const t=e.indexOf("_"),n=(t>=0?e.slice(t+1):e).slice(0,52);if(52!==n.length)throw new Error("Invalid account: unexpected length");let s="";for(const e of n){const t=v.indexOf(e);if(t<0)throw new Error(`Invalid account character: ${e}`);s+=t.toString(2).padStart(5,"0")}const r=s.slice(4);let a="";for(let e=0;e<r.length;e+=4)a+=parseInt(r.slice(e,e+4),2).toString(16);return a.toUpperCase()}function _(e){return function(e){let t=0n;for(const n of e)t=256n*t+BigInt(n);let n="";for(;t>0n;){const e=Number(t%58n);t/=58n,n=y[e]+n}for(const t of e){if(0!==t)break;n="1"+n}return n}(h(`1220${C(e)}`))}function O(e,t){if(e===R)return!0;try{return C(e)===t.toUpperCase()}catch{return!1}}function U(e){try{return C(e).startsWith(b)}catch{return!1}}function B(e){const t=C(e);return Number(BigInt(`0x${t.slice(48)}`))}function M(e){if(N.has(e))return!1;let t;try{t=C(e)}catch{return!1}return!t.startsWith(b)&&(!t.startsWith(E)&&!t.startsWith(S))}function x(e){try{return C(e).startsWith(E)}catch{return!1}}function P(e){const t=C(e);return Number(BigInt(`0x${t.slice(E.length)}`))}function H(e){if(e===I)return!0;try{const t=C(e);return t.startsWith(b)||t.startsWith(E)||t.startsWith(S)}catch{return!1}}function D(e){try{return C(e).startsWith(S)}catch{return!1}}function W(e){const t=C(e),n=S.length;return{assetHeight:Number(BigInt(`0x${t.slice(n,n+10)}`)),receiveHeight:Number(BigInt(`0x${t.slice(n+10,n+20)}`)),minRaw:BigInt(`0x${t.slice(n+20,64)}`).toString(10)}}var k=/^[0-9A-F]{64}$/;function $(e){return void 0===e?-1:Number(e)}async function L(e,t){const n=[...new Set([...e].filter(e=>k.test(e.toUpperCase())))],s=new Map;for(const e of function(e,t){const n=[];for(let s=0;s<e.length;s+=t)n.push(e.slice(s,s+t));return n}(n,500)){if(0===e.length)continue;let n;try{n=await t(e)}catch{continue}for(const[e,t]of n)s.set(e.toUpperCase(),t)}return s}var q=Number.MAX_SAFE_INTEGER;async function j(e,t){let n,s;try{n=C(e).toUpperCase()}catch{return[]}try{s=await t.accountHistory(e)}catch{return[]}s.sort((e,t)=>$(e.height)-$(t.height));const r=new Map;for(const e of s)r.set($(e.height),e);const a=new Set;for(const e of s)"change"===e.subtype&&e.representative&&x(e.representative)&&a.add(P(e.representative));const i=new Map,o=new Map;for(const e of s){if("change"!==e.subtype||!e.representative)continue;if(!U(e.representative))continue;const t=$(e.height),s=r.get(t+1);if(!s||"send"!==s.subtype||!s.representative)continue;if(!M(s.representative))continue;let c,u;try{c=_(s.representative),u=B(e.representative)}catch{continue}o.set(c,(o.get(c)??0)+1);if(!((s.link??"").toUpperCase()===n))continue;const d=s.hash.toUpperCase();i.set(d,{assetRep:d,metadataCid:c,supplyBlockHash:e.hash,maxSupply:u,finished:a.has(t),source:"minted",acquiredHeight:$(s.height)})}const c=new Map;for(const e of s){if("receive"!==e.subtype&&"open"!==e.subtype)continue;const t=(e.link??"").toUpperCase();k.test(t)&&c.set(t,$(e.height))}const u=new Set;if(t.accountReceivable){let n=[];try{n=await t.accountReceivable(e)}catch{n=[]}for(const e of n){const t=e.toUpperCase();k.test(t)&&!c.has(t)&&(c.set(t,q),u.add(t))}}const d=await L(c.keys(),t.blocksInfo),p=[],f=new Set;for(const[e,t]of c){const n=d.get(e);if(!n||"send"!==n.subtype||!n.representative)continue;const s=n.representative;if(s===R||D(s))continue;if(!M(s))continue;const r={sendHash:e,rep:s,acquiredHeight:t,pending:u.has(e)};n.previous&&k.test(n.previous.toUpperCase())&&(r.previousHash=n.previous.toUpperCase(),f.add(r.previousHash));try{const e=C(s).toUpperCase();k.test(e)&&(r.transferMintHash=e,f.add(e))}catch{}p.push(r)}const h=await L(f,t.blocksInfo),l=new Set;for(const e of p){const t=e.previousHash?h.get(e.previousHash):void 0;if(!!t&&"change"===t.subtype&&!!t.representative&&U(t.representative)&&t){const n=e.sendHash;if(i.has(n))continue;let s,r;try{s=_(e.rep),r=B(t.representative)}catch{continue}i.set(n,{assetRep:n,metadataCid:s,supplyBlockHash:e.previousHash,maxSupply:r,source:"received",acquiredHeight:e.acquiredHeight,pending:e.pending});continue}if(e.transferMintHash){const t=h.get(e.transferMintHash);if(!t||"send"!==t.subtype||!t.representative)continue;if(!M(t.representative))continue;const n=e.transferMintHash;if(i.has(n))continue;let s;try{s=_(t.representative)}catch{continue}const r=t.previous?.toUpperCase();r&&k.test(r)&&l.add(r),i.set(n,{assetRep:n,metadataCid:s,supplyBlockHash:r,source:"received",acquiredHeight:e.acquiredHeight,pending:e.pending})}}if(l.size>0){const e=await L(l,t.blocksInfo);for(const t of i.values()){if("received"!==t.source||void 0!==t.maxSupply)continue;if(!t.supplyBlockHash)continue;const n=e.get(t.supplyBlockHash);if(n&&n.representative&&U(n.representative))try{t.maxSupply=B(n.representative)}catch{}}}let g=1/0;for(const e of s)"send"===e.subtype&&e.representative&&e.representative===R&&(g=Math.min(g,$(e.height)));for(const e of s){if("send"!==e.subtype||!e.representative)continue;const t=$(e.height);for(const n of[...i.values()])t<=n.acquiredHeight||O(e.representative,n.assetRep)&&i.delete(n.assetRep)}if(g!==1/0)for(const e of[...i.values()])e.acquiredHeight<g&&i.delete(e.assetRep);const m=new Map;for(const e of i.values()){const t=e.metadataCid??e.assetRep,n=m.get(t);n?(n.heldCount+=1,e.finished&&(n.finished=!0),e.pending||(n.allPending=!1),"received"===n.primary.source&&"minted"===e.source&&(n.primary=e)):m.set(t,{primary:e,heldCount:1,finished:Boolean(e.finished),allPending:Boolean(e.pending)})}const v=[];for(const e of m.values()){const{primary:t,heldCount:n}=e,s=t.metadataCid?o.get(t.metadataCid):void 0;v.push({assetRep:t.assetRep,metadataCid:t.metadataCid,supplyBlockHash:t.supplyBlockHash,maxSupply:t.maxSupply,mintedCount:s,heldCount:n,finished:e.finished,source:t.source,pending:e.allPending||void 0})}return v}var V="monkeymask-provider",K="monkeymask-provider-response",F="monkeymask-provider-event",z="monkeymask#initialized",X="monkeymask:spendingSessionChanged",Y="wallet-standard:register-wallet",G="wallet-standard:app-ready";function Q(e){return{success:!0,data:e}}function J(e,t=i.INTERNAL_ERROR.code){return{success:!1,error:e,code:t}}function Z(e){switch(e){case"standard:connect":return 3e5;case"banano:signMessage":case"banano:signIn":case"banano:signTransaction":case"banano:signAndSendTransaction":case"banano:requestSpendingSession":return 9e5;case"banano:reverseResolveBNS":return 6e4;default:return 3e4}}var ee=" wants you to sign in with your Banano account:";function te(e){if(!e.domain||!e.address)throw new Error("SIWB message requires domain and address");let t=`${e.domain}${ee}\n`;t+=e.address,e.statement&&(t+=`\n\n${e.statement}`);const n=[];if(e.uri&&n.push(`URI: ${e.uri}`),e.version&&n.push(`Version: ${e.version}`),e.chainId&&n.push(`Chain ID: ${e.chainId}`),e.nonce&&n.push(`Nonce: ${e.nonce}`),e.issuedAt&&n.push(`Issued At: ${e.issuedAt}`),e.expirationTime&&n.push(`Expiration Time: ${e.expirationTime}`),e.notBefore&&n.push(`Not Before: ${e.notBefore}`),e.requestId&&n.push(`Request ID: ${e.requestId}`),e.resources?.length){n.push("Resources:");for(const t of e.resources)n.push(`- ${t}`)}return n.length&&(t+=`\n\n${n.join("\n")}`),t}function ne(e){const t=e.indexOf(ee);if(-1===t)throw new Error("Invalid SIWB message format");const n=e.slice(0,t),s=e.slice(t+ee.length).replace(/^\n/,"").split("\n"),r=s[0]?.trim();if(!n||!r)throw new Error("Invalid SIWB message: missing domain or address");const a={domain:n,address:r};let i=s.findIndex((e,t)=>t>0&&(e=>e.startsWith("URI: ")||e.startsWith("Version: ")||e.startsWith("Chain ID: ")||e.startsWith("Nonce: ")||e.startsWith("Issued At: ")||e.startsWith("Expiration Time: ")||e.startsWith("Not Before: ")||e.startsWith("Request ID: ")||"Resources:"===e)(e));-1===i&&(i=s.length);const o=s.slice(1,i).join("\n").trim();o&&(a.statement=o);let c=!1;for(let e=i;e<s.length;e++){const t=s[e];t.startsWith("URI: ")?(c=!1,a.uri=t.slice(5)):t.startsWith("Version: ")?(c=!1,a.version=t.slice(9)):t.startsWith("Chain ID: ")?(c=!1,a.chainId=t.slice(10)):t.startsWith("Nonce: ")?(c=!1,a.nonce=t.slice(7)):t.startsWith("Issued At: ")?(c=!1,a.issuedAt=t.slice(11)):t.startsWith("Expiration Time: ")?(c=!1,a.expirationTime=t.slice(17)):t.startsWith("Not Before: ")?(c=!1,a.notBefore=t.slice(12)):t.startsWith("Request ID: ")?(c=!1,a.requestId=t.slice(12)):"Resources:"!==t?c&&t.startsWith("- ")&&a.resources.push(t.slice(2)):(c=!0,a.resources=[])}return{domain:n,address:r,...a.statement?{statement:a.statement}:{},...a.uri?{uri:a.uri}:{},...a.version?{version:a.version}:{},...a.chainId?{chainId:a.chainId}:{},...a.nonce?{nonce:a.nonce}:{},...a.issuedAt?{issuedAt:a.issuedAt}:{},...a.expirationTime?{expirationTime:a.expirationTime}:{},...a.notBefore?{notBefore:a.notBefore}:{},...a.requestId?{requestId:a.requestId}:{},...a.resources?{resources:a.resources}:{}}}function se(e,t,n,s={}){const r=function(e){return{account:{...e.account,publicKey:e.account.publicKey instanceof Uint8Array?e.account.publicKey:new Uint8Array(e.account.publicKey)},signedMessage:e.signedMessage instanceof Uint8Array?e.signedMessage:new Uint8Array(e.signedMessage),signature:e.signature instanceof Uint8Array?e.signature:new Uint8Array(e.signature),signatureType:e.signatureType}}(t),a=(new TextDecoder).decode(r.signedMessage),i=ne(a),o=s.expectedDomain??e.domain;if(o&&i.domain!==o)return!1;if(e.address&&i.address!==e.address)return!1;if(void 0!==e.statement&&i.statement!==e.statement)return!1;if(void 0!==e.uri&&i.uri!==e.uri)return!1;if(void 0!==e.version&&i.version!==e.version)return!1;if(void 0!==e.chainId&&i.chainId!==e.chainId)return!1;if(void 0!==e.nonce&&i.nonce!==e.nonce)return!1;if(void 0!==e.issuedAt&&i.issuedAt!==e.issuedAt)return!1;if(void 0!==e.expirationTime&&i.expirationTime!==e.expirationTime)return!1;if(void 0!==e.notBefore&&i.notBefore!==e.notBefore)return!1;if(void 0!==e.requestId&&i.requestId!==e.requestId)return!1;if(void 0!==e.resources){if(e.resources.join("\n")!==(i.resources??[]).join("\n"))return!1}if(te(i)!==a)return!1;const c=Date.now(),u=s.issuedAtThresholdMs??6e5;if(i.issuedAt){const e=Date.parse(i.issuedAt);if(Number.isNaN(e)||Math.abs(e-c)>u)return!1}if(i.expirationTime){const e=Date.parse(i.expirationTime);if(Number.isNaN(e)||e<=c)return!1}if(i.notBefore){const e=Date.parse(i.notBefore);if(Number.isNaN(e)||e>c)return!1}const d=n.getAccountPublicKey(i.address),p=l(r.signature);return n.verifyMessage(d,a,p)}function re(e){return{account:{address:e.account.address,publicKey:g(e.account.publicKey instanceof Uint8Array?e.account.publicKey:new Uint8Array(e.account.publicKey)),chains:e.account.chains,features:e.account.features,label:e.account.label,icon:e.account.icon},signedMessage:g(e.signedMessage instanceof Uint8Array?e.signedMessage:new Uint8Array(e.signedMessage)),signature:g(e.signature instanceof Uint8Array?e.signature:new Uint8Array(e.signature)),signatureType:e.signatureType??"ed25519"}}function ae(e){const t=e.account;return{account:{address:t.address,publicKey:m(t.publicKey),chains:t.chains??[],features:t.features??[],...t.label?{label:t.label}:{},...t.icon?{icon:t.icon}:{}},signedMessage:m(e.signedMessage),signature:m(e.signature),signatureType:e.signatureType??"ed25519"}}function ie(e=12){const t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",n=new Uint8Array(e);return crypto.getRandomValues(n),Array.from(n,e=>t[e%62]).join("")}var oe=29,ce=/^ban_[13][0-9a-z]{59}$/;function ue(e){const t=e.trim();if(!/^\d*(\.\d*)?$/.test(t)||""===t||"."===t)throw new Error(`Invalid BAN amount: ${e}`);const[n,s=""]=t.split("."),r=(s+"0".repeat(oe)).slice(0,oe);return BigInt((n||"0")+r).toString()}function de(e){const t=BigInt(e),n=10n**BigInt(oe),s=t/n,r=t%n;if(0n===r)return s.toString();const a=r.toString().padStart(oe,"0").replace(/0+$/,"");return`${s.toString()}.${a}`}function pe(e){if(!ce.test(e.address))throw new Error(`Invalid Banano address: ${e.address}`);const t=new URLSearchParams;e.amount&&""!==e.amount.trim()&&"0"!==e.amount.trim()&&t.set("amount",ue(e.amount)),e.label&&t.set("label",e.label),e.message&&t.set("message",e.message);const n=t.toString();return`ban:${e.address}${n?`?${n}`:""}`}function fe(e){return/^ban:/i.test(e.trim())}function he(e){const t=e.trim().match(/^ban:([^?]+)(?:\?(.*))?$/i);if(!t)return null;const n=t[1];if(!ce.test(n))return null;const s=new URLSearchParams(t[2]??""),r=s.get("amount");let a;if(r)try{a=de(r)}catch{a=void 0}return{address:n,amount:a,label:s.get("label")??void 0,message:s.get("message")??void 0}}}},t={};function n(s){var r=t[s];if(void 0!==r)return r.exports;var a=t[s]={exports:{}};return e[s](a,a.exports,n),a.exports}n.d=(e,t)=>{for(var s in t)n.o(t,s)&&!n.o(e,s)&&Object.defineProperty(e,s,{enumerable:!0,get:t[s]})},n.o=(e,t)=>Object.prototype.hasOwnProperty.call(e,t),n.r=e=>{"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})};(()=>{const e=n(1901),t=window.location.origin,s=document.createElement("script");s.src=chrome.runtime.getURL("injected.js"),s.onload=function(){s.parentNode&&s.parentNode.removeChild(s)},(document.head||document.documentElement).appendChild(s),window.addEventListener("message",n=>{n.source===window&&n.origin===t&&n.data&&(t=>{if(!t||"object"!=typeof t)return!1;const n=t;return n.source===e.PROTOCOL_SOURCE_REQUEST&&"number"==typeof n.id&&"string"==typeof n.method})(n.data)&&chrome.runtime.sendMessage({...n.data,origin:window.location.origin}).then(s=>{window.postMessage({source:e.PROTOCOL_SOURCE_RESPONSE,id:n.data.id,response:s},t)}).catch(s=>{window.postMessage({source:e.PROTOCOL_SOURCE_RESPONSE,id:n.data.id,response:{success:!1,error:s.message||"Unknown error",code:4900}},t)})}),chrome.runtime.onMessage.addListener(n=>{"monkeymask-provider-event-broadcast"===n.source&&window.postMessage({source:e.PROTOCOL_SOURCE_EVENT,event:n.event,data:n.data},t)})})()})();
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ "../packages/wallet-standard/dist/index.js":
+/*!*************************************************!*\
+  !*** ../packages/wallet-standard/dist/index.js ***!
+  \*************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ATOMIC_SWAP_HEADER_HEX: () => (/* binding */ ATOMIC_SWAP_HEADER_HEX),
+/* harmony export */   BANANO_CHAINS: () => (/* binding */ BANANO_CHAINS),
+/* harmony export */   BANANO_MAINNET: () => (/* binding */ BANANO_MAINNET),
+/* harmony export */   BANANO_TESTNET: () => (/* binding */ BANANO_TESTNET),
+/* harmony export */   BURN_ACCOUNTS: () => (/* binding */ BURN_ACCOUNTS),
+/* harmony export */   BananoSignAndSendTransaction: () => (/* binding */ BananoSignAndSendTransaction),
+/* harmony export */   BananoSignIn: () => (/* binding */ BananoSignIn),
+/* harmony export */   BananoSignMessage: () => (/* binding */ BananoSignMessage),
+/* harmony export */   BananoSignTransaction: () => (/* binding */ BananoSignTransaction),
+/* harmony export */   CANCEL_SUPPLY_REPRESENTATIVE: () => (/* binding */ CANCEL_SUPPLY_REPRESENTATIVE),
+/* harmony export */   CANONICAL_BURN_ACCOUNT: () => (/* binding */ CANONICAL_BURN_ACCOUNT),
+/* harmony export */   FINISH_SUPPLY_HEADER_HEX: () => (/* binding */ FINISH_SUPPLY_HEADER_HEX),
+/* harmony export */   PROTOCOL_INIT_EVENT: () => (/* binding */ PROTOCOL_INIT_EVENT),
+/* harmony export */   PROTOCOL_SOURCE_EVENT: () => (/* binding */ PROTOCOL_SOURCE_EVENT),
+/* harmony export */   PROTOCOL_SOURCE_REQUEST: () => (/* binding */ PROTOCOL_SOURCE_REQUEST),
+/* harmony export */   PROTOCOL_SOURCE_RESPONSE: () => (/* binding */ PROTOCOL_SOURCE_RESPONSE),
+/* harmony export */   PROVIDER_ERRORS: () => (/* binding */ PROVIDER_ERRORS),
+/* harmony export */   SEND_ALL_NFTS_REPRESENTATIVE: () => (/* binding */ SEND_ALL_NFTS_REPRESENTATIVE),
+/* harmony export */   SPENDING_SESSION_EVENT: () => (/* binding */ SPENDING_SESSION_EVENT),
+/* harmony export */   SUPPLY_HEADER_HEX: () => (/* binding */ SUPPLY_HEADER_HEX),
+/* harmony export */   WALLET_STANDARD_APP_READY_EVENT: () => (/* binding */ WALLET_STANDARD_APP_READY_EVENT),
+/* harmony export */   WALLET_STANDARD_REGISTER_EVENT: () => (/* binding */ WALLET_STANDARD_REGISTER_EVENT),
+/* harmony export */   accountToPublicKeyHex: () => (/* binding */ accountToPublicKeyHex),
+/* harmony export */   banToRaw: () => (/* binding */ banToRaw),
+/* harmony export */   buildBananoUri: () => (/* binding */ buildBananoUri),
+/* harmony export */   bytesToHex: () => (/* binding */ bytesToHex),
+/* harmony export */   createBananoWalletAccount: () => (/* binding */ createBananoWalletAccount),
+/* harmony export */   createProtocolError: () => (/* binding */ createProtocolError),
+/* harmony export */   createProtocolSuccess: () => (/* binding */ createProtocolSuccess),
+/* harmony export */   createProviderError: () => (/* binding */ createProviderError),
+/* harmony export */   createSignInMessageText: () => (/* binding */ createSignInMessageText),
+/* harmony export */   decodeBase64: () => (/* binding */ decodeBase64),
+/* harmony export */   deserializeSignInOutput: () => (/* binding */ deserializeSignInOutput),
+/* harmony export */   encodeBase64: () => (/* binding */ encodeBase64),
+/* harmony export */   finishSupplyHeightFromRepresentative: () => (/* binding */ finishSupplyHeightFromRepresentative),
+/* harmony export */   generateNonce: () => (/* binding */ generateNonce),
+/* harmony export */   getProtocolTimeoutMs: () => (/* binding */ getProtocolTimeoutMs),
+/* harmony export */   hexToBytes: () => (/* binding */ hexToBytes),
+/* harmony export */   isAtomicSwapRepresentative: () => (/* binding */ isAtomicSwapRepresentative),
+/* harmony export */   isBananoUri: () => (/* binding */ isBananoUri),
+/* harmony export */   isBurnAccount: () => (/* binding */ isBurnAccount),
+/* harmony export */   isCancelSupplyRepresentative: () => (/* binding */ isCancelSupplyRepresentative),
+/* harmony export */   isFinishSupplyRepresentative: () => (/* binding */ isFinishSupplyRepresentative),
+/* harmony export */   isSupplyRepresentative: () => (/* binding */ isSupplyRepresentative),
+/* harmony export */   isValidMetadataRepresentative: () => (/* binding */ isValidMetadataRepresentative),
+/* harmony export */   maxSupplyFromRepresentative: () => (/* binding */ maxSupplyFromRepresentative),
+/* harmony export */   metadataCidFromRepresentative: () => (/* binding */ metadataCidFromRepresentative),
+/* harmony export */   parseAtomicSwapRepresentative: () => (/* binding */ parseAtomicSwapRepresentative),
+/* harmony export */   parseBananoUri: () => (/* binding */ parseBananoUri),
+/* harmony export */   parseSignInMessage: () => (/* binding */ parseSignInMessage),
+/* harmony export */   rawToBan: () => (/* binding */ rawToBan),
+/* harmony export */   representativeMatchesAsset: () => (/* binding */ representativeMatchesAsset),
+/* harmony export */   scanOwnedNFTs: () => (/* binding */ scanOwnedNFTs),
+/* harmony export */   serializeSignInOutput: () => (/* binding */ serializeSignInOutput),
+/* harmony export */   verifySignIn: () => (/* binding */ verifySignIn)
+/* harmony export */ });
+// src/chains.ts
+var BANANO_MAINNET = "banano:mainnet";
+var BANANO_TESTNET = "banano:testnet";
+var BANANO_CHAINS = [BANANO_MAINNET, BANANO_TESTNET];
+
+// src/errors.ts
+var PROVIDER_ERRORS = {
+  USER_REJECTED: { code: 4001, message: "User rejected the request" },
+  UNAUTHORIZED: { code: 4100, message: "Unauthorized - not connected to MonkeyMask" },
+  UNSUPPORTED_METHOD: { code: 4200, message: "Unsupported method" },
+  DISCONNECTED: { code: 4900, message: "Provider is disconnected" },
+  CHAIN_DISCONNECTED: { code: 4901, message: "Chain is disconnected" },
+  INVALID_PARAMS: { code: -32602, message: "Invalid method parameters" },
+  INTERNAL_ERROR: { code: -32603, message: "Internal error" },
+  PARSE_ERROR: { code: -32700, message: "Parse error" },
+  INVALID_REQUEST: { code: -32600, message: "Invalid request" },
+  METHOD_NOT_FOUND: { code: -32601, message: "Method not found" }
+};
+function createProviderError(message, code = PROVIDER_ERRORS.INTERNAL_ERROR.code, data) {
+  const error = new Error(message);
+  error.code = code;
+  error.data = data;
+  return error;
+}
+
+// src/features.ts
+var BananoSignMessage = "banano:signMessage";
+var BananoSignIn = "banano:signIn";
+var BananoSignTransaction = "banano:signTransaction";
+var BananoSignAndSendTransaction = "banano:signAndSendTransaction";
+function createBananoWalletAccount(address, publicKey, features = [
+  BananoSignMessage,
+  BananoSignIn,
+  BananoSignTransaction,
+  BananoSignAndSendTransaction
+], label) {
+  return {
+    address,
+    publicKey,
+    chains: [BANANO_MAINNET],
+    features,
+    ...label ? { label } : {}
+  };
+}
+function hexToBytes(hex) {
+  const normalized = hex.startsWith("0x") ? hex.slice(2) : hex;
+  if (normalized.length % 2 !== 0) {
+    throw new Error("Invalid hex string");
+  }
+  const bytes = new Uint8Array(normalized.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(normalized.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+function bytesToHex(bytes) {
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function encodeBase64(bytes) {
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+function decodeBase64(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// src/nft.ts
+var NANO_ALPHABET = "13456789abcdefghijkmnopqrstuwxyz";
+var BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+var SUPPLY_HEADER_HEX = "51BACEED6078000000";
+var FINISH_SUPPLY_HEADER_HEX = "3614865E0051BA0033BB581E";
+var ATOMIC_SWAP_HEADER_HEX = "23559C159E22C";
+var SEND_ALL_NFTS_REPRESENTATIVE = "ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits";
+var CANCEL_SUPPLY_REPRESENTATIVE = "ban_1nftsupp1ycance1111oops1111that1111was1111my1111bad1hq5sjhey";
+var CANONICAL_BURN_ACCOUNT = "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w";
+var BURN_ACCOUNTS = /* @__PURE__ */ new Set([
+  CANONICAL_BURN_ACCOUNT,
+  "ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp",
+  "ban_1ban116su1fur16uo1cano16su1fur16161616161616161616166a1sf7xw",
+  "ban_1111111111111111111111111111111111111111111111111111hifc8npp"
+]);
+function isBurnAccount(account) {
+  return BURN_ACCOUNTS.has(account);
+}
+var INVALID_MINT_REPRESENTATIVES = /* @__PURE__ */ new Set([
+  "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w",
+  "ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp",
+  "ban_1ban116su1fur16uo1cano16su1fur16161616161616161616166a1sf7xw",
+  "ban_1111111111111111111111111111111111111111111111111111hifc8npp",
+  "ban_1nftsupp1ycance1111oops1111that1111was1111my1111bad1hq5sjhey"
+]);
+function accountToPublicKeyHex(account) {
+  const underscore = account.indexOf("_");
+  const body = underscore >= 0 ? account.slice(underscore + 1) : account;
+  const encoded = body.slice(0, 52);
+  if (encoded.length !== 52) {
+    throw new Error("Invalid account: unexpected length");
+  }
+  let bits = "";
+  for (const char of encoded) {
+    const value = NANO_ALPHABET.indexOf(char);
+    if (value < 0) throw new Error(`Invalid account character: ${char}`);
+    bits += value.toString(2).padStart(5, "0");
+  }
+  const pubBits = bits.slice(4);
+  let hex = "";
+  for (let i = 0; i < pubBits.length; i += 4) {
+    hex += parseInt(pubBits.slice(i, i + 4), 2).toString(16);
+  }
+  return hex.toUpperCase();
+}
+function base58Encode(bytes) {
+  let value = 0n;
+  for (const byte of bytes) value = value * 256n + BigInt(byte);
+  let out = "";
+  while (value > 0n) {
+    const rem = Number(value % 58n);
+    value /= 58n;
+    out = BASE58_ALPHABET[rem] + out;
+  }
+  for (const byte of bytes) {
+    if (byte === 0) out = "1" + out;
+    else break;
+  }
+  return out;
+}
+function metadataCidFromRepresentative(account) {
+  const pubHex = accountToPublicKeyHex(account);
+  const cidBytes = hexToBytes(`1220${pubHex}`);
+  return base58Encode(cidBytes);
+}
+function representativeMatchesAsset(representative, mintHash) {
+  if (representative === SEND_ALL_NFTS_REPRESENTATIVE) return true;
+  try {
+    return accountToPublicKeyHex(representative) === mintHash.toUpperCase();
+  } catch {
+    return false;
+  }
+}
+function isSupplyRepresentative(account) {
+  try {
+    return accountToPublicKeyHex(account).startsWith(SUPPLY_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function maxSupplyFromRepresentative(account) {
+  const hex = accountToPublicKeyHex(account);
+  return Number(BigInt(`0x${hex.slice(48)}`));
+}
+function isValidMetadataRepresentative(account) {
+  if (INVALID_MINT_REPRESENTATIVES.has(account)) return false;
+  let hex;
+  try {
+    hex = accountToPublicKeyHex(account);
+  } catch {
+    return false;
+  }
+  if (hex.startsWith(SUPPLY_HEADER_HEX)) return false;
+  if (hex.startsWith(FINISH_SUPPLY_HEADER_HEX)) return false;
+  if (hex.startsWith(ATOMIC_SWAP_HEADER_HEX)) return false;
+  return true;
+}
+function isFinishSupplyRepresentative(account) {
+  try {
+    return accountToPublicKeyHex(account).startsWith(FINISH_SUPPLY_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function finishSupplyHeightFromRepresentative(account) {
+  const hex = accountToPublicKeyHex(account);
+  return Number(BigInt(`0x${hex.slice(FINISH_SUPPLY_HEADER_HEX.length)}`));
+}
+function isCancelSupplyRepresentative(account) {
+  if (account === CANCEL_SUPPLY_REPRESENTATIVE) return true;
+  try {
+    const hex = accountToPublicKeyHex(account);
+    return hex.startsWith(SUPPLY_HEADER_HEX) || hex.startsWith(FINISH_SUPPLY_HEADER_HEX) || hex.startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function isAtomicSwapRepresentative(account) {
+  try {
+    return accountToPublicKeyHex(account).startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function parseAtomicSwapRepresentative(account) {
+  const hex = accountToPublicKeyHex(account);
+  const h = ATOMIC_SWAP_HEADER_HEX.length;
+  return {
+    assetHeight: Number(BigInt(`0x${hex.slice(h, h + 10)}`)),
+    receiveHeight: Number(BigInt(`0x${hex.slice(h + 10, h + 20)}`)),
+    minRaw: BigInt(`0x${hex.slice(h + 20, 64)}`).toString(10)
+  };
+}
+
+// src/nftScan.ts
+var HEX64 = /^[0-9A-F]{64}$/;
+function toHeight(value) {
+  return value === void 0 ? -1 : Number(value);
+}
+function chunk(items, size) {
+  const out = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+async function loadBlocks(hashes, blocksInfo) {
+  const unique = [...new Set([...hashes].filter((h) => HEX64.test(h.toUpperCase())))];
+  const merged = /* @__PURE__ */ new Map();
+  for (const group of chunk(unique, 500)) {
+    if (group.length === 0) continue;
+    let result;
+    try {
+      result = await blocksInfo(group);
+    } catch {
+      continue;
+    }
+    for (const [hash, block] of result) merged.set(hash.toUpperCase(), block);
+  }
+  return merged;
+}
+var PENDING_ACQUIRED_HEIGHT = Number.MAX_SAFE_INTEGER;
+async function scanOwnedNFTs(address, transport) {
+  let ownerPubKey;
+  try {
+    ownerPubKey = accountToPublicKeyHex(address).toUpperCase();
+  } catch {
+    return [];
+  }
+  let history;
+  try {
+    history = await transport.accountHistory(address);
+  } catch {
+    return [];
+  }
+  history.sort((a, b) => toHeight(a.height) - toHeight(b.height));
+  const byHeight = /* @__PURE__ */ new Map();
+  for (const entry of history) byHeight.set(toHeight(entry.height), entry);
+  const finishedSupplyHeights = /* @__PURE__ */ new Set();
+  for (const entry of history) {
+    if (entry.subtype !== "change" || !entry.representative) continue;
+    if (!isFinishSupplyRepresentative(entry.representative)) continue;
+    finishedSupplyHeights.add(finishSupplyHeightFromRepresentative(entry.representative));
+  }
+  const owned = /* @__PURE__ */ new Map();
+  const mintedCountByCid = /* @__PURE__ */ new Map();
+  for (const entry of history) {
+    if (entry.subtype !== "change" || !entry.representative) continue;
+    if (!isSupplyRepresentative(entry.representative)) continue;
+    const supplyHeight = toHeight(entry.height);
+    const mint = byHeight.get(supplyHeight + 1);
+    if (!mint || mint.subtype !== "send" || !mint.representative) continue;
+    if (!isValidMetadataRepresentative(mint.representative)) continue;
+    let cid;
+    let maxSupply;
+    try {
+      cid = metadataCidFromRepresentative(mint.representative);
+      maxSupply = maxSupplyFromRepresentative(entry.representative);
+    } catch {
+      continue;
+    }
+    mintedCountByCid.set(cid, (mintedCountByCid.get(cid) ?? 0) + 1);
+    const heldByOwner = (mint.link ?? "").toUpperCase() === ownerPubKey;
+    if (!heldByOwner) continue;
+    const assetRep = mint.hash.toUpperCase();
+    owned.set(assetRep, {
+      assetRep,
+      metadataCid: cid,
+      supplyBlockHash: entry.hash,
+      maxSupply,
+      finished: finishedSupplyHeights.has(supplyHeight),
+      source: "minted",
+      acquiredHeight: toHeight(mint.height)
+    });
+  }
+  const incomingToHeight = /* @__PURE__ */ new Map();
+  for (const entry of history) {
+    if (entry.subtype !== "receive" && entry.subtype !== "open") continue;
+    const link = (entry.link ?? "").toUpperCase();
+    if (HEX64.test(link)) incomingToHeight.set(link, toHeight(entry.height));
+  }
+  const pendingSends = /* @__PURE__ */ new Set();
+  if (transport.accountReceivable) {
+    let receivable = [];
+    try {
+      receivable = await transport.accountReceivable(address);
+    } catch {
+      receivable = [];
+    }
+    for (const raw of receivable) {
+      const hash = raw.toUpperCase();
+      if (!HEX64.test(hash) || incomingToHeight.has(hash)) continue;
+      incomingToHeight.set(hash, PENDING_ACQUIRED_HEIGHT);
+      pendingSends.add(hash);
+    }
+  }
+  const sourceSends = await loadBlocks(incomingToHeight.keys(), transport.blocksInfo);
+  const candidates = [];
+  const evidence = /* @__PURE__ */ new Set();
+  for (const [linkHash, acquiredHeight] of incomingToHeight) {
+    const send = sourceSends.get(linkHash);
+    if (!send || send.subtype !== "send" || !send.representative) continue;
+    const rep = send.representative;
+    if (rep === SEND_ALL_NFTS_REPRESENTATIVE || isAtomicSwapRepresentative(rep)) continue;
+    if (!isValidMetadataRepresentative(rep)) continue;
+    const candidate = {
+      sendHash: linkHash,
+      rep,
+      acquiredHeight,
+      pending: pendingSends.has(linkHash)
+    };
+    if (send.previous && HEX64.test(send.previous.toUpperCase())) {
+      candidate.previousHash = send.previous.toUpperCase();
+      evidence.add(candidate.previousHash);
+    }
+    try {
+      const mintHash = accountToPublicKeyHex(rep).toUpperCase();
+      if (HEX64.test(mintHash)) {
+        candidate.transferMintHash = mintHash;
+        evidence.add(mintHash);
+      }
+    } catch {
+    }
+    candidates.push(candidate);
+  }
+  const evidenceBlocks = await loadBlocks(evidence, transport.blocksInfo);
+  const transferSupplyHashes = /* @__PURE__ */ new Set();
+  for (const c of candidates) {
+    const prev = c.previousHash ? evidenceBlocks.get(c.previousHash) : void 0;
+    const isMint = !!prev && prev.subtype === "change" && !!prev.representative && isSupplyRepresentative(prev.representative);
+    if (isMint && prev) {
+      const assetRep = c.sendHash;
+      if (owned.has(assetRep)) continue;
+      let cid;
+      let maxSupply;
+      try {
+        cid = metadataCidFromRepresentative(c.rep);
+        maxSupply = maxSupplyFromRepresentative(prev.representative);
+      } catch {
+        continue;
+      }
+      owned.set(assetRep, {
+        assetRep,
+        metadataCid: cid,
+        supplyBlockHash: c.previousHash,
+        maxSupply,
+        source: "received",
+        acquiredHeight: c.acquiredHeight,
+        pending: c.pending
+      });
+      continue;
+    }
+    if (c.transferMintHash) {
+      const mint = evidenceBlocks.get(c.transferMintHash);
+      if (!mint || mint.subtype !== "send" || !mint.representative) continue;
+      if (!isValidMetadataRepresentative(mint.representative)) continue;
+      const assetRep = c.transferMintHash;
+      if (owned.has(assetRep)) continue;
+      let cid;
+      try {
+        cid = metadataCidFromRepresentative(mint.representative);
+      } catch {
+        continue;
+      }
+      const supplyHash = mint.previous?.toUpperCase();
+      if (supplyHash && HEX64.test(supplyHash)) transferSupplyHashes.add(supplyHash);
+      owned.set(assetRep, {
+        assetRep,
+        metadataCid: cid,
+        supplyBlockHash: supplyHash,
+        source: "received",
+        acquiredHeight: c.acquiredHeight,
+        pending: c.pending
+      });
+    }
+  }
+  if (transferSupplyHashes.size > 0) {
+    const supplyBlocks = await loadBlocks(transferSupplyHashes, transport.blocksInfo);
+    for (const asset of owned.values()) {
+      if (asset.source !== "received" || asset.maxSupply !== void 0) continue;
+      if (!asset.supplyBlockHash) continue;
+      const supply = supplyBlocks.get(asset.supplyBlockHash);
+      if (!supply || !supply.representative) continue;
+      if (!isSupplyRepresentative(supply.representative)) continue;
+      try {
+        asset.maxSupply = maxSupplyFromRepresentative(supply.representative);
+      } catch {
+      }
+    }
+  }
+  let sendAllHeight = Infinity;
+  for (const entry of history) {
+    if (entry.subtype !== "send" || !entry.representative) continue;
+    if (entry.representative === SEND_ALL_NFTS_REPRESENTATIVE) {
+      sendAllHeight = Math.min(sendAllHeight, toHeight(entry.height));
+    }
+  }
+  for (const entry of history) {
+    if (entry.subtype !== "send" || !entry.representative) continue;
+    const outHeight = toHeight(entry.height);
+    for (const asset of [...owned.values()]) {
+      if (outHeight <= asset.acquiredHeight) continue;
+      if (representativeMatchesAsset(entry.representative, asset.assetRep)) {
+        owned.delete(asset.assetRep);
+      }
+    }
+  }
+  if (sendAllHeight !== Infinity) {
+    for (const asset of [...owned.values()]) {
+      if (asset.acquiredHeight < sendAllHeight) owned.delete(asset.assetRep);
+    }
+  }
+  const groups = /* @__PURE__ */ new Map();
+  for (const asset of owned.values()) {
+    const key = asset.metadataCid ?? asset.assetRep;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.heldCount += 1;
+      if (asset.finished) existing.finished = true;
+      if (!asset.pending) existing.allPending = false;
+      if (existing.primary.source === "received" && asset.source === "minted") {
+        existing.primary = asset;
+      }
+    } else {
+      groups.set(key, {
+        primary: asset,
+        heldCount: 1,
+        finished: Boolean(asset.finished),
+        allPending: Boolean(asset.pending)
+      });
+    }
+  }
+  const results = [];
+  for (const group of groups.values()) {
+    const { primary, heldCount } = group;
+    const mintedCount = primary.metadataCid ? mintedCountByCid.get(primary.metadataCid) : void 0;
+    results.push({
+      assetRep: primary.assetRep,
+      metadataCid: primary.metadataCid,
+      supplyBlockHash: primary.supplyBlockHash,
+      maxSupply: primary.maxSupply,
+      mintedCount,
+      heldCount,
+      finished: group.finished,
+      source: primary.source,
+      pending: group.allPending || void 0
+    });
+  }
+  return results;
+}
+
+// src/protocol.ts
+var PROTOCOL_SOURCE_REQUEST = "monkeymask-provider";
+var PROTOCOL_SOURCE_RESPONSE = "monkeymask-provider-response";
+var PROTOCOL_SOURCE_EVENT = "monkeymask-provider-event";
+var PROTOCOL_INIT_EVENT = "monkeymask#initialized";
+var SPENDING_SESSION_EVENT = "monkeymask:spendingSessionChanged";
+var WALLET_STANDARD_REGISTER_EVENT = "wallet-standard:register-wallet";
+var WALLET_STANDARD_APP_READY_EVENT = "wallet-standard:app-ready";
+function createProtocolSuccess(data) {
+  return { success: true, data };
+}
+function createProtocolError(error, code = PROVIDER_ERRORS.INTERNAL_ERROR.code) {
+  return { success: false, error, code };
+}
+function getProtocolTimeoutMs(method) {
+  switch (method) {
+    case "standard:connect":
+      return 5 * 60 * 1e3;
+    case "banano:signMessage":
+    case "banano:signIn":
+    case "banano:signTransaction":
+    case "banano:signAndSendTransaction":
+    case "banano:requestSpendingSession":
+      return 15 * 60 * 1e3;
+    case "banano:reverseResolveBNS":
+      return 60 * 1e3;
+    default:
+      return 30 * 1e3;
+  }
+}
+
+// src/siwb.ts
+var SIWB_HEADER = " wants you to sign in with your Banano account:";
+function createSignInMessageText(input) {
+  if (!input.domain || !input.address) {
+    throw new Error("SIWB message requires domain and address");
+  }
+  let message = `${input.domain}${SIWB_HEADER}
+`;
+  message += input.address;
+  if (input.statement) {
+    message += `
+
+${input.statement}`;
+  }
+  const fields = [];
+  if (input.uri) fields.push(`URI: ${input.uri}`);
+  if (input.version) fields.push(`Version: ${input.version}`);
+  if (input.chainId) fields.push(`Chain ID: ${input.chainId}`);
+  if (input.nonce) fields.push(`Nonce: ${input.nonce}`);
+  if (input.issuedAt) fields.push(`Issued At: ${input.issuedAt}`);
+  if (input.expirationTime) fields.push(`Expiration Time: ${input.expirationTime}`);
+  if (input.notBefore) fields.push(`Not Before: ${input.notBefore}`);
+  if (input.requestId) fields.push(`Request ID: ${input.requestId}`);
+  if (input.resources?.length) {
+    fields.push("Resources:");
+    for (const resource of input.resources) {
+      fields.push(`- ${resource}`);
+    }
+  }
+  if (fields.length) {
+    message += `
+
+${fields.join("\n")}`;
+  }
+  return message;
+}
+function parseSignInMessage(text) {
+  const headerIndex = text.indexOf(SIWB_HEADER);
+  if (headerIndex === -1) {
+    throw new Error("Invalid SIWB message format");
+  }
+  const domain = text.slice(0, headerIndex);
+  const remainder = text.slice(headerIndex + SIWB_HEADER.length).replace(/^\n/, "");
+  const lines = remainder.split("\n");
+  const address = lines[0]?.trim();
+  if (!domain || !address) {
+    throw new Error("Invalid SIWB message: missing domain or address");
+  }
+  const parsed = { domain, address };
+  const isFieldLine = (line) => line.startsWith("URI: ") || line.startsWith("Version: ") || line.startsWith("Chain ID: ") || line.startsWith("Nonce: ") || line.startsWith("Issued At: ") || line.startsWith("Expiration Time: ") || line.startsWith("Not Before: ") || line.startsWith("Request ID: ") || line === "Resources:";
+  let fieldStartIndex = lines.findIndex((line, index) => index > 0 && isFieldLine(line));
+  if (fieldStartIndex === -1) {
+    fieldStartIndex = lines.length;
+  }
+  const statementBlock = lines.slice(1, fieldStartIndex).join("\n").trim();
+  if (statementBlock) {
+    parsed.statement = statementBlock;
+  }
+  let inResources = false;
+  for (let i = fieldStartIndex; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("URI: ")) {
+      inResources = false;
+      parsed.uri = line.slice(5);
+      continue;
+    }
+    if (line.startsWith("Version: ")) {
+      inResources = false;
+      parsed.version = line.slice(9);
+      continue;
+    }
+    if (line.startsWith("Chain ID: ")) {
+      inResources = false;
+      parsed.chainId = line.slice(10);
+      continue;
+    }
+    if (line.startsWith("Nonce: ")) {
+      inResources = false;
+      parsed.nonce = line.slice(7);
+      continue;
+    }
+    if (line.startsWith("Issued At: ")) {
+      inResources = false;
+      parsed.issuedAt = line.slice(11);
+      continue;
+    }
+    if (line.startsWith("Expiration Time: ")) {
+      inResources = false;
+      parsed.expirationTime = line.slice(17);
+      continue;
+    }
+    if (line.startsWith("Not Before: ")) {
+      inResources = false;
+      parsed.notBefore = line.slice(12);
+      continue;
+    }
+    if (line.startsWith("Request ID: ")) {
+      inResources = false;
+      parsed.requestId = line.slice(12);
+      continue;
+    }
+    if (line === "Resources:") {
+      inResources = true;
+      parsed.resources = [];
+      continue;
+    }
+    if (inResources && line.startsWith("- ")) {
+      parsed.resources.push(line.slice(2));
+    }
+  }
+  return {
+    domain,
+    address,
+    ...parsed.statement ? { statement: parsed.statement } : {},
+    ...parsed.uri ? { uri: parsed.uri } : {},
+    ...parsed.version ? { version: parsed.version } : {},
+    ...parsed.chainId ? { chainId: parsed.chainId } : {},
+    ...parsed.nonce ? { nonce: parsed.nonce } : {},
+    ...parsed.issuedAt ? { issuedAt: parsed.issuedAt } : {},
+    ...parsed.expirationTime ? { expirationTime: parsed.expirationTime } : {},
+    ...parsed.notBefore ? { notBefore: parsed.notBefore } : {},
+    ...parsed.requestId ? { requestId: parsed.requestId } : {},
+    ...parsed.resources ? { resources: parsed.resources } : {}
+  };
+}
+function normalizeSignInOutput(output) {
+  return {
+    account: {
+      ...output.account,
+      publicKey: output.account.publicKey instanceof Uint8Array ? output.account.publicKey : new Uint8Array(output.account.publicKey)
+    },
+    signedMessage: output.signedMessage instanceof Uint8Array ? output.signedMessage : new Uint8Array(output.signedMessage),
+    signature: output.signature instanceof Uint8Array ? output.signature : new Uint8Array(output.signature),
+    signatureType: output.signatureType
+  };
+}
+function verifySignIn(input, output, util, options = {}) {
+  const normalized = normalizeSignInOutput(output);
+  const messageText = new TextDecoder().decode(normalized.signedMessage);
+  const parsed = parseSignInMessage(messageText);
+  const expectedDomain = options.expectedDomain ?? input.domain;
+  if (expectedDomain && parsed.domain !== expectedDomain) return false;
+  if (input.address && parsed.address !== input.address) return false;
+  if (input.statement !== void 0 && parsed.statement !== input.statement) return false;
+  if (input.uri !== void 0 && parsed.uri !== input.uri) return false;
+  if (input.version !== void 0 && parsed.version !== input.version) return false;
+  if (input.chainId !== void 0 && parsed.chainId !== input.chainId) return false;
+  if (input.nonce !== void 0 && parsed.nonce !== input.nonce) return false;
+  if (input.issuedAt !== void 0 && parsed.issuedAt !== input.issuedAt) return false;
+  if (input.expirationTime !== void 0 && parsed.expirationTime !== input.expirationTime) {
+    return false;
+  }
+  if (input.notBefore !== void 0 && parsed.notBefore !== input.notBefore) return false;
+  if (input.requestId !== void 0 && parsed.requestId !== input.requestId) return false;
+  if (input.resources !== void 0) {
+    const expected = input.resources.join("\n");
+    const actual = (parsed.resources ?? []).join("\n");
+    if (expected !== actual) return false;
+  }
+  const reconstructed = createSignInMessageText(parsed);
+  if (reconstructed !== messageText) return false;
+  const now = Date.now();
+  const threshold = options.issuedAtThresholdMs ?? 10 * 60 * 1e3;
+  if (parsed.issuedAt) {
+    const issued = Date.parse(parsed.issuedAt);
+    if (Number.isNaN(issued) || Math.abs(issued - now) > threshold) return false;
+  }
+  if (parsed.expirationTime) {
+    const exp = Date.parse(parsed.expirationTime);
+    if (Number.isNaN(exp) || exp <= now) return false;
+  }
+  if (parsed.notBefore) {
+    const nbf = Date.parse(parsed.notBefore);
+    if (Number.isNaN(nbf) || nbf > now) return false;
+  }
+  const hexPublicKey = util.getAccountPublicKey(parsed.address);
+  const signatureHex = bytesToHex(normalized.signature);
+  return util.verifyMessage(hexPublicKey, messageText, signatureHex);
+}
+function serializeSignInOutput(output) {
+  return {
+    account: {
+      address: output.account.address,
+      publicKey: encodeBase64(
+        output.account.publicKey instanceof Uint8Array ? output.account.publicKey : new Uint8Array(output.account.publicKey)
+      ),
+      chains: output.account.chains,
+      features: output.account.features,
+      label: output.account.label,
+      icon: output.account.icon
+    },
+    signedMessage: encodeBase64(
+      output.signedMessage instanceof Uint8Array ? output.signedMessage : new Uint8Array(output.signedMessage)
+    ),
+    signature: encodeBase64(
+      output.signature instanceof Uint8Array ? output.signature : new Uint8Array(output.signature)
+    ),
+    signatureType: output.signatureType ?? "ed25519"
+  };
+}
+function deserializeSignInOutput(raw) {
+  const account = raw.account;
+  return {
+    account: {
+      address: account.address,
+      publicKey: decodeBase64(account.publicKey),
+      chains: account.chains ?? [],
+      features: account.features ?? [],
+      ...account.label ? { label: account.label } : {},
+      ...account.icon ? { icon: account.icon } : {}
+    },
+    signedMessage: decodeBase64(raw.signedMessage),
+    signature: decodeBase64(raw.signature),
+    signatureType: raw.signatureType ?? "ed25519"
+  };
+}
+function generateNonce(length = 12) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+}
+
+// src/uri.ts
+var RAW_DECIMALS = 29;
+var BANANO_ADDRESS = /^ban_[13][0-9a-z]{59}$/;
+function banToRaw(amountBan) {
+  const trimmed = amountBan.trim();
+  if (!/^\d*(\.\d*)?$/.test(trimmed) || trimmed === "" || trimmed === ".") {
+    throw new Error(`Invalid BAN amount: ${amountBan}`);
+  }
+  const [whole, frac = ""] = trimmed.split(".");
+  const fracPadded = (frac + "0".repeat(RAW_DECIMALS)).slice(0, RAW_DECIMALS);
+  return BigInt((whole || "0") + fracPadded).toString();
+}
+function rawToBan(raw) {
+  const value = BigInt(raw);
+  const base = 10n ** BigInt(RAW_DECIMALS);
+  const whole = value / base;
+  const frac = value % base;
+  if (frac === 0n) return whole.toString();
+  const fracStr = frac.toString().padStart(RAW_DECIMALS, "0").replace(/0+$/, "");
+  return `${whole.toString()}.${fracStr}`;
+}
+function buildBananoUri(req) {
+  if (!BANANO_ADDRESS.test(req.address)) {
+    throw new Error(`Invalid Banano address: ${req.address}`);
+  }
+  const params = new URLSearchParams();
+  if (req.amount && req.amount.trim() !== "" && req.amount.trim() !== "0") {
+    params.set("amount", banToRaw(req.amount));
+  }
+  if (req.label) params.set("label", req.label);
+  if (req.message) params.set("message", req.message);
+  const qs = params.toString();
+  return `ban:${req.address}${qs ? `?${qs}` : ""}`;
+}
+function isBananoUri(value) {
+  return /^ban:/i.test(value.trim());
+}
+function parseBananoUri(uri) {
+  const match = uri.trim().match(/^ban:([^?]+)(?:\?(.*))?$/i);
+  if (!match) return null;
+  const address = match[1];
+  if (!BANANO_ADDRESS.test(address)) return null;
+  const params = new URLSearchParams(match[2] ?? "");
+  const rawAmount = params.get("amount");
+  let amount;
+  if (rawAmount) {
+    try {
+      amount = rawToBan(rawAmount);
+    } catch {
+      amount = void 0;
+    }
+  }
+  return {
+    address,
+    amount,
+    label: params.get("label") ?? void 0,
+    message: params.get("message") ?? void 0
+  };
+}
+
+
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 			for(var key in definition) {
+/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__webpack_require__.r = (exports) => {
+/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/************************************************************************/
+var __webpack_exports__ = {};
+// This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
+(() => {
+var exports = __webpack_exports__;
+/*!********************************!*\
+  !*** ./src/content/content.ts ***!
+  \********************************/
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const wallet_standard_1 = __webpack_require__(/*! @monkeymask/wallet-standard */ "../packages/wallet-standard/dist/index.js");
+const PAGE_ORIGIN = window.location.origin;
+const isValidProtocolRequest = (data) => {
+    if (!data || typeof data !== 'object')
+        return false;
+    const candidate = data;
+    return (candidate.source === wallet_standard_1.PROTOCOL_SOURCE_REQUEST &&
+        typeof candidate.id === 'number' &&
+        typeof candidate.method === 'string');
+};
+const script = document.createElement('script');
+script.src = chrome.runtime.getURL('injected.js');
+script.onload = function () {
+    if (script.parentNode) {
+        script.parentNode.removeChild(script);
+    }
+};
+(document.head || document.documentElement).appendChild(script);
+window.addEventListener('message', (event) => {
+    if (event.source !== window || event.origin !== PAGE_ORIGIN || !event.data) {
+        return;
+    }
+    if (isValidProtocolRequest(event.data)) {
+        chrome.runtime
+            .sendMessage({
+            ...event.data,
+            origin: window.location.origin,
+        })
+            .then((response) => {
+            window.postMessage({
+                source: wallet_standard_1.PROTOCOL_SOURCE_RESPONSE,
+                id: event.data.id,
+                response,
+            }, PAGE_ORIGIN);
+        })
+            .catch((error) => {
+            window.postMessage({
+                source: wallet_standard_1.PROTOCOL_SOURCE_RESPONSE,
+                id: event.data.id,
+                response: {
+                    success: false,
+                    error: error.message || 'Unknown error',
+                    code: 4900,
+                },
+            }, PAGE_ORIGIN);
+        });
+    }
+});
+chrome.runtime.onMessage.addListener((request) => {
+    if (request.source === 'monkeymask-provider-event-broadcast') {
+        window.postMessage({
+            source: wallet_standard_1.PROTOCOL_SOURCE_EVENT,
+            event: request.event,
+            data: request.data,
+        }, PAGE_ORIGIN);
+    }
+});
+
+})();
+
+/******/ })()
+;
+//# sourceMappingURL=content.js.map

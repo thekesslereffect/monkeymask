@@ -37,6 +37,52 @@ const RPC_ENDPOINTS = [
   'https://api.banano.cc',
 ];
 
+/** One ERC-721/OpenSea-style trait (client-side display only). */
+export interface NftAttribute {
+  trait_type?: string;
+  value: string | number;
+  /** OpenSea display hint: 'number' | 'boost_number' | 'boost_percentage' | 'date'. */
+  display_type?: string;
+}
+
+/** Rendering category derived from an attribute's `display_type`. */
+export type AttributeKind = 'boost' | 'date' | 'number' | 'text';
+
+/**
+ * Turn a raw attribute into a display-ready `{ label, value, kind }` following
+ * OpenSea's `display_type` semantics so views can render each kind as intended.
+ */
+export function attributeDisplay(attr: NftAttribute): { label: string; value: string; kind: AttributeKind } {
+  const label = attr.trait_type ?? 'Trait';
+  switch (attr.display_type) {
+    case 'date': {
+      const ts = typeof attr.value === 'number' ? attr.value : Number(attr.value);
+      if (Number.isFinite(ts)) {
+        // OpenSea uses unix seconds; tolerate millisecond timestamps too.
+        const date = new Date(ts < 1e12 ? ts * 1000 : ts);
+        if (!Number.isNaN(date.getTime())) {
+          return { label, value: date.toLocaleDateString(), kind: 'date' };
+        }
+      }
+      return { label, value: String(attr.value), kind: 'date' };
+    }
+    case 'boost_percentage': {
+      const n = Number(attr.value);
+      const value = Number.isFinite(n) ? `${n > 0 ? '+' : ''}${n}%` : `${attr.value}%`;
+      return { label, value, kind: 'boost' };
+    }
+    case 'boost_number': {
+      const n = Number(attr.value);
+      const value = Number.isFinite(n) && n > 0 ? `+${n}` : String(attr.value);
+      return { label, value, kind: 'boost' };
+    }
+    case 'number':
+      return { label, value: String(attr.value), kind: 'number' };
+    default:
+      return { label, value: String(attr.value), kind: 'text' };
+  }
+}
+
 export interface MonkeyNFT {
   /** Stable unique id (asset representative when available). */
   id: string;
@@ -45,6 +91,10 @@ export interface MonkeyNFT {
   /** HTTP(S) URL for the artwork (IPFS URIs are rewritten to a gateway). */
   image?: string;
   collection?: string;
+  /** ERC-721 attributes from the metadata JSON, when present. */
+  attributes?: NftAttribute[];
+  /** MIME type of the artwork (from `properties.content_type`/`files`), if known. */
+  contentType?: string;
   supplyBlockHash?: string;
   assetRepresentative?: string;
   /** IPFS CID of the metadata JSON, when known. */
@@ -111,6 +161,40 @@ function supplyTypeFor(maxSupply: number | undefined): MonkeyNFT['supplyType'] {
   if (maxSupply === 1) return 'unique';
   if (maxSupply === 0) return 'unlimited';
   return 'limited';
+}
+
+/** Pull ERC-721 `attributes` out of a metadata object, sanitizing each entry. */
+function normalizeAttributes(metadata: Record<string, unknown> | null): NftAttribute[] | undefined {
+  const raw = metadata?.attributes;
+  if (!Array.isArray(raw)) return undefined;
+  const out: NftAttribute[] = [];
+  for (const item of raw) {
+    const rec = asRecord(item);
+    if (!rec) continue;
+    const value = rec.value;
+    if (typeof value !== 'string' && typeof value !== 'number') continue;
+    if (typeof value === 'string' && value.trim() === '') continue;
+    const attr: NftAttribute = { value };
+    if (typeof rec.trait_type === 'string' && rec.trait_type.trim()) attr.trait_type = rec.trait_type.trim();
+    if (typeof rec.display_type === 'string' && rec.display_type.trim()) attr.display_type = rec.display_type.trim();
+    out.push(attr);
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+/** Best-effort artwork MIME from `properties.content_type` or `properties.files`. */
+function contentTypeFrom(metadata: Record<string, unknown> | null): string | undefined {
+  const props = asRecord(metadata?.properties);
+  const direct = pickString(props, 'content_type', 'contentType', 'mime', 'mimeType');
+  if (direct) return direct;
+  const files = props?.files;
+  if (Array.isArray(files)) {
+    for (const file of files) {
+      const type = pickString(asRecord(file), 'type', 'content_type', 'mimeType');
+      if (type) return type;
+    }
+  }
+  return undefined;
 }
 
 // --- Scanner transport -----------------------------------------------------
@@ -309,6 +393,8 @@ async function toMonkeyNFT(asset: ScannedNFT): Promise<MonkeyNFT> {
     description: pickString(metadata, 'description'),
     image: ipfsToHttp(pickString(metadata, 'image', 'image_url', 'imageUrl', 'animation_url'), gateway),
     collection: asset.source === 'minted' ? 'Minted by you' : pickString(metadata, 'collection'),
+    attributes: normalizeAttributes(metadata),
+    contentType: contentTypeFrom(metadata),
     supplyBlockHash: asset.supplyBlockHash,
     assetRepresentative: asset.assetRep,
     metadataCid: asset.metadataCid,

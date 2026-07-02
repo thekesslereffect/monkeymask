@@ -11,7 +11,7 @@ import {
   useFinishSupply,
 } from '@/providers';
 import { Button, Badge, StatusBox, Separator } from '@/components/ui';
-import type { NormalizedNFT } from '@/lib/nft';
+import { attributeDisplay, type NormalizedNFT } from '@/lib/nft';
 import { supplyBadge } from '@/lib/nftDisplay';
 
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
@@ -359,10 +359,43 @@ export function NftDetailModal({
                     Supply locked
                   </Badge>
                 )}
+                {nft.contentType && (
+                  <Badge variant="outline" className="rounded-full px-2.5 py-1">
+                    <Icon icon="lucide:file" />
+                    {nft.contentType}
+                  </Badge>
+                )}
               </div>
 
               {nft.description && (
                 <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{nft.description}</p>
+              )}
+
+              {nft.attributes && nft.attributes.length > 0 && (
+                <div>
+                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Traits
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {nft.attributes.map((attr, i) => {
+                      const d = attributeDisplay(attr);
+                      return (
+                        <div
+                          key={`${d.label}-${i}`}
+                          className="rounded-lg border border-border bg-[var(--panel)]/40 px-3 py-2"
+                        >
+                          <div className="flex items-center gap-1 truncate text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
+                            {d.kind === 'date' && <Icon icon="lucide:calendar" className="size-3 shrink-0" />}
+                            <span className="truncate">{d.label}</span>
+                          </div>
+                          <div className="truncate text-sm font-semibold" title={d.value}>
+                            {d.value}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
 
               <Separator />

@@ -38,6 +38,9 @@ export function MintNftForm() {
   const [description, setDescription] = useState('');
   const [recipient, setRecipient] = useState('');
   const [maxSupply, setMaxSupply] = useState('1');
+  const [attributes, setAttributes] = useState<
+    { trait_type: string; value: string; display_type: string }[]
+  >([]);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<'idle' | 'pinning' | 'minting'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +51,33 @@ export function MintNftForm() {
   const reset = () => {
     setSuccess(null);
     setError(null);
+  };
+
+  const addTrait = () =>
+    setAttributes((a) =>
+      a.length >= 20 ? a : [...a, { trait_type: '', value: '', display_type: '' }],
+    );
+  const updateTrait = (index: number, field: 'trait_type' | 'value' | 'display_type', value: string) =>
+    setAttributes((a) =>
+      a.map((t, i) => {
+        if (i !== index) return t;
+        const next = { ...t, [field]: value };
+        // Switching display type can invalidate the prior value (e.g. text -> date),
+        // so clear it to avoid submitting a mistyped value.
+        if (field === 'display_type') next.value = '';
+        return next;
+      }),
+    );
+  const removeTrait = (index: number) =>
+    setAttributes((a) => a.filter((_, i) => i !== index));
+
+  /** HTML input type for a trait value given its OpenSea display_type. */
+  const valueInputType = (displayType: string): string => {
+    if (displayType === 'date') return 'date';
+    if (displayType === 'number' || displayType === 'boost_number' || displayType === 'boost_percentage') {
+      return 'number';
+    }
+    return 'text';
   };
 
   const handleMint = async () => {
@@ -73,6 +103,35 @@ export function MintNftForm() {
       form.append('name', name.trim());
       form.append('description', description.trim());
       form.append('issuer', publicKey);
+      const cleanedAttributes = attributes
+        .map((t) => {
+          const trait_type = t.trait_type.trim();
+          const raw = t.value.trim();
+          const dt = t.display_type;
+          if (!trait_type || raw === '') return null;
+
+          let value: string | number = raw;
+          if (dt === 'date') {
+            const ms = Date.parse(raw);
+            if (!Number.isFinite(ms)) return null;
+            value = Math.floor(ms / 1000); // OpenSea dates are unix seconds
+          } else if (dt === 'number' || dt === 'boost_number' || dt === 'boost_percentage') {
+            const n = Number(raw);
+            if (!Number.isFinite(n)) return null;
+            value = n;
+          }
+
+          const attr: { trait_type: string; value: string | number; display_type?: string } = {
+            trait_type,
+            value,
+          };
+          if (dt) attr.display_type = dt;
+          return attr;
+        })
+        .filter((t): t is NonNullable<typeof t> => t !== null);
+      if (cleanedAttributes.length > 0) {
+        form.append('attributes', JSON.stringify(cleanedAttributes));
+      }
 
       const res = await fetch('/api/ipfs', { method: 'POST', body: form });
       const data = await res.json();
@@ -100,6 +159,7 @@ export function MintNftForm() {
       setDescription('');
       setRecipient('');
       setMaxSupply('1');
+      setAttributes([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Mint failed');
     } finally {
@@ -130,9 +190,14 @@ export function MintNftForm() {
       </div>
 
       {previewUrl && (
-        <div className="w-24 h-24 rounded-md overflow-hidden border border-[var(--border)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={previewUrl} alt="preview" className="w-full h-full object-cover" />
+        <div className="space-y-1">
+          <div className="w-24 h-24 rounded-md overflow-hidden border border-[var(--border)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewUrl} alt="preview" className="w-full h-full object-cover" />
+          </div>
+          <p className="text-xs text-[var(--text-secondary)]">
+            File type: <span className="font-mono">{file?.type || 'unknown'}</span>
+          </p>
         </div>
       )}
 
@@ -158,6 +223,72 @@ export function MintNftForm() {
           disabled={busy}
           className={`${FIELD_CLASS} resize-none`}
         />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Traits (optional)</label>
+        <div className="space-y-2">
+          {attributes.map((trait, i) => (
+            <div key={i} className="space-y-2 rounded-md border border-[var(--border)] p-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={trait.trait_type}
+                  onChange={(e) => updateTrait(i, 'trait_type', e.target.value)}
+                  placeholder="Type (e.g. Background)"
+                  disabled={busy}
+                  className={FIELD_CLASS}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeTrait(i)}
+                  disabled={busy}
+                  aria-label="Remove trait"
+                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-secondary)] transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                >
+                  <Icon icon="lucide:x" className="size-4" />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type={valueInputType(trait.display_type)}
+                  value={trait.value}
+                  onChange={(e) => updateTrait(i, 'value', e.target.value)}
+                  placeholder={trait.display_type === 'date' ? '' : 'Value (e.g. Volcano)'}
+                  disabled={busy}
+                  className={`${FIELD_CLASS} min-w-0 flex-1`}
+                />
+                <select
+                  value={trait.display_type}
+                  onChange={(e) => updateTrait(i, 'display_type', e.target.value)}
+                  disabled={busy}
+                  aria-label="Display type"
+                  className="w-28 shrink-0 rounded-md border border-[var(--border)] bg-white px-2 py-2 text-sm"
+                >
+                  <option value="">Text</option>
+                  <option value="number">Number</option>
+                  <option value="boost_number">Boost</option>
+                  <option value="boost_percentage">Boost %</option>
+                  <option value="date">Date</option>
+                </select>
+              </div>
+            </div>
+          ))}
+          <Button
+            type="button"
+            onClick={addTrait}
+            size="sm"
+            variant="secondary"
+            disabled={busy || attributes.length >= 20}
+          >
+            <Icon icon="lucide:plus" className="size-4 mr-1" />
+            Add trait
+          </Button>
+        </div>
+        <p className="text-xs text-[var(--text-secondary)] mt-1">
+          ERC-721 style attributes shown by wallets and marketplaces. Purely descriptive; the
+          metaprotocol doesn&apos;t require them.
+        </p>
       </div>
 
       <div>

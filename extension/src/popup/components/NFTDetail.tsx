@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Icon } from '@iconify/react';
 import { Button, Input, Alert, IconButton } from './ui';
 import { openCreeperHash } from '../../utils/format';
-import type { MonkeyNFT } from '../../utils/nft';
+import { attributeDisplay, type MonkeyNFT } from '../../utils/nft';
 
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 
@@ -167,7 +167,40 @@ export const NFTDetail: React.FC<NFTDetailProps> = ({ nft, onClose, fromAddress,
               )}
             </div>
           )}
+          {nft.contentType && (
+            <div className="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              <Icon icon="lucide:file" className="text-xs" />
+              {nft.contentType}
+            </div>
+          )}
           {nft.description && <p className="text-sm text-primary/90">{nft.description}</p>}
+
+          {nft.attributes && nft.attributes.length > 0 && (
+            <div>
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-tertiary/70">
+                Traits
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {nft.attributes.map((attr, i) => {
+                  const d = attributeDisplay(attr);
+                  return (
+                    <div
+                      key={`${d.label}-${i}`}
+                      className="rounded-lg border border-tertiary/10 bg-tertiary/5 px-2 py-1.5"
+                    >
+                      <div className="flex items-center gap-1 truncate text-[9px] font-medium uppercase tracking-wide text-tertiary/70">
+                        {d.kind === 'date' && <Icon icon="lucide:calendar" className="text-[10px]" />}
+                        <span className="truncate">{d.label}</span>
+                      </div>
+                      <div className="truncate text-xs font-semibold text-primary" title={d.value}>
+                        {d.value}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button
