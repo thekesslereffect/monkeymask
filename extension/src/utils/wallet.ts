@@ -11,7 +11,10 @@ import {
   isSupplyRepresentative,
   maxSupplyFromRepresentative,
   isBurnAccount,
+  isFinishSupplyRepresentative,
+  finishSupplyHeightFromRepresentative,
   CANONICAL_BURN_ACCOUNT,
+  SEND_ALL_NFTS_REPRESENTATIVE,
   type BananoBatchLegResult,
   type BananoOperation,
   type BananoSignInInput,
@@ -22,7 +25,12 @@ import { Account, StoredWallet } from '../types/wallet';
 import { BananoRPC } from './rpc';
 import { bnsResolver } from './bns';
 import { decryptString, encryptString, isEncryptedPayload, type EncryptedPayload } from './keystore';
-import { assetRepresentativeAccount, metadataRepresentativeFromCidV0, supplyRepresentative } from './nftMint';
+import {
+  assetRepresentativeAccount,
+  metadataRepresentativeFromCidV0,
+  supplyRepresentative,
+  finishSupplyRepresentative,
+} from './nftMint';
 
 export interface MintNFTResult {
   assetRepresentative: string;
@@ -1071,7 +1079,12 @@ export class WalletManager {
   private async collectionEditionStats(
     issuer: string,
     metadataRepAccount: string,
-  ): Promise<{ maxSupply: number; minted: number } | null> {
+  ): Promise<{
+    maxSupply: number;
+    minted: number;
+    supplyHeights: number[];
+    finished: boolean;
+  } | null> {
     let history: Array<{ height: string; subtype?: string; representative?: string }>;
     try {
       const result = await bananojs.getAccountHistory(issuer, -1, undefined, true);
@@ -1086,6 +1099,7 @@ export class WalletManager {
 
     let maxSupply: number | null = null;
     let minted = 0;
+    const supplyHeights: number[] = [];
     for (const entry of history) {
       if (entry.subtype !== 'change' || !entry.representative) continue;
       if (!isSupplyRepresentative(entry.representative)) continue;
@@ -1097,9 +1111,21 @@ export class WalletManager {
       // Each qualifying pair is one edition of this collection.
       if (maxSupply === null) maxSupply = maxSupplyFromRepresentative(entry.representative);
       minted += 1;
+      supplyHeights.push(Number(entry.height));
     }
     if (maxSupply === null) return null;
-    return { maxSupply, minted };
+
+    // The collection is locked if any `#finish_supply` block points at one of
+    // its supply-block heights.
+    const supplySet = new Set(supplyHeights);
+    const finished = history.some(
+      (b) =>
+        !!b.representative &&
+        isFinishSupplyRepresentative(b.representative) &&
+        supplySet.has(finishSupplyHeightFromRepresentative(b.representative)),
+    );
+
+    return { maxSupply, minted, supplyHeights, finished };
   }
 
   /**
@@ -1146,6 +1172,9 @@ export class WalletManager {
       throw new Error(
         'Collection not found for this account — you can only mint editions of a collection you issued',
       );
+    }
+    if (stats.finished) {
+      throw new Error('Collection is finished — no further editions can be minted');
     }
     if (stats.maxSupply > 0 && stats.minted >= stats.maxSupply) {
       throw new Error(
@@ -1355,6 +1384,134 @@ export class WalletManager {
       to,
       amount: params.amount,
     });
+  }
+
+  /**
+   * Lock a collection you issued (73-meta-tokens `#finish_supply`): publish a
+   * change block whose representative encodes the collection's supply-block
+   * height. Afterwards `mintEdition` for this collection is refused. Returns the
+   * finish block hash.
+   */
+  async finishCollection(
+    fromAddress: string,
+    params: { metadataCid: string },
+  ): Promise<string> {
+    if (!this.isUnlocked) throw new Error('Wallet is locked');
+    if (!this.currentSeed) throw new Error('Seed not available');
+    const account = this.accounts.find((acc) => acc.address === fromAddress);
+    if (!account) throw new Error('Account not found');
+    const accountIndex = this.accounts.indexOf(account);
+
+    const metadataRep = metadataRepresentativeFromCidV0(params.metadataCid);
+    const stats = await this.collectionEditionStats(fromAddress, metadataRep);
+    if (!stats || stats.supplyHeights.length === 0) {
+      throw new Error('Collection not found for this account');
+    }
+    if (stats.finished) {
+      throw new Error('Collection is already finished');
+    }
+
+    // Reference the collection's latest supply block; our edition guard refuses
+    // new mints once any finish block points at one of the collection's supplies.
+    const targetHeight = Math.max(...stats.supplyHeights);
+    const finishRep = finishSupplyRepresentative(targetHeight);
+
+    // Capture a clean rep to restore afterwards (a finish rep left on the chain
+    // is harmless — change blocks with it are ignored — but keep the account tidy).
+    let baseRep: string | undefined;
+    try {
+      baseRep = await bananojs.bananodeApi.getAccountRepresentative(fromAddress);
+    } catch {
+      /* fall back below */
+    }
+    const cleanRep =
+      baseRep && !isSupplyRepresentative(baseRep) && !isFinishSupplyRepresentative(baseRep)
+        ? baseRep
+        : CLEAN_REPRESENTATIVE;
+
+    const result = await bananojs.changeBananoRepresentativeForSeed(
+      this.currentSeed,
+      accountIndex,
+      finishRep,
+    );
+    const hash =
+      typeof result === 'string'
+        ? result
+        : typeof (result as { hash?: string })?.hash === 'string'
+          ? (result as { hash: string }).hash
+          : null;
+    if (!hash) throw new Error('Failed to publish finish block: missing hash');
+
+    try {
+      await bananojs.changeBananoRepresentativeForSeed(this.currentSeed, accountIndex, cleanRep);
+    } catch (error) {
+      console.warn('WalletManager: failed to restore representative after finish:', error);
+    }
+    return hash;
+  }
+
+  /**
+   * Transfer every NFT the account holds to one recipient in a single block
+   * (73-meta-tokens `send#all_nfts`). Pockets pending assets first, publishes one
+   * send whose representative is the "send all NFTs" marker, then restores a
+   * clean representative so subsequent ordinary sends aren't treated as send-all.
+   * Returns the marker send hash.
+   */
+  async sendAllNfts(
+    fromAddress: string,
+    params: { to: string; amount?: string },
+  ): Promise<string> {
+    if (!this.isUnlocked) throw new Error('Wallet is locked');
+    if (!this.currentSeed) throw new Error('Seed not available');
+    const account = this.accounts.find((acc) => acc.address === fromAddress);
+    if (!account) throw new Error('Account not found');
+    const accountIndex = this.accounts.indexOf(account);
+
+    const resolvedTo = await this.resolveRecipientAddress(params.to);
+    const amount = params.amount && params.amount.trim() !== '' ? params.amount : '0.0001';
+
+    // Pocket pending assets so they're owned (and therefore transferable) before
+    // the marker send moves everything.
+    try {
+      await this.autoReceivePending(fromAddress);
+    } catch (error) {
+      console.warn('WalletManager: auto-receive before send-all failed (continuing):', error);
+    }
+
+    let baseRep: string | undefined;
+    try {
+      baseRep = await bananojs.bananodeApi.getAccountRepresentative(fromAddress);
+    } catch {
+      /* fall back below */
+    }
+    const cleanRep =
+      baseRep && baseRep !== SEND_ALL_NFTS_REPRESENTATIVE ? baseRep : CLEAN_REPRESENTATIVE;
+
+    const result = await bananojs.sendBananoWithdrawalFromSeed(
+      this.currentSeed,
+      accountIndex,
+      resolvedTo,
+      amount,
+      SEND_ALL_NFTS_REPRESENTATIVE,
+    );
+    const hash =
+      typeof result === 'string'
+        ? result
+        : typeof (result as { hash?: string })?.hash === 'string'
+          ? (result as { hash: string }).hash
+          : null;
+    if (!hash) throw new Error('Failed to publish send-all block: missing hash');
+
+    account.balance = Math.max(0, (parseFloat(account.balance) || 0) - (parseFloat(amount) || 0)).toString();
+
+    // Critical: restore a clean rep so the NEXT ordinary send isn't itself
+    // interpreted as another send#all_nfts.
+    try {
+      await bananojs.changeBananoRepresentativeForSeed(this.currentSeed, accountIndex, cleanRep);
+    } catch (error) {
+      console.warn('WalletManager: failed to restore representative after send-all:', error);
+    }
+    return hash;
   }
 
   /**
@@ -1921,6 +2078,12 @@ export class WalletManager {
     if (operation.type === 'burn') {
       throw new Error('NFT burn requires publishing; use signAndSendTransaction');
     }
+    if (operation.type === 'finishSupply') {
+      throw new Error('Finishing a collection requires publishing; use signAndSendTransaction');
+    }
+    if (operation.type === 'sendAllNfts') {
+      throw new Error('Send-all-NFTs requires publishing; use signAndSendTransaction');
+    }
     throw new Error('Unsupported operation type');
   }
 
@@ -2003,6 +2166,19 @@ export class WalletManager {
     if (operation.type === 'burn') {
       const hash = await this.burnNFT(accountAddress, {
         assetRepresentative: operation.assetRepresentative,
+        to: operation.to,
+        amount: operation.amount,
+      });
+      return { hashes: [hash] };
+    }
+    if (operation.type === 'finishSupply') {
+      const hash = await this.finishCollection(accountAddress, {
+        metadataCid: operation.metadataCid,
+      });
+      return { hashes: [hash] };
+    }
+    if (operation.type === 'sendAllNfts') {
+      const hash = await this.sendAllNfts(accountAddress, {
         to: operation.to,
         amount: operation.amount,
       });

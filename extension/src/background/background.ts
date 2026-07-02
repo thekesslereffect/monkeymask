@@ -56,9 +56,14 @@ class BackgroundService {
   private accountInfoCache: Map<string, { accountInfo: any; ts: number }> = new Map();
   private spendSessions: Map<string, SpendSession> = new Map();
   private static readonly SPEND_SESSIONS_KEY = 'mm_spend_sessions';
+  private static readonly AUTO_CONFIRM_KEY = 'mm_auto_confirm_enabled';
   private static readonly DEFAULT_SESSION_MS = 60 * 60 * 1000; // 1 hour
   private static readonly MAX_SESSION_MS = 24 * 60 * 60 * 1000; // 24 hours
   private spendSessionsLoaded = false;
+  // Global advanced opt-in: auto-confirmation (spending allowances) is OFF until
+  // the user explicitly enables it. Cached in memory so the synchronous
+  // auto-approve check can fail closed after a service-worker restart.
+  private autoConfirmEnabled = false;
   private static readonly ACCOUNT_INFO_TTL_MS = 5000;
   private lastPendingApprovalCheck: Map<string, number> = new Map(); // origin -> timestamp
   private static readonly PENDING_APPROVAL_RATE_LIMIT_MS = 1000; // 1 second
@@ -244,6 +249,14 @@ class BackgroundService {
     });
     
     await this.savePermissions();
+
+    // Disconnecting must also tear down any auto-approve allowance for this
+    // origin — the user's disconnect is the ultimate kill switch, independent of
+    // whether the dApp offers its own revoke.
+    await this.loadSpendSessions();
+    if (this.spendSessions.delete(origin)) {
+      await this.persistSpendSessions();
+    }
     
     // Emit disconnect event to all tabs from this origin
     this.emitProviderEvent('disconnect', null, origin);
@@ -459,6 +472,14 @@ class BackgroundService {
           await this.handleBurnNFT(request, sendResponse);
           break;
 
+        case 'FINISH_COLLECTION':
+          await this.handleFinishCollection(request, sendResponse);
+          break;
+
+        case 'SEND_ALL_NFTS':
+          await this.handleSendAllNfts(request, sendResponse);
+          break;
+
         case 'SWEEP_TRANSACTION':
           await this.handleSweepTransaction(request, sendResponse);
           break;
@@ -540,6 +561,22 @@ class BackgroundService {
         
         case 'REMOVE_ACCOUNT':
           await this.handleRemoveAccount(request, sendResponse);
+          break;
+
+        case 'GET_SPENDING_SESSIONS':
+          await this.handleListSpendingSessions(sendResponse);
+          break;
+
+        case 'REVOKE_SPENDING_SESSION':
+          await this.handleRevokeSpendingSession(request.origin, sendResponse);
+          break;
+
+        case 'GET_AUTO_CONFIRM_ENABLED':
+          await this.handleGetAutoConfirmEnabled(sendResponse);
+          break;
+
+        case 'SET_AUTO_CONFIRM_ENABLED':
+          await this.handleSetAutoConfirmEnabled(request, sendResponse);
           break;
         
         default:
@@ -1313,6 +1350,69 @@ class BackgroundService {
     }
   }
 
+  /**
+   * Lock a collection the account issued (first-party popup action). Publishes a
+   * `#finish_supply` block so no further editions can be minted.
+   */
+  private async handleFinishCollection(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      if (!this.walletManager.isWalletUnlocked()) {
+        sendResponse({ success: false, error: 'Wallet is locked' });
+        return;
+      }
+      const { fromAddress, metadataCid } = request;
+      if (!fromAddress || !metadataCid) {
+        sendResponse({
+          success: false,
+          error: 'Missing required fields: fromAddress, metadataCid',
+        });
+        return;
+      }
+      const hash = await this.walletManager.finishCollection(fromAddress, { metadataCid });
+      sendResponse({ success: true, data: { hash } });
+    } catch (error) {
+      console.error('Background: Error finishing collection:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to finish collection',
+      });
+    }
+  }
+
+  /**
+   * Transfer every NFT the account holds to one recipient (first-party popup
+   * action) via a single `send#all_nfts` block.
+   */
+  private async handleSendAllNfts(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      if (!this.walletManager.isWalletUnlocked()) {
+        sendResponse({ success: false, error: 'Wallet is locked' });
+        return;
+      }
+      const { fromAddress, toAddress, amount } = request;
+      if (!fromAddress || !toAddress) {
+        sendResponse({
+          success: false,
+          error: 'Missing required fields: fromAddress, toAddress',
+        });
+        return;
+      }
+      const hash = await this.walletManager.sendAllNfts(fromAddress, { to: toAddress, amount });
+      setTimeout(() => {
+        this.updateBalancesAsync().catch((err) => {
+          console.warn('Background: post send-all refresh failed:', err);
+        });
+      }, 0);
+      sendResponse({ success: true, data: { hash } });
+    } catch (error) {
+      console.error('Background: Error sending all NFTs:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to send all NFTs',
+      });
+    }
+  }
+
   private async handleSweepTransaction(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
       if (!this.walletManager.isWalletUnlocked()) {
@@ -1750,7 +1850,11 @@ class BackgroundService {
   private async loadSpendSessions(): Promise<void> {
     if (this.spendSessionsLoaded) return;
     try {
-      const stored = await chrome.storage.local.get(BackgroundService.SPEND_SESSIONS_KEY);
+      const stored = await chrome.storage.local.get([
+        BackgroundService.SPEND_SESSIONS_KEY,
+        BackgroundService.AUTO_CONFIRM_KEY,
+      ]);
+      this.autoConfirmEnabled = stored[BackgroundService.AUTO_CONFIRM_KEY] === true;
       const raw = stored[BackgroundService.SPEND_SESSIONS_KEY] as Record<string, SpendSession> | undefined;
       if (raw) {
         for (const [origin, session] of Object.entries(raw)) {
@@ -1798,6 +1902,9 @@ class BackgroundService {
   }
 
   canAutoApproveSend(origin: string, address: string, amountBan: string): boolean {
+    // Master switch: if the user hasn't opted into auto-confirmation, nothing is
+    // ever auto-approved — every send prompts, regardless of any stored session.
+    if (!this.autoConfirmEnabled) return false;
     const session = this.getActiveSession(origin, address);
     if (!session) return false;
     let amountRaw: bigint;
@@ -1864,9 +1971,26 @@ class BackgroundService {
         address,
         limit: request.limit,
         durationMs,
+        autoConfirmEnabled: this.autoConfirmEnabled,
       });
       if (!approval.approved) {
         sendResponse(this.createStandardError('User rejected the request', PROVIDER_ERRORS.USER_REJECTED.code));
+        return;
+      }
+
+      // Defense in depth: only mint a session if auto-confirmation is enabled.
+      // The approval UI won't let the user approve without turning it on, but we
+      // re-check the persisted flag here so a session can never exist otherwise.
+      await this.loadSpendSessions();
+      const freshFlag = await chrome.storage.local.get(BackgroundService.AUTO_CONFIRM_KEY);
+      this.autoConfirmEnabled = freshFlag[BackgroundService.AUTO_CONFIRM_KEY] === true;
+      if (!this.autoConfirmEnabled) {
+        sendResponse(
+          this.createStandardError(
+            'Auto-confirmation is disabled in the wallet',
+            PROVIDER_ERRORS.USER_REJECTED.code,
+          ),
+        );
         return;
       }
 
@@ -1893,6 +2017,29 @@ class BackgroundService {
     await this.loadSpendSessions();
     const session = this.getActiveSession(origin);
     sendResponse({ success: true, data: { session: session ? this.sessionInfo(session) : null } });
+  }
+
+  /**
+   * List every active auto-approve allowance across all origins, for the
+   * extension's own UI. This is what lets a user revoke an allowance from the
+   * wallet even when the granting dApp exposes no revoke control of its own.
+   */
+  async handleListSpendingSessions(sendResponse: (response: any) => void): Promise<void> {
+    await this.loadSpendSessions();
+    const now = Date.now();
+    let changed = false;
+    const sessions: Array<{ origin: string } & ReturnType<BackgroundService['sessionInfo']>> = [];
+    for (const [origin, session] of this.spendSessions.entries()) {
+      if (session.expiresAt <= now) {
+        this.spendSessions.delete(origin); // opportunistically prune expired
+        changed = true;
+        continue;
+      }
+      sessions.push({ origin, ...this.sessionInfo(session) });
+    }
+    if (changed) await this.persistSpendSessions();
+    sessions.sort((a, b) => a.expiresAt - b.expiresAt);
+    sendResponse({ success: true, data: { sessions } });
   }
 
   async handleRevokeSpendingSession(origin: string, sendResponse: (response: any) => void): Promise<void> {
@@ -2503,6 +2650,47 @@ class BackgroundService {
       sendResponse(this.createStandardError(
         'Failed to set auto-lock timeout',
         PROVIDER_ERRORS.INTERNAL_ERROR.code
+      ));
+    }
+  }
+
+  private async handleGetAutoConfirmEnabled(sendResponse: (response: any) => void): Promise<void> {
+    try {
+      const result = await chrome.storage.local.get([BackgroundService.AUTO_CONFIRM_KEY]);
+      this.autoConfirmEnabled = result[BackgroundService.AUTO_CONFIRM_KEY] === true;
+      sendResponse({ success: true, data: { enabled: this.autoConfirmEnabled } });
+    } catch (error) {
+      console.error('Background: Error getting auto-confirm setting:', error);
+      sendResponse(this.createStandardError(
+        'Failed to get auto-confirmation setting',
+        PROVIDER_ERRORS.INTERNAL_ERROR.code,
+      ));
+    }
+  }
+
+  private async handleSetAutoConfirmEnabled(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      const enabled = request.enabled === true;
+      await chrome.storage.local.set({ [BackgroundService.AUTO_CONFIRM_KEY]: enabled });
+      this.autoConfirmEnabled = enabled;
+
+      // Turning the feature off is also a global kill switch: drop every active
+      // allowance so nothing keeps auto-approving.
+      if (!enabled) {
+        await this.loadSpendSessions();
+        if (this.spendSessions.size > 0) {
+          this.spendSessions.clear();
+          await this.persistSpendSessions();
+        }
+      }
+
+      console.log('Background: Auto-confirmation set to', enabled);
+      sendResponse({ success: true, data: { enabled } });
+    } catch (error) {
+      console.error('Background: Error setting auto-confirm setting:', error);
+      sendResponse(this.createStandardError(
+        'Failed to set auto-confirmation setting',
+        PROVIDER_ERRORS.INTERNAL_ERROR.code,
       ));
     }
   }

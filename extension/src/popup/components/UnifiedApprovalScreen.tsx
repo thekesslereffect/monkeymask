@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header, ContentContainer, Footer, PageName, Card, Button, Alert } from './ui';
 import { Icon } from '@iconify/react';
 import { formatBalance } from '../../utils/format';
@@ -150,6 +150,42 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
         ]
       : []
   );
+
+  // Auto-confirmation is an advanced, off-by-default feature. A spending-session
+  // request can only be approved once the user has explicitly turned it on.
+  const [autoConfirmEnabled, setAutoConfirmEnabled] = useState<boolean>(
+    request.type === 'spendingSession' ? Boolean(request.data?.autoConfirmEnabled) : false,
+  );
+  const [togglingAutoConfirm, setTogglingAutoConfirm] = useState(false);
+
+  useEffect(() => {
+    if (request.type !== 'spendingSession') return;
+    let cancelled = false;
+    chrome.runtime
+      .sendMessage({ type: 'GET_AUTO_CONFIRM_ENABLED' })
+      .then((res) => {
+        if (!cancelled && res?.success) setAutoConfirmEnabled(Boolean(res.data?.enabled));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [request.type]);
+
+  const setAutoConfirm = async (enabled: boolean) => {
+    setTogglingAutoConfirm(true);
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: 'SET_AUTO_CONFIRM_ENABLED',
+        enabled,
+      });
+      if (res?.success) setAutoConfirmEnabled(enabled);
+    } catch (error) {
+      console.error('Failed to update auto-confirmation setting:', error);
+    } finally {
+      setTogglingAutoConfirm(false);
+    }
+  };
 
   const domain = request.origin
     .replace(/^https?:\/\//, '')
@@ -355,23 +391,79 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
         <SiteHeader
           domain={domain}
           origin={request.origin}
-          description="This site wants to auto-approve small payments without asking each time."
+          description="This site wants to auto-confirm small payments without asking each time."
         />
-        <Card label="Allowance" className="w-full">
+
+        <Card label="What this allows" className="w-full">
+          <div className="text-sm text-tertiary leading-relaxed">
+            While active, this site can send BAN from your wallet{' '}
+            <span className="font-semibold">automatically, with no confirmation popup</span>, up to
+            the limit below until it expires. Handy for games and tipping — but payments will leave
+            your wallet without asking each time.
+          </div>
+        </Card>
+
+        <Card label="Requested allowance" className="w-full">
           <DetailRow label="Account">{truncate(address)}</DetailRow>
           <DetailRow label="Up to">{formatBalance(limit)} BAN total</DetailRow>
           <DetailRow label="Expires in" border={false}>
             {durationLabel}
           </DetailRow>
         </Card>
-        <Alert variant="warning" className="w-full">
+
+        {/* The advanced opt-in gate. Approval is blocked until this is on. */}
+        <div
+          className={`w-full rounded-xl border p-3 ${
+            autoConfirmEnabled ? 'border-primary/40 bg-primary/5' : 'border-tertiary/30 bg-tertiary/5'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Enable auto-confirmation</div>
+              <div className="text-xs text-tertiary mt-0.5">
+                Advanced feature · off by default
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoConfirmEnabled}
+              disabled={togglingAutoConfirm}
+              onClick={() => setAutoConfirm(!autoConfirmEnabled)}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                autoConfirmEnabled ? 'bg-primary' : 'bg-tertiary/40'
+              } ${togglingAutoConfirm ? 'opacity-60' : ''}`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                  autoConfirmEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        <Alert variant={autoConfirmEnabled ? 'warning' : 'default'} className="w-full">
           <div className="flex items-start gap-2">
             <Icon icon="lucide:shield-alert" className="text-lg shrink-0 mt-0.5" />
             <div>
-              <div className="font-semibold mb-1">Auto-approved spending</div>
+              <div className="font-semibold mb-1">
+                {autoConfirmEnabled ? 'You are turning on auto-approved spending' : 'Only enable for sites you fully trust'}
+              </div>
               <div className="text-sm">
-                While active, this site can send up to {formatBalance(limit)} BAN in total from the
-                account above without another prompt. Revoke anytime from Connected Sites.
+                {autoConfirmEnabled ? (
+                  <>
+                    This site will be able to send up to {formatBalance(limit)} BAN in total from the
+                    account above without another prompt, until it expires. You can revoke it anytime
+                    from <span className="font-semibold">Connected Sites</span>.
+                  </>
+                ) : (
+                  <>
+                    Turn on the switch above to allow auto-confirmation. Leaving it off keeps a
+                    confirmation prompt on every payment (recommended). You can also manage this in{' '}
+                    <span className="font-semibold">Settings → Advanced</span>.
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -392,6 +484,7 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
       maxSupply?: number;
       assetRepresentative?: string;
       name?: string;
+      message?: string;
       blockHash?: string;
       fees?: { to: string; amount: string; label?: string }[];
       sends?: { to: string; amount: string; label?: string }[];
@@ -477,6 +570,20 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
                 {truncate(toAddress)} (burn)
               </DetailRow>
             </>
+          ) : txType === 'finishSupply' ? (
+            <>
+              {tx.name ? <DetailRow label="Collection">{tx.name}</DetailRow> : null}
+              <DetailRow label="Metadata CID" border={false}>
+                {truncate(tx.metadataCid)}
+              </DetailRow>
+            </>
+          ) : txType === 'sendAllNfts' ? (
+            <>
+              {tx.name ? <DetailRow label="Name">{tx.name}</DetailRow> : null}
+              <DetailRow label="Recipient" border={false}>
+                {truncate(toAddress)}
+              </DetailRow>
+            </>
           ) : txType === 'change' ? (
             <DetailRow label="Representative" border={false}>
               {truncate(tx.representative)}
@@ -521,6 +628,8 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
             </>
           ) : (
             <>
+              {tx.name ? <DetailRow label="Label">{tx.name}</DetailRow> : null}
+              {tx.message ? <DetailRow label="Note">{tx.message}</DetailRow> : null}
               <DetailRow label="To">{truncate(toAddress)}</DetailRow>
               <div className="flex justify-between items-center gap-3 py-2">
                 <span className="text-sm text-tertiary shrink-0">Amount</span>
@@ -608,7 +717,13 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
           <Button
             variant={isBurn ? 'danger' : 'primary'}
             onClick={handleApprove}
-            disabled={request.type === 'connect' ? selectedAccounts.length === 0 : processing}
+            disabled={
+              request.type === 'connect'
+                ? selectedAccounts.length === 0
+                : request.type === 'spendingSession'
+                  ? processing || !autoConfirmEnabled
+                  : processing
+            }
             className="flex-1"
           >
             {processing ? (

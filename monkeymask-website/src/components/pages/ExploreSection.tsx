@@ -79,9 +79,9 @@ export default function ExploreSection() {
     },
     {
       icon: 'mdi:image-multiple',
-      title: 'NFT Ready',
-      description: 'View, send, and collect Banano NFTs with built-in gallery and marketplace integration.',
-      comingSoon: true
+      title: 'NFTs Built In',
+      description: 'View, mint, transfer, and burn Banano NFTs — editions, supply locking, and a full gallery, all from the wallet.',
+      highlight: true
     },
     {
       icon: 'mdi:incognito',

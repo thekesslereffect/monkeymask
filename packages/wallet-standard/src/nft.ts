@@ -14,12 +14,22 @@ const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvw
 
 /** Supply block representative header (hex prefix of the public key). */
 export const SUPPLY_HEADER_HEX = '51BACEED6078000000';
-/** Finish-supply representative header. */
+/** Finish-supply representative header (24 hex chars, then a 40-hex block height). */
 export const FINISH_SUPPLY_HEADER_HEX = '3614865E0051BA0033BB581E';
+/** Atomic-swap representative header (13 hex chars, then packed swap terms). */
+export const ATOMIC_SWAP_HEADER_HEX = '23559C159E22C';
 
 /** Special representative meaning "send every NFT held by this account". */
 export const SEND_ALL_NFTS_REPRESENTATIVE =
   'ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits';
+
+/**
+ * Representative that voids the immediately-preceding `change#supply` block
+ * (`ban_1nftsupp1ycance…`). Placing it (or another supply/finish/atomic-swap
+ * header) right after a supply block cancels that supply per the spec.
+ */
+export const CANCEL_SUPPLY_REPRESENTATIVE =
+  'ban_1nftsupp1ycance1111oops1111that1111was1111my1111bad1hq5sjhey';
 
 /**
  * Canonical burn account used as the default `send#burn` target. It's the
@@ -134,7 +144,7 @@ export function maxSupplyFromRepresentative(account: string): number {
 
 /**
  * True if an account is a valid metadata_representative for a mint block
- * (i.e. not a burn/cancel/finish/supply header).
+ * (i.e. not a burn/cancel/finish/supply/atomic-swap header).
  */
 export function isValidMetadataRepresentative(account: string): boolean {
   if (INVALID_MINT_REPRESENTATIVES.has(account)) return false;
@@ -146,5 +156,73 @@ export function isValidMetadataRepresentative(account: string): boolean {
   }
   if (hex.startsWith(SUPPLY_HEADER_HEX)) return false;
   if (hex.startsWith(FINISH_SUPPLY_HEADER_HEX)) return false;
+  if (hex.startsWith(ATOMIC_SWAP_HEADER_HEX)) return false;
   return true;
+}
+
+/** True if a block representative marks a `#finish_supply` (locks further mints). */
+export function isFinishSupplyRepresentative(account: string): boolean {
+  try {
+    return accountToPublicKeyHex(account).startsWith(FINISH_SUPPLY_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+
+/** The supply-block height a `#finish_supply` representative points at. */
+export function finishSupplyHeightFromRepresentative(account: string): number {
+  const hex = accountToPublicKeyHex(account);
+  return Number(BigInt(`0x${hex.slice(FINISH_SUPPLY_HEADER_HEX.length)}`));
+}
+
+/**
+ * True if a block representative cancels the preceding `change#supply`. Beyond
+ * the dedicated cancel account, the spec also treats a supply/finish/atomic-swap
+ * header in the very next block as a cancel.
+ */
+export function isCancelSupplyRepresentative(account: string): boolean {
+  if (account === CANCEL_SUPPLY_REPRESENTATIVE) return true;
+  try {
+    const hex = accountToPublicKeyHex(account);
+    return (
+      hex.startsWith(SUPPLY_HEADER_HEX) ||
+      hex.startsWith(FINISH_SUPPLY_HEADER_HEX) ||
+      hex.startsWith(ATOMIC_SWAP_HEADER_HEX)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Terms encoded in a `send#atomic_swap` representative. */
+export interface AtomicSwapTerms {
+  /** Frontier height of the asset chain being swapped. */
+  readonly assetHeight: number;
+  /** Recipient's account height + 1 (where the swap must be received). */
+  readonly receiveHeight: number;
+  /** Minimum raw the buyer must pay back for the swap to be valid. */
+  readonly minRaw: string;
+}
+
+/** True if a send block representative marks a `send#atomic_swap`. */
+export function isAtomicSwapRepresentative(account: string): boolean {
+  try {
+    return accountToPublicKeyHex(account).startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Decode the swap terms packed into a `send#atomic_swap` representative.
+ * Layout (hex): header(13) · assetHeight(10) · receiveHeight(10) · minRaw(31).
+ */
+export function parseAtomicSwapRepresentative(account: string): AtomicSwapTerms {
+  const hex = accountToPublicKeyHex(account);
+  const h = ATOMIC_SWAP_HEADER_HEX.length; // 13
+  return {
+    assetHeight: Number(BigInt(`0x${hex.slice(h, h + 10)}`)),
+    receiveHeight: Number(BigInt(`0x${hex.slice(h + 10, h + 20)}`)),
+    minRaw: BigInt(`0x${hex.slice(h + 20, 64)}`).toString(10),
+  };
 }

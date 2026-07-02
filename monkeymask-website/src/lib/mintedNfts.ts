@@ -10,6 +10,8 @@ import {
   accountToPublicKeyHex,
   isSupplyRepresentative,
   isValidMetadataRepresentative,
+  isFinishSupplyRepresentative,
+  finishSupplyHeightFromRepresentative,
   maxSupplyFromRepresentative,
   metadataCidFromRepresentative,
   representativeMatchesAsset,
@@ -91,11 +93,12 @@ function collectEditions(
   metadataRep: string,
   maxSupply: number,
   ownerPublicKey: string,
-): EditionBlock[] {
+): { editions: EditionBlock[]; supplyHeights: number[] } {
   const byHeight = new Map<number, RawHistoryEntry>();
   for (const b of history) byHeight.set(Number(b.height), b);
 
   const editions: EditionBlock[] = [];
+  const supplyHeights: number[] = [];
   for (const entry of history) {
     if (entry.subtype !== 'change' || !entry.representative) continue;
     if (!isSupplyRepresentative(entry.representative)) continue;
@@ -112,9 +115,10 @@ function collectEditions(
         representativeMatchesAsset(t.representative, mint.hash),
     );
     editions.push({ hash: mint.hash, held: heldByOwner && !transferredAway });
+    supplyHeights.push(Number(entry.height));
     if (maxSupply > 0 && editions.length >= maxSupply) break;
   }
-  return editions;
+  return { editions, supplyHeights };
 }
 
 /**
@@ -133,6 +137,14 @@ export async function fetchMintedNFTs(address: string): Promise<NormalizedNFT[]>
   const ownerPublicKey = accountToPublicKeyHex(address);
   const byHeight = new Map<number, RawHistoryEntry>();
   for (const entry of history) byHeight.set(Number(entry.height), entry);
+
+  // Supply-block heights that a `#finish_supply` block has locked.
+  const finishedSupplyHeights = new Set<number>();
+  for (const entry of history) {
+    if (entry.subtype !== 'change' || !entry.representative) continue;
+    if (!isFinishSupplyRepresentative(entry.representative)) continue;
+    finishedSupplyHeights.add(finishSupplyHeightFromRepresentative(entry.representative));
+  }
 
   const results: NormalizedNFT[] = [];
   const seenCids = new Set<string>();
@@ -155,8 +167,14 @@ export async function fetchMintedNFTs(address: string): Promise<NormalizedNFT[]>
     seenCids.add(cid);
 
     const maxSupply = maxSupplyFromRepresentative(entry.representative);
-    const editions = collectEditions(history, mint.representative, maxSupply, ownerPublicKey);
+    const { editions, supplyHeights } = collectEditions(
+      history,
+      mint.representative,
+      maxSupply,
+      ownerPublicKey,
+    );
     if (editions.length === 0) continue;
+    const finished = supplyHeights.some((h) => finishedSupplyHeights.has(h));
 
     const heldCount = editions.filter((e) => e.held).length;
     // Ownership gallery: skip collections where every edition was transferred
@@ -184,6 +202,7 @@ export async function fetchMintedNFTs(address: string): Promise<NormalizedNFT[]>
       mintedCount: editions.length,
       heldCount,
       supplyType,
+      finished,
     });
   }
 

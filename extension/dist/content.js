@@ -10,6 +10,7 @@
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ATOMIC_SWAP_HEADER_HEX: () => (/* binding */ ATOMIC_SWAP_HEADER_HEX),
 /* harmony export */   BANANO_CHAINS: () => (/* binding */ BANANO_CHAINS),
 /* harmony export */   BANANO_MAINNET: () => (/* binding */ BANANO_MAINNET),
 /* harmony export */   BANANO_TESTNET: () => (/* binding */ BANANO_TESTNET),
@@ -18,6 +19,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   BananoSignIn: () => (/* binding */ BananoSignIn),
 /* harmony export */   BananoSignMessage: () => (/* binding */ BananoSignMessage),
 /* harmony export */   BananoSignTransaction: () => (/* binding */ BananoSignTransaction),
+/* harmony export */   CANCEL_SUPPLY_REPRESENTATIVE: () => (/* binding */ CANCEL_SUPPLY_REPRESENTATIVE),
 /* harmony export */   CANONICAL_BURN_ACCOUNT: () => (/* binding */ CANONICAL_BURN_ACCOUNT),
 /* harmony export */   FINISH_SUPPLY_HEADER_HEX: () => (/* binding */ FINISH_SUPPLY_HEADER_HEX),
 /* harmony export */   PROTOCOL_INIT_EVENT: () => (/* binding */ PROTOCOL_INIT_EVENT),
@@ -41,15 +43,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   decodeBase64: () => (/* binding */ decodeBase64),
 /* harmony export */   deserializeSignInOutput: () => (/* binding */ deserializeSignInOutput),
 /* harmony export */   encodeBase64: () => (/* binding */ encodeBase64),
+/* harmony export */   finishSupplyHeightFromRepresentative: () => (/* binding */ finishSupplyHeightFromRepresentative),
 /* harmony export */   generateNonce: () => (/* binding */ generateNonce),
 /* harmony export */   getProtocolTimeoutMs: () => (/* binding */ getProtocolTimeoutMs),
 /* harmony export */   hexToBytes: () => (/* binding */ hexToBytes),
+/* harmony export */   isAtomicSwapRepresentative: () => (/* binding */ isAtomicSwapRepresentative),
 /* harmony export */   isBananoUri: () => (/* binding */ isBananoUri),
 /* harmony export */   isBurnAccount: () => (/* binding */ isBurnAccount),
+/* harmony export */   isCancelSupplyRepresentative: () => (/* binding */ isCancelSupplyRepresentative),
+/* harmony export */   isFinishSupplyRepresentative: () => (/* binding */ isFinishSupplyRepresentative),
 /* harmony export */   isSupplyRepresentative: () => (/* binding */ isSupplyRepresentative),
 /* harmony export */   isValidMetadataRepresentative: () => (/* binding */ isValidMetadataRepresentative),
 /* harmony export */   maxSupplyFromRepresentative: () => (/* binding */ maxSupplyFromRepresentative),
 /* harmony export */   metadataCidFromRepresentative: () => (/* binding */ metadataCidFromRepresentative),
+/* harmony export */   parseAtomicSwapRepresentative: () => (/* binding */ parseAtomicSwapRepresentative),
 /* harmony export */   parseBananoUri: () => (/* binding */ parseBananoUri),
 /* harmony export */   parseSignInMessage: () => (/* binding */ parseSignInMessage),
 /* harmony export */   rawToBan: () => (/* binding */ rawToBan),
@@ -136,7 +143,9 @@ var NANO_ALPHABET = "13456789abcdefghijkmnopqrstuwxyz";
 var BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 var SUPPLY_HEADER_HEX = "51BACEED6078000000";
 var FINISH_SUPPLY_HEADER_HEX = "3614865E0051BA0033BB581E";
+var ATOMIC_SWAP_HEADER_HEX = "23559C159E22C";
 var SEND_ALL_NFTS_REPRESENTATIVE = "ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits";
+var CANCEL_SUPPLY_REPRESENTATIVE = "ban_1nftsupp1ycance1111oops1111that1111was1111my1111bad1hq5sjhey";
 var CANONICAL_BURN_ACCOUNT = "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w";
 var BURN_ACCOUNTS = /* @__PURE__ */ new Set([
   CANONICAL_BURN_ACCOUNT,
@@ -223,7 +232,44 @@ function isValidMetadataRepresentative(account) {
   }
   if (hex.startsWith(SUPPLY_HEADER_HEX)) return false;
   if (hex.startsWith(FINISH_SUPPLY_HEADER_HEX)) return false;
+  if (hex.startsWith(ATOMIC_SWAP_HEADER_HEX)) return false;
   return true;
+}
+function isFinishSupplyRepresentative(account) {
+  try {
+    return accountToPublicKeyHex(account).startsWith(FINISH_SUPPLY_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function finishSupplyHeightFromRepresentative(account) {
+  const hex = accountToPublicKeyHex(account);
+  return Number(BigInt(`0x${hex.slice(FINISH_SUPPLY_HEADER_HEX.length)}`));
+}
+function isCancelSupplyRepresentative(account) {
+  if (account === CANCEL_SUPPLY_REPRESENTATIVE) return true;
+  try {
+    const hex = accountToPublicKeyHex(account);
+    return hex.startsWith(SUPPLY_HEADER_HEX) || hex.startsWith(FINISH_SUPPLY_HEADER_HEX) || hex.startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function isAtomicSwapRepresentative(account) {
+  try {
+    return accountToPublicKeyHex(account).startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function parseAtomicSwapRepresentative(account) {
+  const hex = accountToPublicKeyHex(account);
+  const h = ATOMIC_SWAP_HEADER_HEX.length;
+  return {
+    assetHeight: Number(BigInt(`0x${hex.slice(h, h + 10)}`)),
+    receiveHeight: Number(BigInt(`0x${hex.slice(h + 10, h + 20)}`)),
+    minRaw: BigInt(`0x${hex.slice(h + 20, 64)}`).toString(10)
+  };
 }
 
 // src/protocol.ts

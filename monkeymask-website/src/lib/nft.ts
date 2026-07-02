@@ -24,6 +24,8 @@ export interface NormalizedNFT {
   heldCount?: number;
   /** Human label for the supply model. */
   supplyType?: 'unique' | 'limited' | 'unlimited';
+  /** True once the collection is locked (`#finish_supply`): no more editions. */
+  finished?: boolean;
 }
 
 export interface NFTFetchResult {

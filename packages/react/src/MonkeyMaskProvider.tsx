@@ -333,7 +333,7 @@ export function useSignAndSendTransaction() {
  * Pass `{ to, amount }` for one recipient or `{ sends: [...] }` for many.
  */
 export type SendParams =
-  | { to: string; amount: string; name?: string }
+  | { to: string; amount: string; name?: string; message?: string }
   | { sends: BananoFee[]; name?: string };
 
 /**
@@ -418,7 +418,7 @@ export function useReverseBNS() {
 }
 
 export interface MintNFTParams {
-  /** IPFS v0 CID (Qm…) of the metadata JSON. */
+  /** IPFS CID (v0 `Qm…` or v1 `b…`, sha2-256) of the metadata JSON. */
   metadataCid: string;
   /** Recipient account (ban_… or a BNS name). */
   to: string;
@@ -451,7 +451,7 @@ export function useMintNFT() {
 }
 
 export interface MintEditionParams {
-  /** IPFS v0 CID (Qm…) of the existing collection's metadata JSON. */
+  /** IPFS CID (v0 `Qm…` or v1 `b…`, sha2-256) of the existing collection's metadata JSON. */
   metadataCid: string;
   /** Recipient account (ban_… or a BNS name). */
   to: string;
@@ -537,6 +537,48 @@ export function useBurnNFT() {
   return useCallback(
     (params: BurnNFTParams, account?: WalletAccount) =>
       signAndSendTransaction({ type: 'burn', ...params }, account),
+    [signAndSendTransaction],
+  );
+}
+
+export interface FinishSupplyParams {
+  /** The collection's metadata CID (identifies which collection to lock). */
+  metadataCid: string;
+  /** Optional display name shown in the wallet approval UI. */
+  name?: string;
+}
+
+/**
+ * Lock a collection you issued so no further editions can be minted
+ * (73-meta-tokens `#finish_supply`). Returns `{ hash }`.
+ */
+export function useFinishSupply() {
+  const { signAndSendTransaction } = useMonkeyMask();
+  return useCallback(
+    (params: FinishSupplyParams, account?: WalletAccount) =>
+      signAndSendTransaction({ type: 'finishSupply', ...params }, account),
+    [signAndSendTransaction],
+  );
+}
+
+export interface SendAllNftsParams {
+  /** Recipient account (ban_… or a BNS name) that receives every held asset. */
+  to: string;
+  /** BAN carried by the marker send (optional; wallet uses a tiny default). */
+  amount?: string;
+  /** Optional display name shown in the wallet approval UI. */
+  name?: string;
+}
+
+/**
+ * Transfer every NFT the account holds to one recipient in a single block
+ * (73-meta-tokens `send#all_nfts`). Returns `{ hash }`.
+ */
+export function useSendAllNfts() {
+  const { signAndSendTransaction } = useMonkeyMask();
+  return useCallback(
+    (params: SendAllNftsParams, account?: WalletAccount) =>
+      signAndSendTransaction({ type: 'sendAllNfts', ...params }, account),
     [signAndSendTransaction],
   );
 }

@@ -17,6 +17,7 @@ const nftValidator = v.object({
   supplyType: v.optional(
     v.union(v.literal('unique'), v.literal('limited'), v.literal('unlimited')),
   ),
+  finished: v.optional(v.boolean()),
 });
 
 function supplyTypeFor(maxSupply: number | undefined): 'unique' | 'limited' | 'unlimited' | undefined {
@@ -59,6 +60,7 @@ export const nftsByOwner = query({
         maxSupply?: number;
       };
       heldCount: number;
+      finished: boolean;
     }
     const groups = new Map<string, Group>();
     for (const row of owned) {
@@ -71,6 +73,7 @@ export const nftsByOwner = query({
       const existing = groups.get(key);
       if (existing) {
         existing.heldCount += 1;
+        if (asset.finished) existing.finished = true;
       } else {
         groups.set(key, {
           primary: {
@@ -84,6 +87,7 @@ export const nftsByOwner = query({
             maxSupply: asset.maxSupply,
           },
           heldCount: 1,
+          finished: Boolean(asset.finished),
         });
       }
     }
@@ -93,13 +97,17 @@ export const nftsByOwner = query({
       const { primary, heldCount } = group;
       // Total editions ever minted for this collection (all issuers' mints share
       // the CID). Falls back to the held count when there's no CID to group by.
+      // A collection is finished if *any* of its editions carries the lock flag
+      // (the finish block references one edition's supply height).
       let mintedCount = heldCount;
+      let finished = group.finished;
       if (primary.metadataCid) {
         const all = await ctx.db
           .query('assets')
           .withIndex('by_metadataCid', (q) => q.eq('metadataCid', primary.metadataCid))
           .collect();
         if (all.length > 0) mintedCount = all.length;
+        if (all.some((a) => a.finished)) finished = true;
       }
       results.push({
         id: primary.assetRep,
@@ -114,6 +122,7 @@ export const nftsByOwner = query({
         mintedCount,
         heldCount,
         supplyType: supplyTypeFor(primary.maxSupply),
+        finished,
       });
     }
     return results;
@@ -161,6 +170,7 @@ export const upsertAsset = internalMutation({
     metadataCid: v.optional(v.string()),
     maxSupply: v.optional(v.number()),
     mintHeight: v.optional(v.number()),
+    finished: v.optional(v.boolean()),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     image: v.optional(v.string()),

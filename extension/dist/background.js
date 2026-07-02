@@ -7119,6 +7119,7 @@
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ATOMIC_SWAP_HEADER_HEX: () => (/* binding */ ATOMIC_SWAP_HEADER_HEX),
 /* harmony export */   BANANO_CHAINS: () => (/* binding */ BANANO_CHAINS),
 /* harmony export */   BANANO_MAINNET: () => (/* binding */ BANANO_MAINNET),
 /* harmony export */   BANANO_TESTNET: () => (/* binding */ BANANO_TESTNET),
@@ -7127,6 +7128,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   BananoSignIn: () => (/* binding */ BananoSignIn),
 /* harmony export */   BananoSignMessage: () => (/* binding */ BananoSignMessage),
 /* harmony export */   BananoSignTransaction: () => (/* binding */ BananoSignTransaction),
+/* harmony export */   CANCEL_SUPPLY_REPRESENTATIVE: () => (/* binding */ CANCEL_SUPPLY_REPRESENTATIVE),
 /* harmony export */   CANONICAL_BURN_ACCOUNT: () => (/* binding */ CANONICAL_BURN_ACCOUNT),
 /* harmony export */   FINISH_SUPPLY_HEADER_HEX: () => (/* binding */ FINISH_SUPPLY_HEADER_HEX),
 /* harmony export */   PROTOCOL_INIT_EVENT: () => (/* binding */ PROTOCOL_INIT_EVENT),
@@ -7150,15 +7152,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   decodeBase64: () => (/* binding */ decodeBase64),
 /* harmony export */   deserializeSignInOutput: () => (/* binding */ deserializeSignInOutput),
 /* harmony export */   encodeBase64: () => (/* binding */ encodeBase64),
+/* harmony export */   finishSupplyHeightFromRepresentative: () => (/* binding */ finishSupplyHeightFromRepresentative),
 /* harmony export */   generateNonce: () => (/* binding */ generateNonce),
 /* harmony export */   getProtocolTimeoutMs: () => (/* binding */ getProtocolTimeoutMs),
 /* harmony export */   hexToBytes: () => (/* binding */ hexToBytes),
+/* harmony export */   isAtomicSwapRepresentative: () => (/* binding */ isAtomicSwapRepresentative),
 /* harmony export */   isBananoUri: () => (/* binding */ isBananoUri),
 /* harmony export */   isBurnAccount: () => (/* binding */ isBurnAccount),
+/* harmony export */   isCancelSupplyRepresentative: () => (/* binding */ isCancelSupplyRepresentative),
+/* harmony export */   isFinishSupplyRepresentative: () => (/* binding */ isFinishSupplyRepresentative),
 /* harmony export */   isSupplyRepresentative: () => (/* binding */ isSupplyRepresentative),
 /* harmony export */   isValidMetadataRepresentative: () => (/* binding */ isValidMetadataRepresentative),
 /* harmony export */   maxSupplyFromRepresentative: () => (/* binding */ maxSupplyFromRepresentative),
 /* harmony export */   metadataCidFromRepresentative: () => (/* binding */ metadataCidFromRepresentative),
+/* harmony export */   parseAtomicSwapRepresentative: () => (/* binding */ parseAtomicSwapRepresentative),
 /* harmony export */   parseBananoUri: () => (/* binding */ parseBananoUri),
 /* harmony export */   parseSignInMessage: () => (/* binding */ parseSignInMessage),
 /* harmony export */   rawToBan: () => (/* binding */ rawToBan),
@@ -7245,7 +7252,9 @@ var NANO_ALPHABET = "13456789abcdefghijkmnopqrstuwxyz";
 var BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 var SUPPLY_HEADER_HEX = "51BACEED6078000000";
 var FINISH_SUPPLY_HEADER_HEX = "3614865E0051BA0033BB581E";
+var ATOMIC_SWAP_HEADER_HEX = "23559C159E22C";
 var SEND_ALL_NFTS_REPRESENTATIVE = "ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits";
+var CANCEL_SUPPLY_REPRESENTATIVE = "ban_1nftsupp1ycance1111oops1111that1111was1111my1111bad1hq5sjhey";
 var CANONICAL_BURN_ACCOUNT = "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w";
 var BURN_ACCOUNTS = /* @__PURE__ */ new Set([
   CANONICAL_BURN_ACCOUNT,
@@ -7332,7 +7341,44 @@ function isValidMetadataRepresentative(account) {
   }
   if (hex.startsWith(SUPPLY_HEADER_HEX)) return false;
   if (hex.startsWith(FINISH_SUPPLY_HEADER_HEX)) return false;
+  if (hex.startsWith(ATOMIC_SWAP_HEADER_HEX)) return false;
   return true;
+}
+function isFinishSupplyRepresentative(account) {
+  try {
+    return accountToPublicKeyHex(account).startsWith(FINISH_SUPPLY_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function finishSupplyHeightFromRepresentative(account) {
+  const hex = accountToPublicKeyHex(account);
+  return Number(BigInt(`0x${hex.slice(FINISH_SUPPLY_HEADER_HEX.length)}`));
+}
+function isCancelSupplyRepresentative(account) {
+  if (account === CANCEL_SUPPLY_REPRESENTATIVE) return true;
+  try {
+    const hex = accountToPublicKeyHex(account);
+    return hex.startsWith(SUPPLY_HEADER_HEX) || hex.startsWith(FINISH_SUPPLY_HEADER_HEX) || hex.startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function isAtomicSwapRepresentative(account) {
+  try {
+    return accountToPublicKeyHex(account).startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function parseAtomicSwapRepresentative(account) {
+  const hex = accountToPublicKeyHex(account);
+  const h = ATOMIC_SWAP_HEADER_HEX.length;
+  return {
+    assetHeight: Number(BigInt(`0x${hex.slice(h, h + 10)}`)),
+    receiveHeight: Number(BigInt(`0x${hex.slice(h + 10, h + 20)}`)),
+    minRaw: BigInt(`0x${hex.slice(h + 20, 64)}`).toString(10)
+  };
 }
 
 // src/protocol.ts
@@ -74272,6 +74318,10 @@ class BackgroundService {
         this.accountInfoCache = new Map();
         this.spendSessions = new Map();
         this.spendSessionsLoaded = false;
+        // Global advanced opt-in: auto-confirmation (spending allowances) is OFF until
+        // the user explicitly enables it. Cached in memory so the synchronous
+        // auto-approve check can fail closed after a service-worker restart.
+        this.autoConfirmEnabled = false;
         this.lastPendingApprovalCheck = new Map(); // origin -> timestamp
         this.walletManager = wallet_1.WalletManager.getInstance();
         this.rpc = new rpc_1.BananoRPC();
@@ -74421,6 +74471,13 @@ class BackgroundService {
             this.permissions.delete(key);
         });
         await this.savePermissions();
+        // Disconnecting must also tear down any auto-approve allowance for this
+        // origin — the user's disconnect is the ultimate kill switch, independent of
+        // whether the dApp offers its own revoke.
+        await this.loadSpendSessions();
+        if (this.spendSessions.delete(origin)) {
+            await this.persistSpendSessions();
+        }
         // Emit disconnect event to all tabs from this origin
         this.emitProviderEvent('disconnect', null, origin);
         console.log('Background: Revoked all account permissions for origin:', origin, 'removed keys:', keysToDelete);
@@ -74596,6 +74653,12 @@ class BackgroundService {
                 case 'BURN_NFT':
                     await this.handleBurnNFT(request, sendResponse);
                     break;
+                case 'FINISH_COLLECTION':
+                    await this.handleFinishCollection(request, sendResponse);
+                    break;
+                case 'SEND_ALL_NFTS':
+                    await this.handleSendAllNfts(request, sendResponse);
+                    break;
                 case 'SWEEP_TRANSACTION':
                     await this.handleSweepTransaction(request, sendResponse);
                     break;
@@ -74658,6 +74721,18 @@ class BackgroundService {
                     break;
                 case 'REMOVE_ACCOUNT':
                     await this.handleRemoveAccount(request, sendResponse);
+                    break;
+                case 'GET_SPENDING_SESSIONS':
+                    await this.handleListSpendingSessions(sendResponse);
+                    break;
+                case 'REVOKE_SPENDING_SESSION':
+                    await this.handleRevokeSpendingSession(request.origin, sendResponse);
+                    break;
+                case 'GET_AUTO_CONFIRM_ENABLED':
+                    await this.handleGetAutoConfirmEnabled(sendResponse);
+                    break;
+                case 'SET_AUTO_CONFIRM_ENABLED':
+                    await this.handleSetAutoConfirmEnabled(request, sendResponse);
                     break;
                 default:
                     sendResponse({ success: false, error: 'Unknown request type' });
@@ -75301,6 +75376,69 @@ class BackgroundService {
             });
         }
     }
+    /**
+     * Lock a collection the account issued (first-party popup action). Publishes a
+     * `#finish_supply` block so no further editions can be minted.
+     */
+    async handleFinishCollection(request, sendResponse) {
+        try {
+            if (!this.walletManager.isWalletUnlocked()) {
+                sendResponse({ success: false, error: 'Wallet is locked' });
+                return;
+            }
+            const { fromAddress, metadataCid } = request;
+            if (!fromAddress || !metadataCid) {
+                sendResponse({
+                    success: false,
+                    error: 'Missing required fields: fromAddress, metadataCid',
+                });
+                return;
+            }
+            const hash = await this.walletManager.finishCollection(fromAddress, { metadataCid });
+            sendResponse({ success: true, data: { hash } });
+        }
+        catch (error) {
+            console.error('Background: Error finishing collection:', error);
+            sendResponse({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to finish collection',
+            });
+        }
+    }
+    /**
+     * Transfer every NFT the account holds to one recipient (first-party popup
+     * action) via a single `send#all_nfts` block.
+     */
+    async handleSendAllNfts(request, sendResponse) {
+        try {
+            if (!this.walletManager.isWalletUnlocked()) {
+                sendResponse({ success: false, error: 'Wallet is locked' });
+                return;
+            }
+            const { fromAddress, toAddress, amount } = request;
+            if (!fromAddress || !toAddress) {
+                sendResponse({
+                    success: false,
+                    error: 'Missing required fields: fromAddress, toAddress',
+                });
+                return;
+            }
+            const hash = await this.walletManager.sendAllNfts(fromAddress, { to: toAddress, amount });
+            setTimeout(() => {
+                this.updateBalancesAsync().catch((err) => {
+                    console.warn('Background: post send-all refresh failed:', err);
+                });
+            }, 0);
+            sendResponse({ success: true, data: { hash } });
+        }
+        catch (error) {
+            console.error('Background: Error sending all NFTs:', error);
+            sendResponse({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to send all NFTs',
+            });
+        }
+    }
     async handleSweepTransaction(request, sendResponse) {
         try {
             if (!this.walletManager.isWalletUnlocked()) {
@@ -75652,7 +75790,11 @@ class BackgroundService {
         if (this.spendSessionsLoaded)
             return;
         try {
-            const stored = await chrome.storage.local.get(BackgroundService.SPEND_SESSIONS_KEY);
+            const stored = await chrome.storage.local.get([
+                BackgroundService.SPEND_SESSIONS_KEY,
+                BackgroundService.AUTO_CONFIRM_KEY,
+            ]);
+            this.autoConfirmEnabled = stored[BackgroundService.AUTO_CONFIRM_KEY] === true;
             const raw = stored[BackgroundService.SPEND_SESSIONS_KEY];
             if (raw) {
                 for (const [origin, session] of Object.entries(raw)) {
@@ -75701,6 +75843,10 @@ class BackgroundService {
         };
     }
     canAutoApproveSend(origin, address, amountBan) {
+        // Master switch: if the user hasn't opted into auto-confirmation, nothing is
+        // ever auto-approved — every send prompts, regardless of any stored session.
+        if (!this.autoConfirmEnabled)
+            return false;
         const session = this.getActiveSession(origin, address);
         if (!session)
             return false;
@@ -75763,9 +75909,20 @@ class BackgroundService {
                 address,
                 limit: request.limit,
                 durationMs,
+                autoConfirmEnabled: this.autoConfirmEnabled,
             });
             if (!approval.approved) {
                 sendResponse(this.createStandardError('User rejected the request', PROVIDER_ERRORS.USER_REJECTED.code));
+                return;
+            }
+            // Defense in depth: only mint a session if auto-confirmation is enabled.
+            // The approval UI won't let the user approve without turning it on, but we
+            // re-check the persisted flag here so a session can never exist otherwise.
+            await this.loadSpendSessions();
+            const freshFlag = await chrome.storage.local.get(BackgroundService.AUTO_CONFIRM_KEY);
+            this.autoConfirmEnabled = freshFlag[BackgroundService.AUTO_CONFIRM_KEY] === true;
+            if (!this.autoConfirmEnabled) {
+                sendResponse(this.createStandardError('Auto-confirmation is disabled in the wallet', PROVIDER_ERRORS.USER_REJECTED.code));
                 return;
             }
             const session = {
@@ -75791,6 +75948,29 @@ class BackgroundService {
         await this.loadSpendSessions();
         const session = this.getActiveSession(origin);
         sendResponse({ success: true, data: { session: session ? this.sessionInfo(session) : null } });
+    }
+    /**
+     * List every active auto-approve allowance across all origins, for the
+     * extension's own UI. This is what lets a user revoke an allowance from the
+     * wallet even when the granting dApp exposes no revoke control of its own.
+     */
+    async handleListSpendingSessions(sendResponse) {
+        await this.loadSpendSessions();
+        const now = Date.now();
+        let changed = false;
+        const sessions = [];
+        for (const [origin, session] of this.spendSessions.entries()) {
+            if (session.expiresAt <= now) {
+                this.spendSessions.delete(origin); // opportunistically prune expired
+                changed = true;
+                continue;
+            }
+            sessions.push({ origin, ...this.sessionInfo(session) });
+        }
+        if (changed)
+            await this.persistSpendSessions();
+        sessions.sort((a, b) => a.expiresAt - b.expiresAt);
+        sendResponse({ success: true, data: { sessions } });
     }
     async handleRevokeSpendingSession(origin, sendResponse) {
         await this.loadSpendSessions();
@@ -76273,6 +76453,39 @@ class BackgroundService {
             sendResponse(this.createStandardError('Failed to set auto-lock timeout', PROVIDER_ERRORS.INTERNAL_ERROR.code));
         }
     }
+    async handleGetAutoConfirmEnabled(sendResponse) {
+        try {
+            const result = await chrome.storage.local.get([BackgroundService.AUTO_CONFIRM_KEY]);
+            this.autoConfirmEnabled = result[BackgroundService.AUTO_CONFIRM_KEY] === true;
+            sendResponse({ success: true, data: { enabled: this.autoConfirmEnabled } });
+        }
+        catch (error) {
+            console.error('Background: Error getting auto-confirm setting:', error);
+            sendResponse(this.createStandardError('Failed to get auto-confirmation setting', PROVIDER_ERRORS.INTERNAL_ERROR.code));
+        }
+    }
+    async handleSetAutoConfirmEnabled(request, sendResponse) {
+        try {
+            const enabled = request.enabled === true;
+            await chrome.storage.local.set({ [BackgroundService.AUTO_CONFIRM_KEY]: enabled });
+            this.autoConfirmEnabled = enabled;
+            // Turning the feature off is also a global kill switch: drop every active
+            // allowance so nothing keeps auto-approving.
+            if (!enabled) {
+                await this.loadSpendSessions();
+                if (this.spendSessions.size > 0) {
+                    this.spendSessions.clear();
+                    await this.persistSpendSessions();
+                }
+            }
+            console.log('Background: Auto-confirmation set to', enabled);
+            sendResponse({ success: true, data: { enabled } });
+        }
+        catch (error) {
+            console.error('Background: Error setting auto-confirm setting:', error);
+            sendResponse(this.createStandardError('Failed to set auto-confirmation setting', PROVIDER_ERRORS.INTERNAL_ERROR.code));
+        }
+    }
     async handleCreateNewAccount(sendResponse) {
         try {
             console.log('Background: Creating new account...');
@@ -76451,6 +76664,7 @@ class BackgroundService {
 }
 BackgroundService.LOCK_ALARM_NAME = 'monkeymask-autolock';
 BackgroundService.SPEND_SESSIONS_KEY = 'mm_spend_sessions';
+BackgroundService.AUTO_CONFIRM_KEY = 'mm_auto_confirm_enabled';
 BackgroundService.DEFAULT_SESSION_MS = 60 * 60 * 1000; // 1 hour
 BackgroundService.MAX_SESSION_MS = 24 * 60 * 60 * 1000; // 24 hours
 BackgroundService.ACCOUNT_INFO_TTL_MS = 5000;
@@ -76840,6 +77054,22 @@ async function handleProtocolSignAndSend(host, origin, params, sendResponse) {
                 type: 'burn',
                 fromAddress: address,
                 toAddress: transaction.to ?? 'burn account',
+                amount: transaction.amount ?? '0',
+            };
+        }
+        else if (transaction.type === 'finishSupply') {
+            confirmationBlock = {
+                type: 'finishSupply',
+                fromAddress: address,
+                toAddress: transaction.metadataCid,
+                amount: '0',
+            };
+        }
+        else if (transaction.type === 'sendAllNfts') {
+            confirmationBlock = {
+                type: 'sendAllNfts',
+                fromAddress: address,
+                toAddress: transaction.to,
                 amount: transaction.amount ?? '0',
             };
         }
@@ -77611,7 +77841,9 @@ async function fetchAllNFTsForAddress(address) {
 // ban_ account. We build those 32-byte values then convert to accounts via
 // bananojs.
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.metadataRepresentativeFromCidV0 = metadataRepresentativeFromCidV0;
+exports.metadataRepresentativeFromCidV0 = void 0;
+exports.metadataRepresentativeFromCid = metadataRepresentativeFromCid;
+exports.finishSupplyRepresentative = finishSupplyRepresentative;
 exports.assetRepresentativeAccount = assetRepresentativeAccount;
 exports.supplyRepresentative = supplyRepresentative;
 const bananojs = __webpack_require__(/*! @bananocoin/bananojs */ "../node_modules/@bananocoin/bananojs/index.js");
@@ -77621,7 +77853,11 @@ const SUPPLY_HEADER = '51BACEED6078000000';
 const VERSION_MAJOR = '0000000001';
 const VERSION_MINOR = '0000000000';
 const VERSION_PATCH = '0000000000';
+// `#finish_supply` representative: 24-hex header + 40-hex supply block height.
+const FINISH_SUPPLY_HEADER = '3614865E0051BA0033BB581E';
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+// RFC4648 base32, lowercase, no padding — the multibase used by CIDv1 (`b…`).
+const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
 /** Decode a base58 (Bitcoin alphabet) string to bytes. */
 function base58Decode(input) {
     const bytes = [0];
@@ -77646,6 +77882,24 @@ function base58Decode(input) {
     }
     return new Uint8Array(bytes.reverse());
 }
+/** Decode an RFC4648 base32 (lowercase, no padding) string to bytes. */
+function base32Decode(input) {
+    let bits = 0;
+    let value = 0;
+    const out = [];
+    for (const char of input.toLowerCase()) {
+        const idx = BASE32_ALPHABET.indexOf(char);
+        if (idx === -1)
+            throw new Error(`Invalid base32 character: ${char}`);
+        value = (value << 5) | idx;
+        bits += 5;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push((value >> bits) & 0xff);
+        }
+    }
+    return new Uint8Array(out);
+}
 function bytesToHex(bytes) {
     return Array.from(bytes)
         .map((b) => b.toString(16).padStart(2, '0'))
@@ -77664,19 +77918,51 @@ function publicKeyToAccount(hexPublicKey) {
     return bananojs.BananoUtil.getAccount(hexPublicKey, bananojs.BANANO_PREFIX);
 }
 /**
- * Convert an IPFS v0 CID (Qm…, base58btc sha2-256 multihash) into the
+ * Extract the 32-byte sha2-256 digest (as 64-hex) from an IPFS CID.
+ *
+ * The metadata_representative encodes only this digest, so both a v0 CID
+ * (`Qm…`, base58btc `0x12 0x20` multihash) and a v1 CID (`b…`, base32
+ * `0x01 <codec> 0x12 0x20` — dag-pb or raw over sha2-256) map to the same rep.
+ */
+function sha256DigestFromCid(cid) {
+    const trimmed = cid.trim();
+    if (trimmed.startsWith('Qm')) {
+        const hex = bytesToHex(base58Decode(trimmed));
+        // Multihash prefix: 0x12 (sha2-256) 0x20 (32-byte length) => "1220".
+        if (!hex.startsWith('1220') || hex.length !== 68) {
+            throw new Error('Unexpected v0 CID format; expected a 34-byte sha2-256 multihash');
+        }
+        return hex.slice(4);
+    }
+    if (/^b[a-z2-7]+$/.test(trimmed)) {
+        const bytes = base32Decode(trimmed.slice(1));
+        // Expect: version(0x01) · codec(1 byte) · 0x12 (sha2-256) · 0x20 (len 32) · digest.
+        if (bytes.length !== 36 || bytes[0] !== 0x01 || bytes[2] !== 0x12 || bytes[3] !== 0x20) {
+            throw new Error('Unsupported v1 CID; expected a dag-pb/raw sha2-256 CID');
+        }
+        return bytesToHex(bytes.slice(4));
+    }
+    throw new Error('Metadata CID must be an IPFS v0 (Qm…) or v1 (b…) CID');
+}
+/**
+ * Convert an IPFS CID (v0 `Qm…` or v1 `b…`, sha2-256) into the
  * metadata_representative account used in `#mint` blocks.
  */
-function metadataRepresentativeFromCidV0(cid) {
-    if (!cid || !cid.startsWith('Qm')) {
-        throw new Error('Metadata CID must be an IPFS v0 CID (starts with "Qm")');
+function metadataRepresentativeFromCid(cid) {
+    return publicKeyToAccount(sha256DigestFromCid(cid));
+}
+/** @deprecated Use {@link metadataRepresentativeFromCid} — now accepts v0 and v1. */
+exports.metadataRepresentativeFromCidV0 = metadataRepresentativeFromCid;
+/**
+ * Build the `#finish_supply` representative that locks a collection (no further
+ * editions can be minted) given the collection's `change#supply` block height.
+ */
+function finishSupplyRepresentative(supplyBlockHeight) {
+    if (!Number.isInteger(supplyBlockHeight) || supplyBlockHeight < 0) {
+        throw new Error('supplyBlockHeight must be a non-negative integer');
     }
-    const hex = bytesToHex(base58Decode(cid));
-    // Multihash prefix: 0x12 (sha2-256) 0x20 (32-byte length) => "1220".
-    if (!hex.startsWith('1220') || hex.length !== 68) {
-        throw new Error('Unexpected CID format; expected a 34-byte sha2-256 multihash');
-    }
-    return publicKeyToAccount(hex.slice(4));
+    const heightHex = supplyBlockHeight.toString(16).toUpperCase().padStart(40, '0');
+    return publicKeyToAccount(`${FINISH_SUPPLY_HEADER}${heightHex}`);
 }
 /**
  * Encode an NFT's asset representative (its mint block hash, 64 hex) as the
@@ -78813,6 +79099,7 @@ class WalletManager {
             byHeight.set(Number(b.height), b);
         let maxSupply = null;
         let minted = 0;
+        const supplyHeights = [];
         for (const entry of history) {
             if (entry.subtype !== 'change' || !entry.representative)
                 continue;
@@ -78827,10 +79114,17 @@ class WalletManager {
             if (maxSupply === null)
                 maxSupply = (0, wallet_standard_1.maxSupplyFromRepresentative)(entry.representative);
             minted += 1;
+            supplyHeights.push(Number(entry.height));
         }
         if (maxSupply === null)
             return null;
-        return { maxSupply, minted };
+        // The collection is locked if any `#finish_supply` block points at one of
+        // its supply-block heights.
+        const supplySet = new Set(supplyHeights);
+        const finished = history.some((b) => !!b.representative &&
+            (0, wallet_standard_1.isFinishSupplyRepresentative)(b.representative) &&
+            supplySet.has((0, wallet_standard_1.finishSupplyHeightFromRepresentative)(b.representative)));
+        return { maxSupply, minted, supplyHeights, finished };
     }
     /**
      * Mint an additional edition of an existing collection (one this account
@@ -78869,6 +79163,9 @@ class WalletManager {
         const stats = await this.collectionEditionStats(fromAddress, metadataRep);
         if (!stats) {
             throw new Error('Collection not found for this account — you can only mint editions of a collection you issued');
+        }
+        if (stats.finished) {
+            throw new Error('Collection is finished — no further editions can be minted');
         }
         if (stats.maxSupply > 0 && stats.minted >= stats.maxSupply) {
             throw new Error(`Edition limit reached: ${stats.minted}/${stats.maxSupply} already minted`);
@@ -79027,6 +79324,114 @@ class WalletManager {
             to,
             amount: params.amount,
         });
+    }
+    /**
+     * Lock a collection you issued (73-meta-tokens `#finish_supply`): publish a
+     * change block whose representative encodes the collection's supply-block
+     * height. Afterwards `mintEdition` for this collection is refused. Returns the
+     * finish block hash.
+     */
+    async finishCollection(fromAddress, params) {
+        if (!this.isUnlocked)
+            throw new Error('Wallet is locked');
+        if (!this.currentSeed)
+            throw new Error('Seed not available');
+        const account = this.accounts.find((acc) => acc.address === fromAddress);
+        if (!account)
+            throw new Error('Account not found');
+        const accountIndex = this.accounts.indexOf(account);
+        const metadataRep = (0, nftMint_1.metadataRepresentativeFromCidV0)(params.metadataCid);
+        const stats = await this.collectionEditionStats(fromAddress, metadataRep);
+        if (!stats || stats.supplyHeights.length === 0) {
+            throw new Error('Collection not found for this account');
+        }
+        if (stats.finished) {
+            throw new Error('Collection is already finished');
+        }
+        // Reference the collection's latest supply block; our edition guard refuses
+        // new mints once any finish block points at one of the collection's supplies.
+        const targetHeight = Math.max(...stats.supplyHeights);
+        const finishRep = (0, nftMint_1.finishSupplyRepresentative)(targetHeight);
+        // Capture a clean rep to restore afterwards (a finish rep left on the chain
+        // is harmless — change blocks with it are ignored — but keep the account tidy).
+        let baseRep;
+        try {
+            baseRep = await bananojs.bananodeApi.getAccountRepresentative(fromAddress);
+        }
+        catch {
+            /* fall back below */
+        }
+        const cleanRep = baseRep && !(0, wallet_standard_1.isSupplyRepresentative)(baseRep) && !(0, wallet_standard_1.isFinishSupplyRepresentative)(baseRep)
+            ? baseRep
+            : CLEAN_REPRESENTATIVE;
+        const result = await bananojs.changeBananoRepresentativeForSeed(this.currentSeed, accountIndex, finishRep);
+        const hash = typeof result === 'string'
+            ? result
+            : typeof result?.hash === 'string'
+                ? result.hash
+                : null;
+        if (!hash)
+            throw new Error('Failed to publish finish block: missing hash');
+        try {
+            await bananojs.changeBananoRepresentativeForSeed(this.currentSeed, accountIndex, cleanRep);
+        }
+        catch (error) {
+            console.warn('WalletManager: failed to restore representative after finish:', error);
+        }
+        return hash;
+    }
+    /**
+     * Transfer every NFT the account holds to one recipient in a single block
+     * (73-meta-tokens `send#all_nfts`). Pockets pending assets first, publishes one
+     * send whose representative is the "send all NFTs" marker, then restores a
+     * clean representative so subsequent ordinary sends aren't treated as send-all.
+     * Returns the marker send hash.
+     */
+    async sendAllNfts(fromAddress, params) {
+        if (!this.isUnlocked)
+            throw new Error('Wallet is locked');
+        if (!this.currentSeed)
+            throw new Error('Seed not available');
+        const account = this.accounts.find((acc) => acc.address === fromAddress);
+        if (!account)
+            throw new Error('Account not found');
+        const accountIndex = this.accounts.indexOf(account);
+        const resolvedTo = await this.resolveRecipientAddress(params.to);
+        const amount = params.amount && params.amount.trim() !== '' ? params.amount : '0.0001';
+        // Pocket pending assets so they're owned (and therefore transferable) before
+        // the marker send moves everything.
+        try {
+            await this.autoReceivePending(fromAddress);
+        }
+        catch (error) {
+            console.warn('WalletManager: auto-receive before send-all failed (continuing):', error);
+        }
+        let baseRep;
+        try {
+            baseRep = await bananojs.bananodeApi.getAccountRepresentative(fromAddress);
+        }
+        catch {
+            /* fall back below */
+        }
+        const cleanRep = baseRep && baseRep !== wallet_standard_1.SEND_ALL_NFTS_REPRESENTATIVE ? baseRep : CLEAN_REPRESENTATIVE;
+        const result = await bananojs.sendBananoWithdrawalFromSeed(this.currentSeed, accountIndex, resolvedTo, amount, wallet_standard_1.SEND_ALL_NFTS_REPRESENTATIVE);
+        const hash = typeof result === 'string'
+            ? result
+            : typeof result?.hash === 'string'
+                ? result.hash
+                : null;
+        if (!hash)
+            throw new Error('Failed to publish send-all block: missing hash');
+        account.balance = Math.max(0, (parseFloat(account.balance) || 0) - (parseFloat(amount) || 0)).toString();
+        // Critical: restore a clean rep so the NEXT ordinary send isn't itself
+        // interpreted as another send#all_nfts.
+        try {
+            await bananojs.changeBananoRepresentativeForSeed(this.currentSeed, accountIndex, cleanRep);
+        }
+        catch (error) {
+            console.warn('WalletManager: failed to restore representative after send-all:', error);
+        }
+        return hash;
     }
     /**
      * Sweep an account: claim any pending, then send the entire confirmed balance
@@ -79512,6 +79917,12 @@ class WalletManager {
         if (operation.type === 'burn') {
             throw new Error('NFT burn requires publishing; use signAndSendTransaction');
         }
+        if (operation.type === 'finishSupply') {
+            throw new Error('Finishing a collection requires publishing; use signAndSendTransaction');
+        }
+        if (operation.type === 'sendAllNfts') {
+            throw new Error('Send-all-NFTs requires publishing; use signAndSendTransaction');
+        }
         throw new Error('Unsupported operation type');
     }
     /**
@@ -79585,6 +79996,19 @@ class WalletManager {
         if (operation.type === 'burn') {
             const hash = await this.burnNFT(accountAddress, {
                 assetRepresentative: operation.assetRepresentative,
+                to: operation.to,
+                amount: operation.amount,
+            });
+            return { hashes: [hash] };
+        }
+        if (operation.type === 'finishSupply') {
+            const hash = await this.finishCollection(accountAddress, {
+                metadataCid: operation.metadataCid,
+            });
+            return { hashes: [hash] };
+        }
+        if (operation.type === 'sendAllNfts') {
+            const hash = await this.sendAllNfts(accountAddress, {
                 to: operation.to,
                 amount: operation.amount,
             });

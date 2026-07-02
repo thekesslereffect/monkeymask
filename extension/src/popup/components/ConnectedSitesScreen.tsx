@@ -15,17 +15,46 @@ interface ConnectedSite {
   lastUsed: number; // Most recent lastUsed from all accounts
 }
 
+/** An active auto-approve allowance for an origin (values already in BAN). */
+interface SpendAllowance {
+  origin: string;
+  address: string;
+  limit: string;
+  spent: string;
+  remaining: string;
+  expiresAt: number;
+}
+
 export const ConnectedSitesScreen: React.FC = () => {
   const [connectedSites, setConnectedSites] = useState<ConnectedSite[]>([]);
+  const [allowances, setAllowances] = useState<Record<string, SpendAllowance>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadConnectedSites();
   }, []);
 
+  const loadAllowances = async (): Promise<Record<string, SpendAllowance>> => {
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'GET_SPENDING_SESSIONS' });
+      const sessions: SpendAllowance[] = res?.data?.sessions ?? [];
+      const map: Record<string, SpendAllowance> = {};
+      for (const s of sessions) map[s.origin] = s;
+      setAllowances(map);
+      return map;
+    } catch (error) {
+      console.error('Failed to load spending allowances:', error);
+      setAllowances({});
+      return {};
+    }
+  };
+
   const loadConnectedSites = async () => {
     try {
-      const response = await chrome.storage.local.get(['permissions']);
+      const [response] = await Promise.all([
+        chrome.storage.local.get(['permissions']),
+        loadAllowances(),
+      ]);
       const permissions = response.permissions || {};
       
       // Group permissions by origin
@@ -65,6 +94,15 @@ export const ConnectedSitesScreen: React.FC = () => {
     }
   };
 
+  const revokeAllowance = async (origin: string) => {
+    try {
+      await chrome.runtime.sendMessage({ type: 'REVOKE_SPENDING_SESSION', origin });
+      await loadAllowances();
+    } catch (error) {
+      console.error('Failed to revoke spending allowance:', error);
+    }
+  };
+
   const disconnectAccount = async (account: string, origin: string) => {
     try {
       // Send disconnect request for specific account
@@ -100,9 +138,50 @@ export const ConnectedSitesScreen: React.FC = () => {
     return new Date(timestamp).toLocaleDateString();
   };
 
+  const formatExpiry = (expiresAt: number): string => {
+    const ms = expiresAt - Date.now();
+    if (ms <= 0) return 'expired';
+    const minutes = Math.round(ms / 60000);
+    if (minutes < 60) return `in ${minutes} min`;
+    const hours = Math.round(minutes / 60);
+    return `in ${hours} hour${hours === 1 ? '' : 's'}`;
+  };
+
   const formatDomain = (origin: string) => {
     return origin.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
   };
+
+  const AllowancePanel: React.FC<{ allowance: SpendAllowance }> = ({ allowance }) => (
+    <div className="pt-2 border-t border-tertiary/20 mb-3">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Icon icon="lucide:zap" className="w-3.5 h-3.5 text-amber-500" />
+        <span className="text-xs text-tertiary/70">Auto-approve allowance</span>
+      </div>
+      <div className="bg-amber-500/10 rounded-lg p-2 space-y-1">
+        <div className="flex justify-between text-xs">
+          <span className="text-tertiary/70">Remaining</span>
+          <span className="font-mono text-primary">
+            {allowance.remaining} / {allowance.limit} BAN
+          </span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-tertiary/70">Spent</span>
+          <span className="font-mono text-tertiary">{allowance.spent} BAN</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-tertiary/70">Expires</span>
+          <span className="text-tertiary">{formatExpiry(allowance.expiresAt)}</span>
+        </div>
+      </div>
+      <button
+        onClick={() => revokeAllowance(allowance.origin)}
+        className="mt-2 w-full text-xs font-semibold text-red-600 hover:text-red-700 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-red-500/30 hover:bg-red-500/10 transition-colors"
+      >
+        <Icon icon="lucide:shield-off" className="w-3.5 h-3.5" />
+        Revoke allowance
+      </button>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -126,7 +205,7 @@ export const ConnectedSitesScreen: React.FC = () => {
       <ContentContainer>
         <PageName name="Connected Sites" back={true} />
         
-        {connectedSites.length === 0 ? (
+        {connectedSites.length === 0 && Object.keys(allowances).length === 0 ? (
           <EmptyState
             icon="lucide:link"
             title="No connected sites"
@@ -185,6 +264,11 @@ export const ConnectedSitesScreen: React.FC = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Auto-approve allowance (if this site has an active one) */}
+                {allowances[site.origin] && (
+                  <AllowancePanel allowance={allowances[site.origin]} />
+                )}
                 
                 {/* Disconnect All Button */}
                 <Button
@@ -198,6 +282,19 @@ export const ConnectedSitesScreen: React.FC = () => {
                 </Button>
               </Card>
             ))}
+
+            {/* Allowances whose origin is no longer a connected site (rare —
+                disconnect normally clears these). Surfaced so the user can
+                always revoke, regardless of the granting dApp. */}
+            {Object.values(allowances)
+              .filter((a) => !connectedSites.some((s) => s.origin === a.origin))
+              .map((allowance) => (
+                <Card key={allowance.origin} label={formatDomain(allowance.origin)} className="w-full">
+                  <div className="text-xs text-tertiary mb-1">{allowance.origin}</div>
+                  <div className="text-xs text-tertiary/70 mb-1">No active connection</div>
+                  <AllowancePanel allowance={allowance} />
+                </Card>
+              ))}
           </div>
         )}
       </ContentContainer>

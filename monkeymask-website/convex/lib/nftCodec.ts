@@ -12,10 +12,15 @@ const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvw
 
 export const SUPPLY_HEADER_HEX = '51BACEED6078000000';
 export const FINISH_SUPPLY_HEADER_HEX = '3614865E0051BA0033BB581E';
+export const ATOMIC_SWAP_HEADER_HEX = '23559C159E22C';
 
 /** Special representative meaning "send every NFT held by this account". */
 export const SEND_ALL_NFTS_REPRESENTATIVE =
   'ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits';
+
+/** Voids the immediately-preceding `change#supply` block. */
+export const CANCEL_SUPPLY_REPRESENTATIVE =
+  'ban_1nftsupp1ycance1111oops1111that1111was1111my1111bad1hq5sjhey';
 
 /** Accounts that permanently destroy an asset sent to them. */
 export const BURN_ACCOUNTS = new Set<string>([
@@ -153,7 +158,47 @@ export function isValidMetadataRepresentative(account: string): boolean {
   }
   if (hex.startsWith(SUPPLY_HEADER_HEX)) return false;
   if (hex.startsWith(FINISH_SUPPLY_HEADER_HEX)) return false;
+  if (hex.startsWith(ATOMIC_SWAP_HEADER_HEX)) return false;
   return true;
+}
+
+/** True if a block representative marks a `#finish_supply` (locks further mints). */
+export function isFinishSupplyRepresentative(account: string): boolean {
+  try {
+    return accountToPublicKeyHex(account).startsWith(FINISH_SUPPLY_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+
+/** The supply-block height a `#finish_supply` representative points at. */
+export function finishSupplyHeightFromRepresentative(account: string): number {
+  const hex = accountToPublicKeyHex(account);
+  return Number(BigInt(`0x${hex.slice(FINISH_SUPPLY_HEADER_HEX.length)}`));
+}
+
+/** True if a block representative cancels the preceding `change#supply`. */
+export function isCancelSupplyRepresentative(account: string): boolean {
+  if (account === CANCEL_SUPPLY_REPRESENTATIVE) return true;
+  try {
+    const hex = accountToPublicKeyHex(account);
+    return (
+      hex.startsWith(SUPPLY_HEADER_HEX) ||
+      hex.startsWith(FINISH_SUPPLY_HEADER_HEX) ||
+      hex.startsWith(ATOMIC_SWAP_HEADER_HEX)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** True if a send block representative marks a `send#atomic_swap`. */
+export function isAtomicSwapRepresentative(account: string): boolean {
+  try {
+    return accountToPublicKeyHex(account).startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
 }
 
 /** Rewrite an ipfs:// URI or bare CID to an HTTP gateway URL. */

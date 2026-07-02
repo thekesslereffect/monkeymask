@@ -7,6 +7,8 @@ import {
   representativeMatchesAsset,
   isSupplyRepresentative,
   isValidMetadataRepresentative,
+  isFinishSupplyRepresentative,
+  finishSupplyHeightFromRepresentative,
   maxSupplyFromRepresentative,
   metadataCidFromRepresentative,
   ipfsToHttp,
@@ -304,6 +306,14 @@ export const crawlAccount = internalAction({
     const byHeight = new Map<number, RawHistoryEntry>();
     for (const entry of history) byHeight.set(Number(entry.height), entry);
 
+    // Supply-block heights locked by a `#finish_supply` block on this chain.
+    const finishedSupplyHeights = new Set<number>();
+    for (const entry of history) {
+      if (entry.subtype !== 'change' || !entry.representative) continue;
+      if (!isFinishSupplyRepresentative(entry.representative)) continue;
+      finishedSupplyHeights.add(finishSupplyHeightFromRepresentative(entry.representative));
+    }
+
     const loader = new HistoryLoader(MAX_TRACE_RPC);
     loader.seed(args.account, history);
 
@@ -341,6 +351,7 @@ export const crawlAccount = internalAction({
         metadataCid: cid,
         maxSupply,
         mintHeight: Number(mint.height),
+        finished: finishedSupplyHeights.has(Number(entry.height)),
         name,
         image,
         description,

@@ -2,8 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
-import { useMonkeyMask } from '@/providers';
-import { Button } from '@/components/ui';
+import { useMonkeyMask, useSendAllNfts } from '@/providers';
+import { Button, StatusBox } from '@/components/ui';
 import type { NormalizedNFT } from '@/lib/nft';
 import { NftDetailModal } from '@/components/NftDetailModal';
 
@@ -97,6 +97,13 @@ export function NftGallery() {
   const [loaded, setLoaded] = useState(Boolean(cached));
   const [selected, setSelected] = useState<NormalizedNFT | null>(null);
 
+  const sendAllNfts = useSendAllNfts();
+  const [showSendAll, setShowSendAll] = useState(false);
+  const [sendAllTo, setSendAllTo] = useState('');
+  const [sendingAll, setSendingAll] = useState(false);
+  const [sendAllError, setSendAllError] = useState<string | null>(null);
+  const [sendAllHash, setSendAllHash] = useState<string | null>(null);
+
   const loadNFTs = useCallback(async () => {
     if (!publicKey) return;
     setLoading(true);
@@ -116,6 +123,27 @@ export function NftGallery() {
       setLoaded(true);
     }
   }, [publicKey]);
+
+  const handleSendAll = useCallback(async () => {
+    setSendAllError(null);
+    if (!sendAllTo.trim()) {
+      setSendAllError('Enter a recipient address.');
+      return;
+    }
+    setSendingAll(true);
+    try {
+      const result = await sendAllNfts({ to: sendAllTo.trim() });
+      const hash = typeof result === 'string' ? result : (result as { hash?: string })?.hash ?? '';
+      setSendAllHash(hash);
+      setSendAllTo('');
+      if (publicKey) invalidateNftCache(publicKey);
+      setTimeout(() => loadNFTs(), 2500);
+    } catch (err) {
+      setSendAllError(err instanceof Error ? err.message : 'Send-all failed');
+    } finally {
+      setSendingAll(false);
+    }
+  }, [sendAllTo, sendAllNfts, publicKey, loadNFTs]);
 
   useEffect(() => {
     if (!connected || !publicKey) {
@@ -179,10 +207,78 @@ export function NftGallery() {
         <span className="text-sm text-[var(--text-secondary)]">
           {nfts.length} NFT{nfts.length !== 1 ? 's' : ''}
         </span>
-        <Button variant="secondary" size="sm" onClick={loadNFTs}>
-          <Icon icon="mdi:refresh" className="size-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showSendAll ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => setShowSendAll((v) => !v)}
+          >
+            <Icon icon="lucide:send-horizontal" className="size-4 mr-1" />
+            Send all
+          </Button>
+          <Button variant="secondary" size="sm" onClick={loadNFTs}>
+            <Icon icon="mdi:refresh" className="size-4" />
+          </Button>
+        </div>
       </div>
+
+      {showSendAll && !sendAllHash && (
+        <div className="space-y-2 rounded-md border border-[var(--border)] p-3">
+          <label className="block text-sm font-medium">
+            Send <strong>every</strong> NFT in this account to
+          </label>
+          <input
+            type="text"
+            value={sendAllTo}
+            onChange={(e) => setSendAllTo(e.target.value)}
+            placeholder="ban_1... or name.ban"
+            disabled={sendingAll}
+            className="w-full px-3 py-2 border border-[var(--border)] rounded-md bg-white text-sm"
+          />
+          <p className="text-xs text-[var(--text-secondary)]">
+            One <code>send#all_nfts</code> block transfers all held assets at once. Pending assets
+            are pocketed first.
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSendAll} disabled={sendingAll}>
+              {sendingAll ? (
+                <>
+                  <Icon icon="mdi:loading" className="size-4 animate-spin mr-2" />
+                  Sending…
+                </>
+              ) : (
+                'Send all NFTs'
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowSendAll(false)}
+              disabled={sendingAll}
+            >
+              Cancel
+            </Button>
+          </div>
+          {sendAllError && (
+            <StatusBox variant="error" title="Send-all failed">
+              {sendAllError}
+            </StatusBox>
+          )}
+        </div>
+      )}
+
+      {sendAllHash && (
+        <StatusBox variant="success" title="All NFTs sent">
+          <a
+            className="underline break-all"
+            href={`https://creeper.banano.cc/hash/${sendAllHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {sendAllHash.slice(0, 16)}…
+          </a>
+        </StatusBox>
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {nfts.map((nft) => (
           <NftTile key={nft.id} nft={nft} onSelect={setSelected} />

@@ -29,6 +29,10 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
   const [resolvedAddress, setResolvedAddress] = useState('');
   const [isResolving, setIsResolving] = useState(false);
   const [isMax, setIsMax] = useState(false);
+  // Payee metadata carried by a pasted `ban:` payment URI (display-only —
+  // Banano has no on-chain memo field).
+  const [payLabel, setPayLabel] = useState('');
+  const [payMessage, setPayMessage] = useState('');
 
   // Handle address input changes and BNS resolution
   const handleAddressChange = async (value: string) => {
@@ -39,6 +43,8 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
         setToAddress(parsed.address);
         setResolvedAddress('');
         setError('');
+        setPayLabel(parsed.label ?? '');
+        setPayMessage(parsed.message ?? '');
         if (parsed.amount) {
           setAmount(parsed.amount);
           setIsMax(false);
@@ -50,6 +56,9 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
     setToAddress(value);
     setResolvedAddress('');
     setError('');
+    // Manually editing the recipient drops any pasted request metadata.
+    setPayLabel('');
+    setPayMessage('');
 
     if (!value.trim()) return;
 
@@ -127,6 +136,8 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
         setToAddress('');
         setAmount('');
         setIsMax(false);
+        setPayLabel('');
+        setPayMessage('');
         
         // Pass the full result to the parent component
         onSendComplete({
@@ -204,6 +215,30 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
             <div className="text-green-600 text-xs mt-1 bg-green-500/10 p-2 rounded-xl">
               <div className="font-medium">Resolved to:</div>
               <div className="font-mono text-xs break-all">{resolvedAddress}</div>
+            </div>
+          )}
+
+          {/* Payment request details carried by a pasted `ban:` URI. */}
+          {(payLabel || payMessage) && (
+            <div className="text-xs bg-secondary/60 p-3 rounded-xl space-y-1.5">
+              {payLabel && (
+                <div className="flex items-start gap-2">
+                  <Icon icon="mdi:account-outline" className="size-4 text-tertiary shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-tertiary">Payment request from</div>
+                    <div className="font-medium break-words">{payLabel}</div>
+                  </div>
+                </div>
+              )}
+              {payMessage && (
+                <div className="flex items-start gap-2">
+                  <Icon icon="mdi:message-text-outline" className="size-4 text-tertiary shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-tertiary">Note</div>
+                    <div className="break-words">{payMessage}</div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

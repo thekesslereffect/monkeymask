@@ -17,6 +17,8 @@ export default defineSchema({
     metadataCid: v.optional(v.string()),
     maxSupply: v.optional(v.number()),
     mintHeight: v.optional(v.number()),
+    // True once a `#finish_supply` block has locked this edition's supply block.
+    finished: v.optional(v.boolean()),
     // Denormalized metadata for cheap reads.
     name: v.optional(v.string()),
     description: v.optional(v.string()),

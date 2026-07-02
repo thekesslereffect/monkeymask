@@ -7,11 +7,12 @@ const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB
 
 /**
  * Pins an NFT image + ERC-721-style metadata JSON to IPFS and returns their
- * v0 CIDs. The metadata CID is what the wallet encodes into the mint block's
+ * CIDs. The metadata CID is what the wallet encodes into the mint block's
  * representative.
  *
  * Provider-agnostic by design; currently implements Pinata (set PINATA_JWT).
- * The metadata CID must be a v0 CID (Qm…) so it fits in a 32-byte pubkey.
+ * We request v0 CIDs (`Qm…`), but the wallet codec also accepts v1 (`b…`)
+ * sha2-256 CIDs — both reduce to the same 32-byte digest the pubkey stores.
  */
 export async function POST(request: Request) {
   const jwt = process.env.PINATA_JWT;
@@ -59,9 +60,10 @@ export async function POST(request: Request) {
     };
     const metadataCid = await pinJson(jwt, metadata, `${name} metadata`);
 
-    if (!metadataCid.startsWith('Qm')) {
+    // Accept v0 (Qm…) or v1 (b…) sha2-256 CIDs; both encode into the pubkey.
+    if (!/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]+)$/.test(metadataCid)) {
       return NextResponse.json(
-        { error: 'Pinning provider returned a non-v0 CID; enable cidVersion 0' },
+        { error: 'Pinning provider returned an unsupported CID (need a sha2-256 v0/v1 CID)' },
         { status: 502 },
       );
     }

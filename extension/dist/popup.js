@@ -7119,6 +7119,7 @@
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ATOMIC_SWAP_HEADER_HEX: () => (/* binding */ ATOMIC_SWAP_HEADER_HEX),
 /* harmony export */   BANANO_CHAINS: () => (/* binding */ BANANO_CHAINS),
 /* harmony export */   BANANO_MAINNET: () => (/* binding */ BANANO_MAINNET),
 /* harmony export */   BANANO_TESTNET: () => (/* binding */ BANANO_TESTNET),
@@ -7127,6 +7128,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   BananoSignIn: () => (/* binding */ BananoSignIn),
 /* harmony export */   BananoSignMessage: () => (/* binding */ BananoSignMessage),
 /* harmony export */   BananoSignTransaction: () => (/* binding */ BananoSignTransaction),
+/* harmony export */   CANCEL_SUPPLY_REPRESENTATIVE: () => (/* binding */ CANCEL_SUPPLY_REPRESENTATIVE),
 /* harmony export */   CANONICAL_BURN_ACCOUNT: () => (/* binding */ CANONICAL_BURN_ACCOUNT),
 /* harmony export */   FINISH_SUPPLY_HEADER_HEX: () => (/* binding */ FINISH_SUPPLY_HEADER_HEX),
 /* harmony export */   PROTOCOL_INIT_EVENT: () => (/* binding */ PROTOCOL_INIT_EVENT),
@@ -7150,15 +7152,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   decodeBase64: () => (/* binding */ decodeBase64),
 /* harmony export */   deserializeSignInOutput: () => (/* binding */ deserializeSignInOutput),
 /* harmony export */   encodeBase64: () => (/* binding */ encodeBase64),
+/* harmony export */   finishSupplyHeightFromRepresentative: () => (/* binding */ finishSupplyHeightFromRepresentative),
 /* harmony export */   generateNonce: () => (/* binding */ generateNonce),
 /* harmony export */   getProtocolTimeoutMs: () => (/* binding */ getProtocolTimeoutMs),
 /* harmony export */   hexToBytes: () => (/* binding */ hexToBytes),
+/* harmony export */   isAtomicSwapRepresentative: () => (/* binding */ isAtomicSwapRepresentative),
 /* harmony export */   isBananoUri: () => (/* binding */ isBananoUri),
 /* harmony export */   isBurnAccount: () => (/* binding */ isBurnAccount),
+/* harmony export */   isCancelSupplyRepresentative: () => (/* binding */ isCancelSupplyRepresentative),
+/* harmony export */   isFinishSupplyRepresentative: () => (/* binding */ isFinishSupplyRepresentative),
 /* harmony export */   isSupplyRepresentative: () => (/* binding */ isSupplyRepresentative),
 /* harmony export */   isValidMetadataRepresentative: () => (/* binding */ isValidMetadataRepresentative),
 /* harmony export */   maxSupplyFromRepresentative: () => (/* binding */ maxSupplyFromRepresentative),
 /* harmony export */   metadataCidFromRepresentative: () => (/* binding */ metadataCidFromRepresentative),
+/* harmony export */   parseAtomicSwapRepresentative: () => (/* binding */ parseAtomicSwapRepresentative),
 /* harmony export */   parseBananoUri: () => (/* binding */ parseBananoUri),
 /* harmony export */   parseSignInMessage: () => (/* binding */ parseSignInMessage),
 /* harmony export */   rawToBan: () => (/* binding */ rawToBan),
@@ -7245,7 +7252,9 @@ var NANO_ALPHABET = "13456789abcdefghijkmnopqrstuwxyz";
 var BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 var SUPPLY_HEADER_HEX = "51BACEED6078000000";
 var FINISH_SUPPLY_HEADER_HEX = "3614865E0051BA0033BB581E";
+var ATOMIC_SWAP_HEADER_HEX = "23559C159E22C";
 var SEND_ALL_NFTS_REPRESENTATIVE = "ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits";
+var CANCEL_SUPPLY_REPRESENTATIVE = "ban_1nftsupp1ycance1111oops1111that1111was1111my1111bad1hq5sjhey";
 var CANONICAL_BURN_ACCOUNT = "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w";
 var BURN_ACCOUNTS = /* @__PURE__ */ new Set([
   CANONICAL_BURN_ACCOUNT,
@@ -7332,7 +7341,44 @@ function isValidMetadataRepresentative(account) {
   }
   if (hex.startsWith(SUPPLY_HEADER_HEX)) return false;
   if (hex.startsWith(FINISH_SUPPLY_HEADER_HEX)) return false;
+  if (hex.startsWith(ATOMIC_SWAP_HEADER_HEX)) return false;
   return true;
+}
+function isFinishSupplyRepresentative(account) {
+  try {
+    return accountToPublicKeyHex(account).startsWith(FINISH_SUPPLY_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function finishSupplyHeightFromRepresentative(account) {
+  const hex = accountToPublicKeyHex(account);
+  return Number(BigInt(`0x${hex.slice(FINISH_SUPPLY_HEADER_HEX.length)}`));
+}
+function isCancelSupplyRepresentative(account) {
+  if (account === CANCEL_SUPPLY_REPRESENTATIVE) return true;
+  try {
+    const hex = accountToPublicKeyHex(account);
+    return hex.startsWith(SUPPLY_HEADER_HEX) || hex.startsWith(FINISH_SUPPLY_HEADER_HEX) || hex.startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function isAtomicSwapRepresentative(account) {
+  try {
+    return accountToPublicKeyHex(account).startsWith(ATOMIC_SWAP_HEADER_HEX);
+  } catch {
+    return false;
+  }
+}
+function parseAtomicSwapRepresentative(account) {
+  const hex = accountToPublicKeyHex(account);
+  const h = ATOMIC_SWAP_HEADER_HEX.length;
+  return {
+    assetHeight: Number(BigInt(`0x${hex.slice(h, h + 10)}`)),
+    receiveHeight: Number(BigInt(`0x${hex.slice(h + 10, h + 20)}`)),
+    minRaw: BigInt(`0x${hex.slice(h + 20, 64)}`).toString(10)
+  };
 }
 
 // src/protocol.ts
@@ -27859,6 +27905,9 @@ input[type="checkbox"]:disabled {
 .block {
   display: block;
 }
+.inline-block {
+  display: inline-block;
+}
 .flex {
   display: flex;
 }
@@ -27877,6 +27926,10 @@ input[type="checkbox"]:disabled {
 .aspect-square {
   aspect-ratio: 1 / 1;
 }
+.size-4 {
+  width: 1rem;
+  height: 1rem;
+}
 .h-10 {
   height: 2.5rem;
 }
@@ -27892,8 +27945,14 @@ input[type="checkbox"]:disabled {
 .h-3 {
   height: 0.75rem;
 }
+.h-3\\.5 {
+  height: 0.875rem;
+}
 .h-4 {
   height: 1rem;
+}
+.h-5 {
+  height: 1.25rem;
 }
 .h-6 {
   height: 1.5rem;
@@ -27923,6 +27982,9 @@ input[type="checkbox"]:disabled {
 .w-10 {
   width: 2.5rem;
 }
+.w-11 {
+  width: 2.75rem;
+}
 .w-16 {
   width: 4rem;
 }
@@ -27934,6 +27996,9 @@ input[type="checkbox"]:disabled {
 }
 .w-3 {
   width: 0.75rem;
+}
+.w-3\\.5 {
+  width: 0.875rem;
 }
 .w-3\\/4 {
   width: 75%;
@@ -27990,6 +28055,14 @@ input[type="checkbox"]:disabled {
 }
 .translate-x-0 {
   --tw-translate-x: 0px;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+.translate-x-0\\.5 {
+  --tw-translate-x: 0.125rem;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+.translate-x-5 {
+  --tw-translate-x: 1.25rem;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 .rotate-45 {
@@ -28068,6 +28141,9 @@ input[type="checkbox"]:disabled {
 .gap-1 {
   gap: 0.25rem;
 }
+.gap-1\\.5 {
+  gap: 0.375rem;
+}
 .gap-2 {
   gap: 0.5rem;
 }
@@ -28091,6 +28167,11 @@ input[type="checkbox"]:disabled {
   --tw-space-y-reverse: 0;
   margin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(0.25rem * var(--tw-space-y-reverse));
+}
+.space-y-1\\.5 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.375rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(0.375rem * var(--tw-space-y-reverse));
 }
 .space-y-2 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-y-reverse: 0;
@@ -28198,11 +28279,20 @@ input[type="checkbox"]:disabled {
 .border-primary\\/20 {
   border-color: hsl(var(--primary) / 0.2);
 }
+.border-primary\\/40 {
+  border-color: hsl(var(--primary) / 0.4);
+}
+.border-red-500\\/30 {
+  border-color: rgb(239 68 68 / 0.3);
+}
 .border-tertiary\\/10 {
   border-color: hsl(var(--tertiary) / 0.1);
 }
 .border-tertiary\\/20 {
   border-color: hsl(var(--tertiary) / 0.2);
+}
+.border-tertiary\\/30 {
+  border-color: hsl(var(--tertiary) / 0.3);
 }
 .border-yellow-500\\/20 {
   border-color: rgb(234 179 8 / 0.2);
@@ -28215,6 +28305,9 @@ input[type="checkbox"]:disabled {
 }
 .bg-accent\\/15 {
   background-color: hsl(var(--accent) / 0.15);
+}
+.bg-amber-500\\/10 {
+  background-color: rgb(245 158 11 / 0.1);
 }
 .bg-background {
   background-color: hsl(var(--background));
@@ -28255,12 +28348,18 @@ input[type="checkbox"]:disabled {
 .bg-primary\\/10 {
   background-color: hsl(var(--primary) / 0.1);
 }
+.bg-primary\\/5 {
+  background-color: hsl(var(--primary) / 0.05);
+}
 .bg-red-500 {
   --tw-bg-opacity: 1;
   background-color: rgb(239 68 68 / var(--tw-bg-opacity, 1));
 }
 .bg-secondary {
   background-color: hsl(var(--secondary));
+}
+.bg-secondary\\/60 {
+  background-color: hsl(var(--secondary) / 0.6);
 }
 .bg-tertiary\\/10 {
   background-color: hsl(var(--tertiary) / 0.1);
@@ -28271,6 +28370,9 @@ input[type="checkbox"]:disabled {
 .bg-tertiary\\/30 {
   background-color: hsl(var(--tertiary) / 0.3);
 }
+.bg-tertiary\\/40 {
+  background-color: hsl(var(--tertiary) / 0.4);
+}
 .bg-tertiary\\/5 {
   background-color: hsl(var(--tertiary) / 0.05);
 }
@@ -28279,6 +28381,10 @@ input[type="checkbox"]:disabled {
 }
 .bg-transparent {
   background-color: transparent;
+}
+.bg-white {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
 }
 .bg-yellow-500\\/10 {
   background-color: rgb(234 179 8 / 0.1);
@@ -28440,6 +28546,9 @@ input[type="checkbox"]:disabled {
 .uppercase {
   text-transform: uppercase;
 }
+.lowercase {
+  text-transform: lowercase;
+}
 .capitalize {
   text-transform: capitalize;
 }
@@ -28502,6 +28611,14 @@ input[type="checkbox"]:disabled {
 .text-accent {
   color: hsl(var(--accent));
 }
+.text-amber-500 {
+  --tw-text-opacity: 1;
+  color: rgb(245 158 11 / var(--tw-text-opacity, 1));
+}
+.text-amber-600 {
+  --tw-text-opacity: 1;
+  color: rgb(217 119 6 / var(--tw-text-opacity, 1));
+}
 .text-background {
   color: hsl(var(--background));
 }
@@ -28533,6 +28650,10 @@ input[type="checkbox"]:disabled {
 .text-primary\\/90 {
   color: hsl(var(--primary) / 0.9);
 }
+.text-red-600 {
+  --tw-text-opacity: 1;
+  color: rgb(220 38 38 / var(--tw-text-opacity, 1));
+}
 .text-secondary-foreground {
   color: hsl(var(--secondary-foreground));
 }
@@ -28561,6 +28682,9 @@ input[type="checkbox"]:disabled {
 .text-yellow-600 {
   --tw-text-opacity: 1;
   color: rgb(202 138 4 / var(--tw-text-opacity, 1));
+}
+.opacity-60 {
+  opacity: 0.6;
 }
 .opacity-70 {
   opacity: 0.7;
@@ -28697,6 +28821,10 @@ input[type=number].no-spinner {
   background-color: hsl(var(--primary) / 0.9);
 }
 
+.hover\\:bg-red-500\\/10:hover {
+  background-color: rgb(239 68 68 / 0.1);
+}
+
 .hover\\:bg-red-600:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(220 38 38 / var(--tw-bg-opacity, 1));
@@ -28728,6 +28856,11 @@ input[type=number].no-spinner {
 
 .hover\\:text-primary\\/80:hover {
   color: hsl(var(--primary) / 0.8);
+}
+
+.hover\\:text-red-700:hover {
+  --tw-text-opacity: 1;
+  color: rgb(185 28 28 / var(--tw-text-opacity, 1));
 }
 
 .hover\\:underline:hover {
@@ -28774,7 +28907,7 @@ input[type=number].no-spinner {
 .disabled\\:opacity-50:disabled {
   opacity: 0.5;
 }
-`, "",{"version":3,"sources":["webpack://./src/popup/styles.css"],"names":[],"mappings":"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","sourcesContent":["@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n@layer base {\n  * {\n    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n  }\n  \n  :root {\n    /* Dark theme colors */\n    --background: 0 0% 13%;\n    --foreground: 0, 0%, 95%;\n    --card: 0 0% 16%;\n    --card-foreground: 0 0% 46%;\n    --popover: 0 0% 19%;\n    --popover-foreground: 0 0% 46%;\n    --primary: 0 0% 95%;\n    --primary-foreground: 0 0% 19%;\n    --secondary: 0 0% 16%;\n    --secondary-foreground: 0, 0%, 95%;\n    --tertiary: 0 0% 46%;\n    --tertiary-foreground: 0 0% 95%;\n    --muted: 0 0% 16%;\n    --muted-foreground: 215 20.2% 65.1%;\n    --accent: 0 0% 16%;\n    --accent-foreground: 0 0% 46%;\n    --bars: 0 0% 16%;\n    --bars-foreground: 0 0% 46%;\n    --bars-border: 0 0% 21%;\n    --bars-icon: 0 0% 35%;\n    --bars-icon-active: 0 0% 95%;\n    /* --destructive: 338, 86%, 21.6%;\n    --destructive-foreground: 338, 100%, 36.6%; */\n    --destructive: 48.42,95%,52.94%;\n    --destructive-foreground: 0 0% 13%;\n    --border: 0 0% 16%;\n    --input: 0 0% 16%;\n    --ring: 0 0% 95%;\n    --radius: 0.5rem;    \n  }\n}\n\n@layer components {\n  .header {\n    @apply border-b;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .footer {\n    @apply border-t;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .icon-button {\n    @apply p-2 rounded-lg transition-colors;\n    color: hsl(var(--bars-icon));\n  }\n\n  .icon-button:hover {\n    color: hsl(var(--bars-icon-active));\n    background-color: hsl(var(--bars) / 0.5);\n  }\n\n  .btn {\n    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;\n  }\n  \n  .btn-primary {\n    @apply btn;\n    background-color: hsl(var(--primary));\n    color: hsl(var(--primary-foreground));\n  }\n  \n  .btn-primary:hover {\n    background-color: hsl(var(--primary) / 0.9);\n  }\n  \n  .btn-primary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-secondary {\n    @apply btn;\n    background-color: hsl(var(--secondary));\n    color: hsl(var(--secondary-foreground));\n  }\n  \n  .btn-secondary:hover {\n    background-color: hsl(var(--secondary) / 0.8);\n  }\n  \n  .btn-secondary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-danger {\n    @apply btn;\n    background-color: hsl(var(--destructive));\n    color: hsl(var(--destructive-foreground));\n  }\n  \n  .btn-danger:hover {\n    background-color: hsl(var(--destructive) / 0.9);\n  }\n  \n  .btn-danger:focus {\n    --tw-ring-color: hsl(var(--destructive));\n  }\n  \n  .card {\n    background-color: hsl(var(--card));\n    border: 1px solid hsl(var(--border));\n    color: hsl(var(--card-foreground));\n  }\n  \n  \n  /* Utility classes for common patterns */\n  .bg-background {\n    background-color: hsl(var(--background));\n  }\n  \n  .text-foreground {\n    color: hsl(var(--foreground));\n  }\n  \n  \n  .bg-muted {\n    background-color: hsl(var(--muted));\n  }\n  \n  .text-muted-foreground {\n    color: hsl(var(--muted-foreground));\n  }\n  \n  .border-border {\n    border-color: hsl(var(--border));\n  }\n\n  /* Custom radio button styling */\n  input[type=\"radio\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 50%;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"radio\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"radio\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 50%;\n    left: 50%;\n    transform: translate(-50%, -50%);\n    width: 6px;\n    height: 6px;\n    border-radius: 50%;\n    background-color: hsl(var(--destructive-foreground));\n  }\n\n  input[type=\"radio\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"radio\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"radio\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n\n  /* Custom checkbox styling */\n  input[type=\"checkbox\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 0.25rem;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"checkbox\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"checkbox\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 1px;\n    left: 4px;\n    width: 4px;\n    height: 8px;\n    border: solid hsl(var(--destructive-foreground));\n    border-width: 0 2px 2px 0;\n    transform: rotate(45deg);\n  }\n\n  input[type=\"checkbox\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"checkbox\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"checkbox\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n}\n\n/* Custom scrollbar */\n/* Hide number input spinners */\ninput[type=number].no-spinner::-webkit-outer-spin-button,\ninput[type=number].no-spinner::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\ninput[type=number].no-spinner {\n  -moz-appearance: textfield;\n}\n\n/* Custom scrollbar */\n::-webkit-scrollbar {\n  width: 6px;\n  height: 6px;\n}\n\n::-webkit-scrollbar-track {\n  background: #2A2A2A;\n}\n\n::-webkit-scrollbar-thumb {\n  background: #5A5A5A;\n  border-radius: 3px;\n}\n\n::-webkit-scrollbar-thumb:hover {\n  background: #5A5A5A;\n}\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/popup/styles.css"],"names":[],"mappings":"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","sourcesContent":["@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n@layer base {\n  * {\n    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n  }\n  \n  :root {\n    /* Dark theme colors */\n    --background: 0 0% 13%;\n    --foreground: 0, 0%, 95%;\n    --card: 0 0% 16%;\n    --card-foreground: 0 0% 46%;\n    --popover: 0 0% 19%;\n    --popover-foreground: 0 0% 46%;\n    --primary: 0 0% 95%;\n    --primary-foreground: 0 0% 19%;\n    --secondary: 0 0% 16%;\n    --secondary-foreground: 0, 0%, 95%;\n    --tertiary: 0 0% 46%;\n    --tertiary-foreground: 0 0% 95%;\n    --muted: 0 0% 16%;\n    --muted-foreground: 215 20.2% 65.1%;\n    --accent: 0 0% 16%;\n    --accent-foreground: 0 0% 46%;\n    --bars: 0 0% 16%;\n    --bars-foreground: 0 0% 46%;\n    --bars-border: 0 0% 21%;\n    --bars-icon: 0 0% 35%;\n    --bars-icon-active: 0 0% 95%;\n    /* --destructive: 338, 86%, 21.6%;\n    --destructive-foreground: 338, 100%, 36.6%; */\n    --destructive: 48.42,95%,52.94%;\n    --destructive-foreground: 0 0% 13%;\n    --border: 0 0% 16%;\n    --input: 0 0% 16%;\n    --ring: 0 0% 95%;\n    --radius: 0.5rem;    \n  }\n}\n\n@layer components {\n  .header {\n    @apply border-b;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .footer {\n    @apply border-t;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .icon-button {\n    @apply p-2 rounded-lg transition-colors;\n    color: hsl(var(--bars-icon));\n  }\n\n  .icon-button:hover {\n    color: hsl(var(--bars-icon-active));\n    background-color: hsl(var(--bars) / 0.5);\n  }\n\n  .btn {\n    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;\n  }\n  \n  .btn-primary {\n    @apply btn;\n    background-color: hsl(var(--primary));\n    color: hsl(var(--primary-foreground));\n  }\n  \n  .btn-primary:hover {\n    background-color: hsl(var(--primary) / 0.9);\n  }\n  \n  .btn-primary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-secondary {\n    @apply btn;\n    background-color: hsl(var(--secondary));\n    color: hsl(var(--secondary-foreground));\n  }\n  \n  .btn-secondary:hover {\n    background-color: hsl(var(--secondary) / 0.8);\n  }\n  \n  .btn-secondary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-danger {\n    @apply btn;\n    background-color: hsl(var(--destructive));\n    color: hsl(var(--destructive-foreground));\n  }\n  \n  .btn-danger:hover {\n    background-color: hsl(var(--destructive) / 0.9);\n  }\n  \n  .btn-danger:focus {\n    --tw-ring-color: hsl(var(--destructive));\n  }\n  \n  .card {\n    background-color: hsl(var(--card));\n    border: 1px solid hsl(var(--border));\n    color: hsl(var(--card-foreground));\n  }\n  \n  \n  /* Utility classes for common patterns */\n  .bg-background {\n    background-color: hsl(var(--background));\n  }\n  \n  .text-foreground {\n    color: hsl(var(--foreground));\n  }\n  \n  \n  .bg-muted {\n    background-color: hsl(var(--muted));\n  }\n  \n  .text-muted-foreground {\n    color: hsl(var(--muted-foreground));\n  }\n  \n  .border-border {\n    border-color: hsl(var(--border));\n  }\n\n  /* Custom radio button styling */\n  input[type=\"radio\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 50%;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"radio\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"radio\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 50%;\n    left: 50%;\n    transform: translate(-50%, -50%);\n    width: 6px;\n    height: 6px;\n    border-radius: 50%;\n    background-color: hsl(var(--destructive-foreground));\n  }\n\n  input[type=\"radio\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"radio\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"radio\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n\n  /* Custom checkbox styling */\n  input[type=\"checkbox\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 0.25rem;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"checkbox\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"checkbox\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 1px;\n    left: 4px;\n    width: 4px;\n    height: 8px;\n    border: solid hsl(var(--destructive-foreground));\n    border-width: 0 2px 2px 0;\n    transform: rotate(45deg);\n  }\n\n  input[type=\"checkbox\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"checkbox\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"checkbox\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n}\n\n/* Custom scrollbar */\n/* Hide number input spinners */\ninput[type=number].no-spinner::-webkit-outer-spin-button,\ninput[type=number].no-spinner::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\ninput[type=number].no-spinner {\n  -moz-appearance: textfield;\n}\n\n/* Custom scrollbar */\n::-webkit-scrollbar {\n  width: 6px;\n  height: 6px;\n}\n\n::-webkit-scrollbar-track {\n  background: #2A2A2A;\n}\n\n::-webkit-scrollbar-thumb {\n  background: #5A5A5A;\n  border-radius: 3px;\n}\n\n::-webkit-scrollbar-thumb:hover {\n  background: #5A5A5A;\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -107461,13 +107594,33 @@ const react_2 = __webpack_require__(/*! @iconify/react */ "./node_modules/@iconi
 const format_1 = __webpack_require__(/*! ../../utils/format */ "./src/utils/format.ts");
 const ConnectedSitesScreen = () => {
     const [connectedSites, setConnectedSites] = (0, react_1.useState)([]);
+    const [allowances, setAllowances] = (0, react_1.useState)({});
     const [loading, setLoading] = (0, react_1.useState)(true);
     (0, react_1.useEffect)(() => {
         loadConnectedSites();
     }, []);
+    const loadAllowances = async () => {
+        try {
+            const res = await chrome.runtime.sendMessage({ type: 'GET_SPENDING_SESSIONS' });
+            const sessions = res?.data?.sessions ?? [];
+            const map = {};
+            for (const s of sessions)
+                map[s.origin] = s;
+            setAllowances(map);
+            return map;
+        }
+        catch (error) {
+            console.error('Failed to load spending allowances:', error);
+            setAllowances({});
+            return {};
+        }
+    };
     const loadConnectedSites = async () => {
         try {
-            const response = await chrome.storage.local.get(['permissions']);
+            const [response] = await Promise.all([
+                chrome.storage.local.get(['permissions']),
+                loadAllowances(),
+            ]);
             const permissions = response.permissions || {};
             // Group permissions by origin
             const siteMap = new Map();
@@ -107499,6 +107652,15 @@ const ConnectedSitesScreen = () => {
         }
         finally {
             setLoading(false);
+        }
+    };
+    const revokeAllowance = async (origin) => {
+        try {
+            await chrome.runtime.sendMessage({ type: 'REVOKE_SPENDING_SESSION', origin });
+            await loadAllowances();
+        }
+        catch (error) {
+            console.error('Failed to revoke spending allowance:', error);
         }
     };
     const disconnectAccount = async (account, origin) => {
@@ -107533,13 +107695,26 @@ const ConnectedSitesScreen = () => {
     const formatDate = (timestamp) => {
         return new Date(timestamp).toLocaleDateString();
     };
+    const formatExpiry = (expiresAt) => {
+        const ms = expiresAt - Date.now();
+        if (ms <= 0)
+            return 'expired';
+        const minutes = Math.round(ms / 60000);
+        if (minutes < 60)
+            return `in ${minutes} min`;
+        const hours = Math.round(minutes / 60);
+        return `in ${hours} hour${hours === 1 ? '' : 's'}`;
+    };
     const formatDomain = (origin) => {
         return origin.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     };
+    const AllowancePanel = ({ allowance }) => ((0, jsx_runtime_1.jsxs)("div", { className: "pt-2 border-t border-tertiary/20 mb-3", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center gap-1.5 mb-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:zap", className: "w-3.5 h-3.5 text-amber-500" }), (0, jsx_runtime_1.jsx)("span", { className: "text-xs text-tertiary/70", children: "Auto-approve allowance" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "bg-amber-500/10 rounded-lg p-2 space-y-1", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between text-xs", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-tertiary/70", children: "Remaining" }), (0, jsx_runtime_1.jsxs)("span", { className: "font-mono text-primary", children: [allowance.remaining, " / ", allowance.limit, " BAN"] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between text-xs", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-tertiary/70", children: "Spent" }), (0, jsx_runtime_1.jsxs)("span", { className: "font-mono text-tertiary", children: [allowance.spent, " BAN"] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between text-xs", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-tertiary/70", children: "Expires" }), (0, jsx_runtime_1.jsx)("span", { className: "text-tertiary", children: formatExpiry(allowance.expiresAt) })] })] }), (0, jsx_runtime_1.jsxs)("button", { onClick: () => revokeAllowance(allowance.origin), className: "mt-2 w-full text-xs font-semibold text-red-600 hover:text-red-700 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-red-500/30 hover:bg-red-500/10 transition-colors", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:shield-off", className: "w-3.5 h-3.5" }), "Revoke allowance"] })] }));
     if (loading) {
         return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: "Connected Sites", back: true }), (0, jsx_runtime_1.jsx)("div", { className: "flex-1 flex items-center justify-center", children: (0, jsx_runtime_1.jsx)("div", { className: "text-tertiary", children: "Loading connected sites..." }) })] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
     }
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: "Connected Sites", back: true }), connectedSites.length === 0 ? ((0, jsx_runtime_1.jsx)(ui_1.EmptyState, { icon: "lucide:link", title: "No connected sites", description: "Sites you connect to will appear here" })) : ((0, jsx_runtime_1.jsx)("div", { className: "w-full space-y-4", children: connectedSites.map((site) => ((0, jsx_runtime_1.jsxs)(ui_1.Card, { label: formatDomain(site.origin), className: "w-full", children: [(0, jsx_runtime_1.jsx)("div", { className: "flex items-start justify-between mb-2", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)("div", { className: "w-10 h-10 bg-background rounded-full flex items-center justify-center text-tertiary font-bold text-sm", children: formatDomain(site.origin).charAt(0).toUpperCase() }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary mb-1", children: site.origin }), (0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/70", children: ["First connected: ", formatDate(Math.min(...site.accounts.map(acc => acc.approvedAt)))] }), (0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/70", children: ["Last used: ", formatDate(site.lastUsed)] })] })] }) }), (0, jsx_runtime_1.jsxs)("div", { className: "pt-2 border-t border-tertiary/20 mb-3", children: [(0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/70 mb-2", children: ["Connected accounts (", site.accounts.length, "):"] }), (0, jsx_runtime_1.jsx)("div", { className: "space-y-2", children: site.accounts.map((connectedAccount) => ((0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between bg-tertiary/5 rounded-lg p-2", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex-1 min-w-0 mr-2", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-xs font-mono text-primary truncate", children: (0, format_1.truncateMiddle)(connectedAccount.account, 12, 8) }), (0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/60 mt-1", children: ["Connected: ", formatDate(connectedAccount.approvedAt)] })] }), (0, jsx_runtime_1.jsx)("button", { onClick: () => disconnectAccount(connectedAccount.account, site.origin), className: "flex-shrink-0 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors", title: "Disconnect this account", children: (0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:x", className: "w-3 h-3" }) })] }, connectedAccount.account))) })] }), (0, jsx_runtime_1.jsxs)(ui_1.Button, { variant: "danger", size: "sm", onClick: () => disconnectAllAccounts(site.origin), className: "w-full text-xs", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:unlink", className: "w-3 h-3 mr-1" }), "Disconnect All"] })] }, site.origin))) }))] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: "Connected Sites", back: true }), connectedSites.length === 0 && Object.keys(allowances).length === 0 ? ((0, jsx_runtime_1.jsx)(ui_1.EmptyState, { icon: "lucide:link", title: "No connected sites", description: "Sites you connect to will appear here" })) : ((0, jsx_runtime_1.jsxs)("div", { className: "w-full space-y-4", children: [connectedSites.map((site) => ((0, jsx_runtime_1.jsxs)(ui_1.Card, { label: formatDomain(site.origin), className: "w-full", children: [(0, jsx_runtime_1.jsx)("div", { className: "flex items-start justify-between mb-2", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)("div", { className: "w-10 h-10 bg-background rounded-full flex items-center justify-center text-tertiary font-bold text-sm", children: formatDomain(site.origin).charAt(0).toUpperCase() }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary mb-1", children: site.origin }), (0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/70", children: ["First connected: ", formatDate(Math.min(...site.accounts.map(acc => acc.approvedAt)))] }), (0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/70", children: ["Last used: ", formatDate(site.lastUsed)] })] })] }) }), (0, jsx_runtime_1.jsxs)("div", { className: "pt-2 border-t border-tertiary/20 mb-3", children: [(0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/70 mb-2", children: ["Connected accounts (", site.accounts.length, "):"] }), (0, jsx_runtime_1.jsx)("div", { className: "space-y-2", children: site.accounts.map((connectedAccount) => ((0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between bg-tertiary/5 rounded-lg p-2", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex-1 min-w-0 mr-2", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-xs font-mono text-primary truncate", children: (0, format_1.truncateMiddle)(connectedAccount.account, 12, 8) }), (0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/60 mt-1", children: ["Connected: ", formatDate(connectedAccount.approvedAt)] })] }), (0, jsx_runtime_1.jsx)("button", { onClick: () => disconnectAccount(connectedAccount.account, site.origin), className: "flex-shrink-0 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors", title: "Disconnect this account", children: (0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:x", className: "w-3 h-3" }) })] }, connectedAccount.account))) })] }), allowances[site.origin] && ((0, jsx_runtime_1.jsx)(AllowancePanel, { allowance: allowances[site.origin] })), (0, jsx_runtime_1.jsxs)(ui_1.Button, { variant: "danger", size: "sm", onClick: () => disconnectAllAccounts(site.origin), className: "w-full text-xs", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:unlink", className: "w-3 h-3 mr-1" }), "Disconnect All"] })] }, site.origin))), Object.values(allowances)
+                                .filter((a) => !connectedSites.some((s) => s.origin === a.origin))
+                                .map((allowance) => ((0, jsx_runtime_1.jsxs)(ui_1.Card, { label: formatDomain(allowance.origin), className: "w-full", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-xs text-tertiary mb-1", children: allowance.origin }), (0, jsx_runtime_1.jsx)("div", { className: "text-xs text-tertiary/70 mb-1", children: "No active connection" }), (0, jsx_runtime_1.jsx)(AllowancePanel, { allowance: allowance })] }, allowance.origin)))] }))] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
 };
 exports.ConnectedSitesScreen = ConnectedSitesScreen;
 
@@ -108955,6 +109130,7 @@ const react_1 = __webpack_require__(/*! react */ "./node_modules/react/index.js"
 const wallet_standard_1 = __webpack_require__(/*! @monkeymask/wallet-standard */ "../packages/wallet-standard/dist/index.js");
 const bns_1 = __webpack_require__(/*! ../../utils/bns */ "./src/utils/bns.ts");
 const ui_1 = __webpack_require__(/*! ./ui */ "./src/popup/components/ui/index.ts");
+const react_2 = __webpack_require__(/*! @iconify/react */ "./node_modules/@iconify/react/dist/iconify.cjs");
 const format_1 = __webpack_require__(/*! ../../utils/format */ "./src/utils/format.ts");
 const PageName_1 = __webpack_require__(/*! ./ui/PageName */ "./src/popup/components/ui/PageName.tsx");
 const useAccounts_1 = __webpack_require__(/*! ../hooks/useAccounts */ "./src/popup/hooks/useAccounts.tsx");
@@ -108968,6 +109144,10 @@ const SendScreen = ({ account, onSendComplete }) => {
     const [resolvedAddress, setResolvedAddress] = (0, react_1.useState)('');
     const [isResolving, setIsResolving] = (0, react_1.useState)(false);
     const [isMax, setIsMax] = (0, react_1.useState)(false);
+    // Payee metadata carried by a pasted `ban:` payment URI (display-only —
+    // Banano has no on-chain memo field).
+    const [payLabel, setPayLabel] = (0, react_1.useState)('');
+    const [payMessage, setPayMessage] = (0, react_1.useState)('');
     // Handle address input changes and BNS resolution
     const handleAddressChange = async (value) => {
         // Paste of a `ban:` payment URI → prefill recipient + amount.
@@ -108977,6 +109157,8 @@ const SendScreen = ({ account, onSendComplete }) => {
                 setToAddress(parsed.address);
                 setResolvedAddress('');
                 setError('');
+                setPayLabel(parsed.label ?? '');
+                setPayMessage(parsed.message ?? '');
                 if (parsed.amount) {
                     setAmount(parsed.amount);
                     setIsMax(false);
@@ -108987,6 +109169,9 @@ const SendScreen = ({ account, onSendComplete }) => {
         setToAddress(value);
         setResolvedAddress('');
         setError('');
+        // Manually editing the recipient drops any pasted request metadata.
+        setPayLabel('');
+        setPayMessage('');
         if (!value.trim())
             return;
         // Check if it's a BNS name
@@ -109053,6 +109238,8 @@ const SendScreen = ({ account, onSendComplete }) => {
                 setToAddress('');
                 setAmount('');
                 setIsMax(false);
+                setPayLabel('');
+                setPayMessage('');
                 // Pass the full result to the parent component
                 onSendComplete({
                     success: true,
@@ -109081,7 +109268,7 @@ const SendScreen = ({ account, onSendComplete }) => {
             setLoading(false);
         }
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col bg-background text-foreground", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(PageName_1.PageName, { name: "Send", back: true }), (0, jsx_runtime_1.jsxs)("div", { className: "flex flex-col items-center gap-2 h-full min-h-36 justify-center", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-5xl text-primary", children: (0, format_1.formatBalance)(account.balance) }), (0, jsx_runtime_1.jsx)("div", { className: "text-xl text-tertiary", children: priceLoading ? ((0, jsx_runtime_1.jsx)("span", { className: "animate-pulse", children: "Loading price..." })) : (`$${getUsdBalance(account.balance)}`) })] }), (0, jsx_runtime_1.jsxs)("form", { onSubmit: handleSend, className: "w-full space-y-5", children: [(0, jsx_runtime_1.jsx)(ui_1.Input, { label: "To", variant: "secondary", size: "lg", value: toAddress, onChange: (e) => handleAddressChange(e.target.value), placeholder: "ban_1... or username.ban", required: true, className: "font-mono text-sm text-center" }), isResolving && ((0, jsx_runtime_1.jsxs)("div", { className: "text-primary text-xs mt-1 flex items-center", children: [(0, jsx_runtime_1.jsx)("div", { className: "animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2" }), "Resolving BNS name..."] })), resolvedAddress && ((0, jsx_runtime_1.jsxs)("div", { className: "text-green-600 text-xs mt-1 bg-green-500/10 p-2 rounded-xl", children: [(0, jsx_runtime_1.jsx)("div", { className: "font-medium", children: "Resolved to:" }), (0, jsx_runtime_1.jsx)("div", { className: "font-mono text-xs break-all", children: resolvedAddress })] })), (0, jsx_runtime_1.jsxs)("div", { className: "w-full", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between mb-1", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary", children: "Amount" }), (0, jsx_runtime_1.jsx)("button", { type: "button", onClick: () => {
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col bg-background text-foreground", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(PageName_1.PageName, { name: "Send", back: true }), (0, jsx_runtime_1.jsxs)("div", { className: "flex flex-col items-center gap-2 h-full min-h-36 justify-center", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-5xl text-primary", children: (0, format_1.formatBalance)(account.balance) }), (0, jsx_runtime_1.jsx)("div", { className: "text-xl text-tertiary", children: priceLoading ? ((0, jsx_runtime_1.jsx)("span", { className: "animate-pulse", children: "Loading price..." })) : (`$${getUsdBalance(account.balance)}`) })] }), (0, jsx_runtime_1.jsxs)("form", { onSubmit: handleSend, className: "w-full space-y-5", children: [(0, jsx_runtime_1.jsx)(ui_1.Input, { label: "To", variant: "secondary", size: "lg", value: toAddress, onChange: (e) => handleAddressChange(e.target.value), placeholder: "ban_1... or username.ban", required: true, className: "font-mono text-sm text-center" }), isResolving && ((0, jsx_runtime_1.jsxs)("div", { className: "text-primary text-xs mt-1 flex items-center", children: [(0, jsx_runtime_1.jsx)("div", { className: "animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2" }), "Resolving BNS name..."] })), resolvedAddress && ((0, jsx_runtime_1.jsxs)("div", { className: "text-green-600 text-xs mt-1 bg-green-500/10 p-2 rounded-xl", children: [(0, jsx_runtime_1.jsx)("div", { className: "font-medium", children: "Resolved to:" }), (0, jsx_runtime_1.jsx)("div", { className: "font-mono text-xs break-all", children: resolvedAddress })] })), (payLabel || payMessage) && ((0, jsx_runtime_1.jsxs)("div", { className: "text-xs bg-secondary/60 p-3 rounded-xl space-y-1.5", children: [payLabel && ((0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:account-outline", className: "size-4 text-tertiary shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "text-tertiary", children: "Payment request from" }), (0, jsx_runtime_1.jsx)("div", { className: "font-medium break-words", children: payLabel })] })] })), payMessage && ((0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:message-text-outline", className: "size-4 text-tertiary shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "text-tertiary", children: "Note" }), (0, jsx_runtime_1.jsx)("div", { className: "break-words", children: payMessage })] })] }))] })), (0, jsx_runtime_1.jsxs)("div", { className: "w-full", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between mb-1", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary", children: "Amount" }), (0, jsx_runtime_1.jsx)("button", { type: "button", onClick: () => {
                                                     setAmount(account.balance);
                                                     setIsMax(true);
                                                 }, className: "text-xs font-semibold text-accent hover:underline", children: "Max (sweep)" })] }), (0, jsx_runtime_1.jsx)(ui_1.Input, { variant: "secondary", size: "lg", type: "number", value: amount, onChange: (e) => {
@@ -109112,6 +109299,8 @@ const SettingsScreen = () => {
     const [autoLockTimeout, setAutoLockTimeout] = (0, react_1.useState)(15); // minutes
     const [loading, setLoading] = (0, react_1.useState)(true);
     const [saving, setSaving] = (0, react_1.useState)(false);
+    const [autoConfirmEnabled, setAutoConfirmEnabled] = (0, react_1.useState)(false);
+    const [savingAutoConfirm, setSavingAutoConfirm] = (0, react_1.useState)(false);
     // Auto-lock timeout options (in minutes) - matching Phantom's options
     const timeoutOptions = [
         { value: 1, label: '1 minute' },
@@ -109121,6 +109310,7 @@ const SettingsScreen = () => {
     ];
     (0, react_1.useEffect)(() => {
         loadCurrentTimeout();
+        loadAutoConfirm();
     }, []);
     const loadCurrentTimeout = async () => {
         try {
@@ -109134,6 +109324,33 @@ const SettingsScreen = () => {
         }
         finally {
             setLoading(false);
+        }
+    };
+    const loadAutoConfirm = async () => {
+        try {
+            const response = await chrome.runtime.sendMessage({ type: 'GET_AUTO_CONFIRM_ENABLED' });
+            if (response.success)
+                setAutoConfirmEnabled(Boolean(response.data.enabled));
+        }
+        catch (error) {
+            console.error('Failed to load auto-confirmation setting:', error);
+        }
+    };
+    const toggleAutoConfirm = async (enabled) => {
+        setSavingAutoConfirm(true);
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'SET_AUTO_CONFIRM_ENABLED',
+                enabled,
+            });
+            if (response.success)
+                setAutoConfirmEnabled(enabled);
+        }
+        catch (error) {
+            console.error('Failed to update auto-confirmation setting:', error);
+        }
+        finally {
+            setSavingAutoConfirm(false);
         }
     };
     const saveTimeout = async (minutes) => {
@@ -109164,7 +109381,7 @@ const SettingsScreen = () => {
     }
     return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold", children: [(0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: "Settings", back: true }), (0, jsx_runtime_1.jsxs)("div", { className: "w-full space-y-4", children: [(0, jsx_runtime_1.jsxs)(ui_1.Card, { label: "Auto-Lock Timer", className: "w-full", children: [(0, jsx_runtime_1.jsxs)("div", { className: "mb-4", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-xs text-tertiary/70 mb-4", children: "Choose how long MonkeyMask stays unlocked when you're not using it. For security, your wallet will automatically lock after this period of inactivity." }), (0, jsx_runtime_1.jsx)("div", { className: "space-y-3", children: timeoutOptions.map((option) => ((0, jsx_runtime_1.jsx)("div", { className: `border rounded-lg p-3 cursor-pointer transition-colors ${autoLockTimeout === option.value
                                                         ? 'border-primary bg-primary/10'
-                                                        : 'border-tertiary/20 hover:border-tertiary/40'}`, onClick: () => saveTimeout(option.value), children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center gap-3", children: [(0, jsx_runtime_1.jsx)("input", { type: "radio", checked: autoLockTimeout === option.value, onChange: () => saveTimeout(option.value), className: "!text-destructive !focus:ring-destructive", disabled: saving }), (0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary", children: option.label })] }), saving && autoLockTimeout === option.value && ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "text-primary animate-spin text-lg" }))] }) }, option.value))) })] }), (0, jsx_runtime_1.jsx)("div", { className: "pt-3 border-t border-tertiary/20", children: (0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/70", children: ["Current setting: ", (0, jsx_runtime_1.jsx)("span", { className: "font-semibold text-tertiary", children: timeoutOptions.find(opt => opt.value === autoLockTimeout)?.label })] }) })] }), (0, jsx_runtime_1.jsxs)(ui_1.Alert, { variant: "default", className: "w-full", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:info", className: "text-lg" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Security Tip" }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: "Shorter timeouts provide better security but require more frequent unlocking. Choose a balance that works for your usage pattern." })] })] })] })] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
+                                                        : 'border-tertiary/20 hover:border-tertiary/40'}`, onClick: () => saveTimeout(option.value), children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center gap-3", children: [(0, jsx_runtime_1.jsx)("input", { type: "radio", checked: autoLockTimeout === option.value, onChange: () => saveTimeout(option.value), className: "!text-destructive !focus:ring-destructive", disabled: saving }), (0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary", children: option.label })] }), saving && autoLockTimeout === option.value && ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "text-primary animate-spin text-lg" }))] }) }, option.value))) })] }), (0, jsx_runtime_1.jsx)("div", { className: "pt-3 border-t border-tertiary/20", children: (0, jsx_runtime_1.jsxs)("div", { className: "text-xs text-tertiary/70", children: ["Current setting: ", (0, jsx_runtime_1.jsx)("span", { className: "font-semibold text-tertiary", children: timeoutOptions.find(opt => opt.value === autoLockTimeout)?.label })] }) })] }), (0, jsx_runtime_1.jsxs)(ui_1.Alert, { variant: "default", className: "w-full", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:info", className: "text-lg" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Security Tip" }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: "Shorter timeouts provide better security but require more frequent unlocking. Choose a balance that works for your usage pattern." })] })] }), (0, jsx_runtime_1.jsxs)(ui_1.Card, { label: "Advanced", className: "w-full", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-start justify-between gap-3", children: [(0, jsx_runtime_1.jsxs)("div", { className: "min-w-0", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary font-semibold", children: "Auto-confirmation" }), (0, jsx_runtime_1.jsx)("div", { className: "text-xs text-tertiary/70 mt-1 leading-relaxed", children: "Let sites request a spending allowance so small payments send automatically, without a confirmation popup, up to a limit you approve. Off by default. When off, every payment always asks first." })] }), (0, jsx_runtime_1.jsx)("button", { type: "button", role: "switch", "aria-checked": autoConfirmEnabled, disabled: savingAutoConfirm, onClick: () => toggleAutoConfirm(!autoConfirmEnabled), className: `relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${autoConfirmEnabled ? 'bg-primary' : 'bg-tertiary/40'} ${savingAutoConfirm ? 'opacity-60' : ''}`, children: (0, jsx_runtime_1.jsx)("span", { className: `inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${autoConfirmEnabled ? 'translate-x-5' : 'translate-x-0.5'}` }) })] }), autoConfirmEnabled && ((0, jsx_runtime_1.jsxs)("div", { className: "mt-3 pt-3 border-t border-tertiary/20 text-xs text-amber-600 flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:shield-alert", className: "text-base shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsx)("span", { children: "Sites you approve can spend up to their allowance without prompting. Turning this off immediately revokes all active allowances. Manage per-site limits in Connected Sites." })] }))] })] })] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
 };
 exports.SettingsScreen = SettingsScreen;
 
@@ -109352,6 +109569,42 @@ const ApprovalScreen = ({ request, onApproveTx, onApproveConnect, onReject }) =>
                 ''
         ]
         : []);
+    // Auto-confirmation is an advanced, off-by-default feature. A spending-session
+    // request can only be approved once the user has explicitly turned it on.
+    const [autoConfirmEnabled, setAutoConfirmEnabled] = (0, react_1.useState)(request.type === 'spendingSession' ? Boolean(request.data?.autoConfirmEnabled) : false);
+    const [togglingAutoConfirm, setTogglingAutoConfirm] = (0, react_1.useState)(false);
+    (0, react_1.useEffect)(() => {
+        if (request.type !== 'spendingSession')
+            return;
+        let cancelled = false;
+        chrome.runtime
+            .sendMessage({ type: 'GET_AUTO_CONFIRM_ENABLED' })
+            .then((res) => {
+            if (!cancelled && res?.success)
+                setAutoConfirmEnabled(Boolean(res.data?.enabled));
+        })
+            .catch(() => { });
+        return () => {
+            cancelled = true;
+        };
+    }, [request.type]);
+    const setAutoConfirm = async (enabled) => {
+        setTogglingAutoConfirm(true);
+        try {
+            const res = await chrome.runtime.sendMessage({
+                type: 'SET_AUTO_CONFIRM_ENABLED',
+                enabled,
+            });
+            if (res?.success)
+                setAutoConfirmEnabled(enabled);
+        }
+        catch (error) {
+            console.error('Failed to update auto-confirmation setting:', error);
+        }
+        finally {
+            setTogglingAutoConfirm(false);
+        }
+    };
     const domain = request.origin
         .replace(/^https?:\/\//, '')
         .replace(/\/.*$/, '');
@@ -109398,7 +109651,7 @@ const ApprovalScreen = ({ request, onApproveTx, onApproveConnect, onReject }) =>
         const durationMs = request.data.durationMs || 0;
         const minutes = Math.round(durationMs / 60000);
         const durationLabel = minutes >= 60 ? `${Math.round(minutes / 60)} hour${minutes >= 120 ? 's' : ''}` : `${minutes} min`;
-        return ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(SiteHeader, { domain: domain, origin: request.origin, description: "This site wants to auto-approve small payments without asking each time." }), (0, jsx_runtime_1.jsxs)(ui_1.Card, { label: "Allowance", className: "w-full", children: [(0, jsx_runtime_1.jsx)(DetailRow, { label: "Account", children: truncate(address) }), (0, jsx_runtime_1.jsxs)(DetailRow, { label: "Up to", children: [(0, format_1.formatBalance)(limit), " BAN total"] }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Expires in", border: false, children: durationLabel })] }), (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "warning", className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:shield-alert", className: "text-lg shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Auto-approved spending" }), (0, jsx_runtime_1.jsxs)("div", { className: "text-sm", children: ["While active, this site can send up to ", (0, format_1.formatBalance)(limit), " BAN in total from the account above without another prompt. Revoke anytime from Connected Sites."] })] })] }) })] }));
+        return ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(SiteHeader, { domain: domain, origin: request.origin, description: "This site wants to auto-confirm small payments without asking each time." }), (0, jsx_runtime_1.jsx)(ui_1.Card, { label: "What this allows", className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "text-sm text-tertiary leading-relaxed", children: ["While active, this site can send BAN from your wallet", ' ', (0, jsx_runtime_1.jsx)("span", { className: "font-semibold", children: "automatically, with no confirmation popup" }), ", up to the limit below until it expires. Handy for games and tipping \u2014 but payments will leave your wallet without asking each time."] }) }), (0, jsx_runtime_1.jsxs)(ui_1.Card, { label: "Requested allowance", className: "w-full", children: [(0, jsx_runtime_1.jsx)(DetailRow, { label: "Account", children: truncate(address) }), (0, jsx_runtime_1.jsxs)(DetailRow, { label: "Up to", children: [(0, format_1.formatBalance)(limit), " BAN total"] }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Expires in", border: false, children: durationLabel })] }), (0, jsx_runtime_1.jsx)("div", { className: `w-full rounded-xl border p-3 ${autoConfirmEnabled ? 'border-primary/40 bg-primary/5' : 'border-tertiary/30 bg-tertiary/5'}`, children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between gap-3", children: [(0, jsx_runtime_1.jsxs)("div", { className: "min-w-0", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-sm font-semibold text-foreground", children: "Enable auto-confirmation" }), (0, jsx_runtime_1.jsx)("div", { className: "text-xs text-tertiary mt-0.5", children: "Advanced feature \u00B7 off by default" })] }), (0, jsx_runtime_1.jsx)("button", { type: "button", role: "switch", "aria-checked": autoConfirmEnabled, disabled: togglingAutoConfirm, onClick: () => setAutoConfirm(!autoConfirmEnabled), className: `relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${autoConfirmEnabled ? 'bg-primary' : 'bg-tertiary/40'} ${togglingAutoConfirm ? 'opacity-60' : ''}`, children: (0, jsx_runtime_1.jsx)("span", { className: `inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${autoConfirmEnabled ? 'translate-x-5' : 'translate-x-0.5'}` }) })] }) }), (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: autoConfirmEnabled ? 'warning' : 'default', className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:shield-alert", className: "text-lg shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: autoConfirmEnabled ? 'You are turning on auto-approved spending' : 'Only enable for sites you fully trust' }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: autoConfirmEnabled ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: ["This site will be able to send up to ", (0, format_1.formatBalance)(limit), " BAN in total from the account above without another prompt, until it expires. You can revoke it anytime from ", (0, jsx_runtime_1.jsx)("span", { className: "font-semibold", children: "Connected Sites" }), "."] })) : ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: ["Turn on the switch above to allow auto-confirmation. Leaving it off keeps a confirmation prompt on every payment (recommended). You can also manage this in", ' ', (0, jsx_runtime_1.jsx)("span", { className: "font-semibold", children: "Settings \u2192 Advanced" }), "."] })) })] })] }) })] }));
     };
     const renderTransaction = () => {
         // Both signAndSendTransaction and signTransaction carry { address, transaction }.
@@ -109412,7 +109665,7 @@ const ApprovalScreen = ({ request, onApproveTx, onApproveConnect, onReject }) =>
         const amount = isLegacySend ? request.data.amount : tx.amount;
         return ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(SiteHeader, { domain: domain, origin: request.origin, description: willPublish
                         ? 'This site wants to send a transaction from your wallet.'
-                        : 'This site wants you to sign a block without broadcasting it.' }), (0, jsx_runtime_1.jsxs)(ui_1.Card, { label: "Transaction Details", className: "w-full", children: [(0, jsx_runtime_1.jsx)(DetailRow, { label: "Type", children: (0, jsx_runtime_1.jsx)("span", { className: "capitalize", children: txType }) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "From", children: truncate(fromAddress) }), txType === 'mint' || txType === 'mintEdition' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), txType === 'mint' ? ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Max supply", children: tx.maxSupply ?? 1 })) : ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Edition", children: "additional copy" })), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Metadata CID", border: !!(tx.fees && tx.fees.length), children: truncate(tx.metadataCid) }), tx.fees?.map((fee, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: fee.label || 'Fee', border: i < (tx.fees?.length ?? 0) - 1, children: [(0, format_1.formatBalance)(fee.amount || '0'), " BAN \u2192 ", truncate(fee.to)] }, `${fee.to}-${i}`)))] })) : txType === 'transfer' ? (tx.transfers && tx.transfers.length ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFTs", children: tx.transfers.length }), tx.transfers.map((t, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: `#${i + 1}`, border: i < (tx.transfers?.length ?? 0) - 1, children: [truncate(t.assetRepresentative), " \u2192 ", truncate(t.to)] }, `${t.assetRepresentative}-${i}`)))] })) : ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFT", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Asset", border: false, children: truncate(tx.assetRepresentative) })] }))) : txType === 'burn' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFT", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Asset", children: truncate(tx.assetRepresentative) }), (0, jsx_runtime_1.jsxs)(DetailRow, { label: "Sent to", border: false, children: [truncate(toAddress), " (burn)"] })] })) : txType === 'change' ? ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Representative", border: false, children: truncate(tx.representative) })) : txType === 'receive' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Claiming", border: false, children: tx.blockHash ? truncate(tx.blockHash) : 'all pending receivables' })] })) : txType === 'sweep' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Amount", border: false, children: "Entire balance" })] })) : tx.sends && tx.sends.length ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipients", children: tx.sends.length }), tx.sends.map((send, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: send.label || `Send ${i + 1}`, border: i < (tx.sends?.length ?? 0) - 1, children: [(0, format_1.formatBalance)(send.amount || '0'), " BAN \u2192 ", truncate(send.to)] }, `${send.to}-${i}`))), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between items-center gap-3 py-2", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary shrink-0", children: "Total" }), (0, jsx_runtime_1.jsxs)("span", { className: "text-lg font-semibold text-primary text-right", children: [(0, format_1.formatBalance)((tx.sends.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0)).toString()), ' ', "BAN"] })] })] })) : ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(DetailRow, { label: "To", children: truncate(toAddress) }), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between items-center gap-3 py-2", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary shrink-0", children: "Amount" }), (0, jsx_runtime_1.jsxs)("span", { className: "text-lg font-semibold text-primary text-right", children: [(0, format_1.formatBalance)(amount || '0'), " BAN"] })] })] }))] }), txType === 'burn' ? ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:flame", className: "text-lg shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Permanently destroy this NFT" }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: "Burning sends the asset to a black-hole account. This is irreversible \u2014 the NFT can never be recovered or moved again." })] })] }) })) : ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "warning", className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:shield-alert", className: "text-lg shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Review carefully" }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: willPublish
+                        : 'This site wants you to sign a block without broadcasting it.' }), (0, jsx_runtime_1.jsxs)(ui_1.Card, { label: "Transaction Details", className: "w-full", children: [(0, jsx_runtime_1.jsx)(DetailRow, { label: "Type", children: (0, jsx_runtime_1.jsx)("span", { className: "capitalize", children: txType }) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "From", children: truncate(fromAddress) }), txType === 'mint' || txType === 'mintEdition' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), txType === 'mint' ? ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Max supply", children: tx.maxSupply ?? 1 })) : ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Edition", children: "additional copy" })), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Metadata CID", border: !!(tx.fees && tx.fees.length), children: truncate(tx.metadataCid) }), tx.fees?.map((fee, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: fee.label || 'Fee', border: i < (tx.fees?.length ?? 0) - 1, children: [(0, format_1.formatBalance)(fee.amount || '0'), " BAN \u2192 ", truncate(fee.to)] }, `${fee.to}-${i}`)))] })) : txType === 'transfer' ? (tx.transfers && tx.transfers.length ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFTs", children: tx.transfers.length }), tx.transfers.map((t, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: `#${i + 1}`, border: i < (tx.transfers?.length ?? 0) - 1, children: [truncate(t.assetRepresentative), " \u2192 ", truncate(t.to)] }, `${t.assetRepresentative}-${i}`)))] })) : ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFT", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Asset", border: false, children: truncate(tx.assetRepresentative) })] }))) : txType === 'burn' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFT", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Asset", children: truncate(tx.assetRepresentative) }), (0, jsx_runtime_1.jsxs)(DetailRow, { label: "Sent to", border: false, children: [truncate(toAddress), " (burn)"] })] })) : txType === 'finishSupply' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Collection", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Metadata CID", border: false, children: truncate(tx.metadataCid) })] })) : txType === 'sendAllNfts' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", border: false, children: truncate(toAddress) })] })) : txType === 'change' ? ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Representative", border: false, children: truncate(tx.representative) })) : txType === 'receive' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Claiming", border: false, children: tx.blockHash ? truncate(tx.blockHash) : 'all pending receivables' })] })) : txType === 'sweep' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Amount", border: false, children: "Entire balance" })] })) : tx.sends && tx.sends.length ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipients", children: tx.sends.length }), tx.sends.map((send, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: send.label || `Send ${i + 1}`, border: i < (tx.sends?.length ?? 0) - 1, children: [(0, format_1.formatBalance)(send.amount || '0'), " BAN \u2192 ", truncate(send.to)] }, `${send.to}-${i}`))), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between items-center gap-3 py-2", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary shrink-0", children: "Total" }), (0, jsx_runtime_1.jsxs)("span", { className: "text-lg font-semibold text-primary text-right", children: [(0, format_1.formatBalance)((tx.sends.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0)).toString()), ' ', "BAN"] })] })] })) : ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Label", children: tx.name }) : null, tx.message ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Note", children: tx.message }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "To", children: truncate(toAddress) }), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between items-center gap-3 py-2", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary shrink-0", children: "Amount" }), (0, jsx_runtime_1.jsxs)("span", { className: "text-lg font-semibold text-primary text-right", children: [(0, format_1.formatBalance)(amount || '0'), " BAN"] })] })] }))] }), txType === 'burn' ? ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:flame", className: "text-lg shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Permanently destroy this NFT" }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: "Burning sends the asset to a black-hole account. This is irreversible \u2014 the NFT can never be recovered or moved again." })] })] }) })) : ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "warning", className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:shield-alert", className: "text-lg shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Review carefully" }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: willPublish
                                             ? 'Only approve transactions you trust and understand. This action cannot be undone.'
                                             : 'Only sign blocks from sites you trust.' })] })] }) }))] }));
     };
@@ -109435,7 +109688,11 @@ const ApprovalScreen = ({ request, onApproveTx, onApproveConnect, onReject }) =>
                 return null;
         }
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold relative", children: [processing && ((0, jsx_runtime_1.jsxs)("div", { className: "absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 px-6 text-center", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "animate-spin text-4xl text-primary mb-4" }), (0, jsx_runtime_1.jsx)("div", { className: "text-lg font-semibold text-foreground", children: getProcessingMessage(request.type) }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary mt-2", children: "This may take a few seconds while your wallet signs and broadcasts." })] })), (0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: getTitle(request.type), back: false }), (0, jsx_runtime_1.jsx)("div", { className: "w-full space-y-4", children: renderBody() }), (0, jsx_runtime_1.jsxs)("div", { className: "flex gap-3 w-full mt-4", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { variant: "secondary", onClick: handleReject, className: "flex-1", disabled: processing, children: "Cancel" }), (0, jsx_runtime_1.jsx)(ui_1.Button, { variant: isBurn ? 'danger' : 'primary', onClick: handleApprove, disabled: request.type === 'connect' ? selectedAccounts.length === 0 : processing, className: "flex-1", children: processing ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "animate-spin mr-2" }), "Processing\u2026"] })) : request.type === 'connect' ? (`Connect (${selectedAccounts.length})`) : isBurn ? ('Burn NFT') : (getApproveLabel(request.type)) })] })] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold relative", children: [processing && ((0, jsx_runtime_1.jsxs)("div", { className: "absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 px-6 text-center", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "animate-spin text-4xl text-primary mb-4" }), (0, jsx_runtime_1.jsx)("div", { className: "text-lg font-semibold text-foreground", children: getProcessingMessage(request.type) }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary mt-2", children: "This may take a few seconds while your wallet signs and broadcasts." })] })), (0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: getTitle(request.type), back: false }), (0, jsx_runtime_1.jsx)("div", { className: "w-full space-y-4", children: renderBody() }), (0, jsx_runtime_1.jsxs)("div", { className: "flex gap-3 w-full mt-4", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { variant: "secondary", onClick: handleReject, className: "flex-1", disabled: processing, children: "Cancel" }), (0, jsx_runtime_1.jsx)(ui_1.Button, { variant: isBurn ? 'danger' : 'primary', onClick: handleApprove, disabled: request.type === 'connect'
+                                    ? selectedAccounts.length === 0
+                                    : request.type === 'spendingSession'
+                                        ? processing || !autoConfirmEnabled
+                                        : processing, className: "flex-1", children: processing ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "animate-spin mr-2" }), "Processing\u2026"] })) : request.type === 'connect' ? (`Connect (${selectedAccounts.length})`) : isBurn ? ('Burn NFT') : (getApproveLabel(request.type)) })] })] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
 };
 exports.ApprovalScreen = ApprovalScreen;
 

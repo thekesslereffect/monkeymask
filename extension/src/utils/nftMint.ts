@@ -19,7 +19,12 @@ const VERSION_MAJOR = '0000000001';
 const VERSION_MINOR = '0000000000';
 const VERSION_PATCH = '0000000000';
 
+// `#finish_supply` representative: 24-hex header + 40-hex supply block height.
+const FINISH_SUPPLY_HEADER = '3614865E0051BA0033BB581E';
+
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+// RFC4648 base32, lowercase, no padding — the multibase used by CIDv1 (`b…`).
+const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
 
 /** Decode a base58 (Bitcoin alphabet) string to bytes. */
 function base58Decode(input: string): Uint8Array {
@@ -45,6 +50,24 @@ function base58Decode(input: string): Uint8Array {
   return new Uint8Array(bytes.reverse());
 }
 
+/** Decode an RFC4648 base32 (lowercase, no padding) string to bytes. */
+function base32Decode(input: string): Uint8Array {
+  let bits = 0;
+  let value = 0;
+  const out: number[] = [];
+  for (const char of input.toLowerCase()) {
+    const idx = BASE32_ALPHABET.indexOf(char);
+    if (idx === -1) throw new Error(`Invalid base32 character: ${char}`);
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      out.push((value >> bits) & 0xff);
+    }
+  }
+  return new Uint8Array(out);
+}
+
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -65,19 +88,54 @@ function publicKeyToAccount(hexPublicKey: string): string {
 }
 
 /**
- * Convert an IPFS v0 CID (Qm…, base58btc sha2-256 multihash) into the
+ * Extract the 32-byte sha2-256 digest (as 64-hex) from an IPFS CID.
+ *
+ * The metadata_representative encodes only this digest, so both a v0 CID
+ * (`Qm…`, base58btc `0x12 0x20` multihash) and a v1 CID (`b…`, base32
+ * `0x01 <codec> 0x12 0x20` — dag-pb or raw over sha2-256) map to the same rep.
+ */
+function sha256DigestFromCid(cid: string): string {
+  const trimmed = cid.trim();
+  if (trimmed.startsWith('Qm')) {
+    const hex = bytesToHex(base58Decode(trimmed));
+    // Multihash prefix: 0x12 (sha2-256) 0x20 (32-byte length) => "1220".
+    if (!hex.startsWith('1220') || hex.length !== 68) {
+      throw new Error('Unexpected v0 CID format; expected a 34-byte sha2-256 multihash');
+    }
+    return hex.slice(4);
+  }
+  if (/^b[a-z2-7]+$/.test(trimmed)) {
+    const bytes = base32Decode(trimmed.slice(1));
+    // Expect: version(0x01) · codec(1 byte) · 0x12 (sha2-256) · 0x20 (len 32) · digest.
+    if (bytes.length !== 36 || bytes[0] !== 0x01 || bytes[2] !== 0x12 || bytes[3] !== 0x20) {
+      throw new Error('Unsupported v1 CID; expected a dag-pb/raw sha2-256 CID');
+    }
+    return bytesToHex(bytes.slice(4));
+  }
+  throw new Error('Metadata CID must be an IPFS v0 (Qm…) or v1 (b…) CID');
+}
+
+/**
+ * Convert an IPFS CID (v0 `Qm…` or v1 `b…`, sha2-256) into the
  * metadata_representative account used in `#mint` blocks.
  */
-export function metadataRepresentativeFromCidV0(cid: string): string {
-  if (!cid || !cid.startsWith('Qm')) {
-    throw new Error('Metadata CID must be an IPFS v0 CID (starts with "Qm")');
+export function metadataRepresentativeFromCid(cid: string): string {
+  return publicKeyToAccount(sha256DigestFromCid(cid));
+}
+
+/** @deprecated Use {@link metadataRepresentativeFromCid} — now accepts v0 and v1. */
+export const metadataRepresentativeFromCidV0 = metadataRepresentativeFromCid;
+
+/**
+ * Build the `#finish_supply` representative that locks a collection (no further
+ * editions can be minted) given the collection's `change#supply` block height.
+ */
+export function finishSupplyRepresentative(supplyBlockHeight: number): string {
+  if (!Number.isInteger(supplyBlockHeight) || supplyBlockHeight < 0) {
+    throw new Error('supplyBlockHeight must be a non-negative integer');
   }
-  const hex = bytesToHex(base58Decode(cid));
-  // Multihash prefix: 0x12 (sha2-256) 0x20 (32-byte length) => "1220".
-  if (!hex.startsWith('1220') || hex.length !== 68) {
-    throw new Error('Unexpected CID format; expected a 34-byte sha2-256 multihash');
-  }
-  return publicKeyToAccount(hex.slice(4));
+  const heightHex = supplyBlockHeight.toString(16).toUpperCase().padStart(40, '0');
+  return publicKeyToAccount(`${FINISH_SUPPLY_HEADER}${heightHex}`);
 }
 
 /**

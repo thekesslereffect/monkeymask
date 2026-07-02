@@ -174,6 +174,7 @@ export function PaymentUriForm() {
         to: parsed.address,
         amount: parsed.amount ?? '0',
         name: parsed.label,
+        message: parsed.message,
       });
       setPayResult(output.hash ?? output.hashes[0] ?? '');
     } catch (err) {

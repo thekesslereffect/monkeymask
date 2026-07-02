@@ -536,6 +536,20 @@ async function handleProtocolSignAndSend(
         toAddress: transaction.to ?? 'burn account',
         amount: transaction.amount ?? '0',
       };
+    } else if (transaction.type === 'finishSupply') {
+      confirmationBlock = {
+        type: 'finishSupply',
+        fromAddress: address,
+        toAddress: transaction.metadataCid,
+        amount: '0',
+      };
+    } else if (transaction.type === 'sendAllNfts') {
+      confirmationBlock = {
+        type: 'sendAllNfts',
+        fromAddress: address,
+        toAddress: transaction.to,
+        amount: transaction.amount ?? '0',
+      };
     } else {
       confirmationBlock = {
         type: transaction.type,

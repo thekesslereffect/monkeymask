@@ -13,9 +13,13 @@ function mergeByAsset(...lists: NormalizedNFT[][]): NormalizedNFT[] {
   // wins, so a momentarily-behind source can't pin a stale `heldCount`.
   const byCid = new Map<string, NormalizedNFT>();
   const byAsset = new Map<string, NormalizedNFT>();
+  // `finished` is collection-level and monotonic (a lock never lifts), so if any
+  // source reports it we honor it even if that source has a staler heldCount.
+  const finishedCids = new Set<string>();
   for (const list of lists) {
     for (const nft of list) {
       if (nft.metadataCid) {
+        if (nft.finished) finishedCids.add(nft.metadataCid);
         const existing = byCid.get(nft.metadataCid);
         if (!existing || (nft.heldCount ?? 0) > (existing.heldCount ?? 0)) {
           byCid.set(nft.metadataCid, nft);
@@ -25,6 +29,9 @@ function mergeByAsset(...lists: NormalizedNFT[][]): NormalizedNFT[] {
         if (!byAsset.has(key)) byAsset.set(key, nft);
       }
     }
+  }
+  for (const [cid, nft] of byCid) {
+    if (finishedCids.has(cid)) nft.finished = true;
   }
   return [...byCid.values(), ...byAsset.values()];
 }

@@ -46,8 +46,16 @@ export type BananoOperation =
       readonly to: string;
       /** Amount in BAN. */
       readonly amount: string;
-      /** Optional display name, shown in the approval UI only. */
+      /**
+       * Optional display label (e.g. a payee name from a `ban:` payment URI),
+       * shown in the approval UI only.
+       */
       readonly name?: string;
+      /**
+       * Optional free-form note/memo (e.g. a `ban:` URI `message`), shown in the
+       * approval UI only. Banano has no on-chain memo, so this is informational.
+       */
+      readonly message?: string;
     }
   | {
       /**
@@ -94,7 +102,7 @@ export type BananoOperation =
        * `send#mint` block; the mint block hash becomes the asset representative.
        */
       readonly type: 'mint';
-      /** IPFS v0 CID (Qm…) of the ERC-721-style metadata JSON. */
+      /** IPFS CID (v0 `Qm…` or v1 `b…`, sha2-256) of the ERC-721-style metadata JSON. */
       readonly metadataCid: string;
       /** Recipient account (ban_… or a BNS name). */
       readonly to: string;
@@ -122,7 +130,7 @@ export type BananoOperation =
        * edition limit is already reached.
        */
       readonly type: 'mintEdition';
-      /** IPFS v0 CID (Qm…) of the existing collection's metadata JSON. */
+      /** IPFS CID (v0 `Qm…` or v1 `b…`, sha2-256) of the existing collection's metadata JSON. */
       readonly metadataCid: string;
       /** Recipient account (ban_… or a BNS name). */
       readonly to: string;
@@ -184,6 +192,34 @@ export type BananoOperation =
        */
       readonly to?: string;
       /** BAN carried by the `send#burn` block (defaults to a tiny amount). */
+      readonly amount?: string;
+      /** Optional display name, shown in the approval UI only. */
+      readonly name?: string;
+    }
+  | {
+      /**
+       * Lock a collection you issued so no further editions can be minted
+       * (73-meta-tokens `#finish_supply`). The wallet publishes a change block
+       * whose `representative` encodes the collection's supply-block height;
+       * afterwards `mintEdition` for this collection is refused.
+       */
+      readonly type: 'finishSupply';
+      /** The collection's metadata CID (identifies which collection to lock). */
+      readonly metadataCid: string;
+      /** Optional display name, shown in the approval UI only. */
+      readonly name?: string;
+    }
+  | {
+      /**
+       * Transfer every NFT the account holds to one recipient in a single block
+       * (73-meta-tokens `send#all_nfts`). The wallet pockets pending assets
+       * first, publishes one send whose `representative` is the "send all NFTs"
+       * marker, then restores a clean representative.
+       */
+      readonly type: 'sendAllNfts';
+      /** Recipient (ban_… or a BNS name) that receives every held asset. */
+      readonly to: string;
+      /** BAN carried by the marker send (defaults to a tiny amount). */
       readonly amount?: string;
       /** Optional display name, shown in the approval UI only. */
       readonly name?: string;

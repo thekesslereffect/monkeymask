@@ -2,7 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
-import { useMonkeyMask, useTransferNFT, useMintEdition, useBurnNFT } from '@/providers';
+import {
+  useMonkeyMask,
+  useTransferNFT,
+  useMintEdition,
+  useBurnNFT,
+  useFinishSupply,
+} from '@/providers';
 import { Button, StatusBox } from '@/components/ui';
 import type { NormalizedNFT } from '@/lib/nft';
 
@@ -41,6 +47,7 @@ export function NftDetailModal({
   const transferNFT = useTransferNFT();
   const mintEdition = useMintEdition();
   const burnNFT = useBurnNFT();
+  const finishSupply = useFinishSupply();
   const [imageFailed, setImageFailed] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
@@ -60,27 +67,44 @@ export function NftDetailModal({
   const [burnError, setBurnError] = useState<string | null>(null);
   const [burnHash, setBurnHash] = useState<string | null>(null);
 
+  const [showFinish, setShowFinish] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
+  const [finishHash, setFinishHash] = useState<string | null>(null);
+
   // Supply model for display + gating the "Mint copy" action.
   const maxSupply = nft.maxSupply;
   const mintedCount = nft.mintedCount ?? 0;
   const heldCount = nft.heldCount ?? 0;
   const limitReached = typeof maxSupply === 'number' && maxSupply > 0 && mintedCount >= maxSupply;
+  // Finished either on-chain (from the index) or just now in this session.
+  const isFinished = Boolean(nft.finished) || Boolean(finishHash);
   const supplyLabel =
     nft.supplyType === 'unique'
       ? 'One of a kind (1 of 1)'
       : nft.supplyType === 'unlimited'
-        ? `Unlimited edition · ${mintedCount} minted`
+        ? `Unlimited edition · ${mintedCount} minted${isFinished ? ' · finished' : ''}`
         : nft.supplyType === 'limited'
-          ? `Limited edition · ${mintedCount} of ${maxSupply} minted`
+          ? `Limited edition · ${mintedCount} of ${maxSupply} minted${isFinished ? ' · finished' : ''}`
           : null;
 
   // The issuer can mint more copies of a collection with room left. A 1-of-1
-  // (maxSupply 1) is never re-mintable.
+  // (maxSupply 1) is never re-mintable, and a finished collection is locked.
   const canMintEdition =
     nft.collection === 'Minted by you' &&
     !!nft.metadataCid &&
     maxSupply !== 1 &&
-    !limitReached;
+    !limitReached &&
+    !isFinished;
+
+  // A collection you issued (multi/unlimited) can be locked so no more editions
+  // can ever be minted — even once the limit is already reached. Once locked,
+  // there's nothing left to finish.
+  const canFinish =
+    nft.collection === 'Minted by you' &&
+    !!nft.metadataCid &&
+    maxSupply !== 1 &&
+    !isFinished;
 
   const handleMintEdition = async () => {
     setEditionError(null);
@@ -104,6 +128,25 @@ export function NftDetailModal({
       setEditionError(err instanceof Error ? err.message : 'Mint failed');
     } finally {
       setMinting(false);
+    }
+  };
+
+  const handleFinish = async () => {
+    setFinishError(null);
+    if (!nft.metadataCid) {
+      setFinishError('This NFT has no metadata CID.');
+      return;
+    }
+    setFinishing(true);
+    try {
+      const result = await finishSupply({ metadataCid: nft.metadataCid, name: nft.name });
+      const hash = typeof result === 'string' ? result : (result as { hash?: string })?.hash ?? '';
+      setFinishHash(hash);
+      onTransferred?.();
+    } catch (err) {
+      setFinishError(err instanceof Error ? err.message : 'Finish failed');
+    } finally {
+      setFinishing(false);
     }
   };
 
@@ -241,6 +284,12 @@ export function NftDetailModal({
                   Sold out
                 </span>
               )}
+              {isFinished && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground">
+                  <Icon icon="lucide:lock" className="size-3" />
+                  Supply locked
+                </span>
+              )}
             </div>
           )}
           {nft.description && <p className="text-sm">{nft.description}</p>}
@@ -292,6 +341,16 @@ export function NftDetailModal({
                 Mint copy
               </Button>
             )}
+            {canFinish && !burnHash && !finishHash && (
+              <Button
+                size="sm"
+                variant={showFinish ? 'default' : 'secondary'}
+                onClick={() => setShowFinish((v) => !v)}
+              >
+                <Icon icon="lucide:lock" className="size-4 mr-2" />
+                Finish
+              </Button>
+            )}
             {nft.assetRepresentative && !transferHash && !burnHash && (
               <Button
                 size="sm"
@@ -303,6 +362,62 @@ export function NftDetailModal({
               </Button>
             )}
           </div>
+
+          {showFinish && !finishHash && (
+            <div className="space-y-2 rounded-md border border-[var(--border)] p-3">
+              <div className="flex items-start gap-2">
+                <Icon icon="lucide:lock" className="size-4 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <div className="font-semibold">Lock this collection?</div>
+                  <div className="text-xs text-[var(--text-secondary)]">
+                    Publishes a <code>#finish_supply</code> block. No further editions can ever be
+                    minted. Existing copies are unaffected. This cannot be undone.
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleFinish} disabled={finishing}>
+                  {finishing ? (
+                    <>
+                      <Icon icon="mdi:loading" className="size-4 animate-spin mr-2" />
+                      Finishing…
+                    </>
+                  ) : (
+                    'Finish collection'
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowFinish(false)}
+                  disabled={finishing}
+                >
+                  Cancel
+                </Button>
+              </div>
+              {finishError && (
+                <StatusBox variant="error" title="Finish failed">
+                  {finishError}
+                </StatusBox>
+              )}
+            </div>
+          )}
+
+          {finishHash && (
+            <StatusBox variant="success" title="Collection finished">
+              <div className="space-y-1">
+                <div>No more editions can be minted from this collection.</div>
+                <a
+                  className="underline break-all"
+                  href={`https://creeper.banano.cc/hash/${finishHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {finishHash.slice(0, 16)}…
+                </a>
+              </div>
+            </StatusBox>
+          )}
 
           {showBurn && !burnHash && (
             <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
