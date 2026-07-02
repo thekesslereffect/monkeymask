@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Icon } from '@iconify/react';
 import {
   useMonkeyMask,
@@ -22,9 +22,12 @@ export function SpendingSessionForm() {
   const session = useSpendingSession();
   const send = useSend();
 
+  // `session.session` is reactive: it updates automatically when the allowance is
+  // granted, debited, or revoked — including a revoke done inside the wallet.
+  const info: SpendingSessionInfo | null = session.session;
+
   const [limit, setLimit] = useState('1');
   const [minutes, setMinutes] = useState('30');
-  const [info, setInfo] = useState<SpendingSessionInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,28 +35,14 @@ export function SpendingSessionForm() {
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    try {
-      setInfo(await session.get());
-    } catch {
-      setInfo(null);
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (connected) void refresh();
-    else setInfo(null);
-  }, [connected, refresh]);
-
   const handleRequest = async () => {
     setError(null);
     setBusy(true);
     try {
-      const granted = await session.request({
+      await session.request({
         limit: limit.trim(),
         durationMs: Math.max(1, parseInt(minutes, 10) || 30) * 60_000,
       });
-      setInfo(granted);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
@@ -65,7 +54,6 @@ export function SpendingSessionForm() {
     setBusy(true);
     try {
       await session.revoke();
-      setInfo(null);
     } finally {
       setBusy(false);
     }
@@ -78,7 +66,6 @@ export function SpendingSessionForm() {
     try {
       const output = await send({ to: 'cosmic.ban', amount: amount.trim() });
       setSendResult(output.hash ?? output.hashes[0] ?? '');
-      await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Send failed');
     } finally {

@@ -6,6 +6,14 @@ export const PROTOCOL_SOURCE_RESPONSE = 'monkeymask-provider-response' as const;
 export const PROTOCOL_SOURCE_EVENT = 'monkeymask-provider-event' as const;
 export const PROTOCOL_INIT_EVENT = 'monkeymask#initialized' as const;
 
+/**
+ * DOM CustomEvent the injected provider dispatches on `window` when a per-origin
+ * spending session changes in the wallet (granted, revoked, debited, expired).
+ * The React provider listens for this to keep session UI reactive without polling.
+ * `event.detail` is `{ session: SpendingSessionInfo | null }`.
+ */
+export const SPENDING_SESSION_EVENT = 'monkeymask:spendingSessionChanged' as const;
+
 export const WALLET_STANDARD_REGISTER_EVENT = 'wallet-standard:register-wallet' as const;
 export const WALLET_STANDARD_APP_READY_EVENT = 'wallet-standard:app-ready' as const;
 

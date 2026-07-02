@@ -21,6 +21,7 @@ import {
   PROTOCOL_SOURCE_EVENT,
   PROTOCOL_SOURCE_REQUEST,
   PROTOCOL_SOURCE_RESPONSE,
+  SPENDING_SESSION_EVENT,
   WALLET_STANDARD_APP_READY_EVENT,
   WALLET_STANDARD_REGISTER_EVENT,
   type ProtocolMethod,
@@ -256,6 +257,15 @@ class MonkeyMaskWallet implements Wallet {
           createBananoWalletAccount(acc.address, hexToBytes(acc.publicKeyHex), undefined, acc.label),
         );
         this.eventListeners.get('change')?.forEach((listener) => listener({ accounts: this.accounts }));
+        // Keep the legacy window.banano provider's publicKey in sync with the
+        // active account so its request() calls target the right account.
+        if (this.accounts[0]) legacyProvider.syncFromWallet(this.accounts[0].address);
+        else legacyProvider.clear();
+        return;
+      }
+      if (eventName === 'spendingSessionChanged') {
+        // Surface as a DOM event so the React provider can react without polling.
+        window.dispatchEvent(new CustomEvent(SPENDING_SESSION_EVENT, { detail: data }));
       }
     });
   }

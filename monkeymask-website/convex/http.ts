@@ -1,7 +1,6 @@
 import { httpRouter } from 'convex/server';
 import { httpAction } from './_generated/server';
 import { api, internal } from './_generated/api';
-import { accountToPublicKeyHex } from './lib/nftCodec';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -20,26 +19,9 @@ const preflight = httpAction(async () => new Response(null, { status: 204, heade
 
 const http = httpRouter();
 
-// --- NFTs ---
-// GET /nfts?address=ban_... -> { nfts: NormalizedNFT[] }
-// Also (re)registers the address for crawling so viewing a gallery indexes it.
-http.route({
-  path: '/nfts',
-  method: 'GET',
-  handler: httpAction(async (ctx, request) => {
-    const address = new URL(request.url).searchParams.get('address')?.trim() ?? '';
-    let ownerPubKey: string;
-    try {
-      ownerPubKey = accountToPublicKeyHex(address);
-    } catch {
-      return json({ nfts: [], error: 'Invalid Banano address' }, 400);
-    }
-    await ctx.runMutation(internal.crawler.registerAccount, { account: address });
-    const nfts = await ctx.runQuery(api.nfts.nftsByOwner, { ownerPubKey });
-    return json({ nfts });
-  }),
-});
-http.route({ path: '/nfts', method: 'OPTIONS', handler: preflight });
+// NFT ownership is read crawler-free directly from the ledger by clients
+// (see the website's src/lib/nft.ts and the extension's utils/nft.ts), so this
+// backend intentionally exposes no NFT index route.
 
 // --- Explore directory ---
 // GET /explore -> { featured: ExploreSite[], sites: ExploreSite[] }

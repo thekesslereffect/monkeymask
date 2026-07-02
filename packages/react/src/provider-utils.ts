@@ -93,6 +93,12 @@ export interface MonkeyMaskContextValue {
   }) => Promise<SpendingSessionInfo | null>;
   getSpendingSession: () => Promise<SpendingSessionInfo | null>;
   revokeSpendingSession: () => Promise<void>;
+  /**
+   * Reactive current spending session for this origin, or `null` when none is
+   * active. Updates automatically when the session is granted, revoked (from the
+   * dApp OR the wallet), debited, or disabled — no polling required.
+   */
+  spendingSession: SpendingSessionInfo | null;
   clearError: () => void;
 }
 
@@ -110,6 +116,7 @@ export function createMonkeyMaskContextValue(
     connecting: boolean;
     error: string | null;
     installed: boolean;
+    spendingSession: SpendingSessionInfo | null;
   },
   actions: Pick<
     MonkeyMaskContextValue,

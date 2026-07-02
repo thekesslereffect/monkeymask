@@ -44,6 +44,13 @@ function NftTile({ nft, onSelect }: { nft: NormalizedNFT; onSelect: (nft: Normal
         </span>
       )}
 
+      {nft.pending && (
+        <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-medium text-black backdrop-blur-sm">
+          <Icon icon="lucide:clock" className="size-3 shrink-0" />
+          Pending
+        </span>
+      )}
+
       {nft.finished && (
         <span className="absolute top-2 right-2 inline-flex items-center rounded-full bg-black/70 p-1 text-white backdrop-blur-sm">
           <Icon icon="lucide:lock" className="size-3" aria-label="Supply locked" />

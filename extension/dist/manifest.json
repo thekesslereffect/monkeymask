@@ -15,8 +15,9 @@
     "https://*.bananorpc.com/*",
     "https://kaliumapi.appditto.com/*",
     "https://*.dev-ptera.com/*",
-    "https://cwispy.app/*",
     "https://ipfs.io/*",
+    "https://gateway.pinata.cloud/*",
+    "https://dweb.link/*",
     "https://*.convex.site/*",
     "https://*.convex.cloud/*"
   ],

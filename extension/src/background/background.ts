@@ -1930,9 +1930,24 @@ class BackgroundService {
       session.spentRaw = next.toString();
       this.spendSessions.set(origin, session);
       void this.persistSpendSessions();
+      this.broadcastSpendingSession(origin); // keep the dApp's remaining balance live
     } catch {
       /* ignore */
     }
+  }
+
+  /**
+   * Push the current spending-session state for `origin` to that origin's tabs so
+   * a connected dApp updates reactively (e.g. after the user revokes the session
+   * from the wallet, or the allowance is debited by an auto-approved send).
+   */
+  private broadcastSpendingSession(origin: string): void {
+    const session = this.getActiveSession(origin);
+    this.emitProviderEvent(
+      'spendingSessionChanged',
+      { session: session ? this.sessionInfo(session) : null },
+      origin,
+    );
   }
 
   async handleRequestSpendingSession(
@@ -2006,6 +2021,7 @@ class BackgroundService {
       };
       this.spendSessions.set(origin, session);
       await this.persistSpendSessions();
+      this.broadcastSpendingSession(origin);
       this.storeOperationResult(approval.requestId, { success: true, type: 'spendingSession' });
       sendResponse({ success: true, data: this.sessionInfo(session) });
     } catch (error) {
@@ -2050,6 +2066,7 @@ class BackgroundService {
     await this.loadSpendSessions();
     this.spendSessions.delete(origin);
     await this.persistSpendSessions();
+    this.broadcastSpendingSession(origin); // tell the dApp its session is gone
     sendResponse({ success: true, data: { revoked: true } });
   }
 
@@ -2697,8 +2714,11 @@ class BackgroundService {
       if (!enabled) {
         await this.loadSpendSessions();
         if (this.spendSessions.size > 0) {
+          const affectedOrigins = [...this.spendSessions.keys()];
           this.spendSessions.clear();
           await this.persistSpendSessions();
+          // Notify every affected dApp so its session UI clears immediately.
+          for (const origin of affectedOrigins) this.broadcastSpendingSession(origin);
         }
       }
 
@@ -2793,28 +2813,34 @@ class BackgroundService {
         return;
       }
 
-      const accountMeta = this.walletManager.getAccounts().find((a) => a.address === newAccount);
-      this.emitProviderEvent('change', {
-        accounts: [
-          {
-            address: newAccount,
-            publicKeyHex: accountMeta?.publicKey ?? '',
-            label: accountMeta?.name,
-          },
-        ],
-      });
+      const allAccounts = this.walletManager.getAccounts();
+      const metaFor = (address: string) => allAccounts.find((a) => a.address === address);
 
+      // A dApp follows the wallet's selected account. If we broadcast the
+      // newly-selected account globally, a site that never authorized it would
+      // show it as active and then fail every signing request with
+      // "Unauthorized". So scope this per origin: if the site has authorized the
+      // selected account, expose it; otherwise disconnect the site so it falls
+      // back to a Connect button instead of showing an account it can't use.
       const origins = new Set<string>();
+      this.connectedTabs.forEach((origin) => origins.add(origin));
       this.permissions.forEach((permission) => origins.add(permission.origin));
+
       origins.forEach((origin) => {
-        if (this.isAccountAuthorizedForOrigin(newAccount, origin)) {
-          const authorizedAccounts = this.getAuthorizedAccountsForOrigin(origin);
-          this.emitProviderEvent(
-            'connect',
-            { publicKey: newAccount, publicKeyHex: accountMeta?.publicKey, accounts: authorizedAccounts },
-            origin,
-          );
+        if (!this.isAccountAuthorizedForOrigin(newAccount, origin)) {
+          this.emitProviderEvent('disconnect', null, origin);
+          return;
         }
+        const meta = metaFor(newAccount);
+        this.emitProviderEvent(
+          'change',
+          {
+            accounts: [
+              { address: newAccount, publicKeyHex: meta?.publicKey ?? '', label: meta?.name },
+            ],
+          },
+          origin,
+        );
       });
 
       sendResponse({ success: true });

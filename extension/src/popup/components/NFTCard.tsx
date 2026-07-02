@@ -67,6 +67,13 @@ export const NFTCard: React.FC<NFTCardProps> = ({ nft, onClick }) => {
           <span className="truncate">{badge.label}</span>
         </span>
       )}
+
+      {nft.pending && (
+        <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-full bg-amber-500/90 px-1.5 py-0.5 text-[9px] font-medium text-black backdrop-blur-sm">
+          <Icon icon="lucide:clock" className="shrink-0 text-[10px]" />
+          Pending
+        </span>
+      )}
     </button>
   );
 };

@@ -22,6 +22,7 @@ import type {
   BananoReceivable,
   BananoHistoryEntry,
 } from '@monkeymask/wallet-standard';
+import { SPENDING_SESSION_EVENT } from '@monkeymask/wallet-standard';
 import {
   connectWallet,
   disconnectWallet,
@@ -51,6 +52,7 @@ export function MonkeyMaskProvider({
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [spendingSession, setSpendingSession] = useState<SpendingSessionInfo | null>(null);
   const autoConnectAttempted = useRef(false);
 
   const handleError = useCallback(
@@ -210,8 +212,9 @@ export function MonkeyMaskProvider({
         'requestSpendingSession',
         { ...params },
       );
-      if (!result) return null;
-      return 'session' in result ? result.session : result;
+      const session = !result ? null : 'session' in result ? result.session : result;
+      setSpendingSession(session);
+      return session;
     },
     [],
   );
@@ -220,13 +223,35 @@ export function MonkeyMaskProvider({
     const result = await legacyRequest<{ session: SpendingSessionInfo | null } | SpendingSessionInfo | null>(
       'getSpendingSession',
     );
-    if (!result) return null;
-    return 'session' in result ? result.session : result;
+    const session = !result ? null : 'session' in result ? result.session : result;
+    setSpendingSession(session);
+    return session;
   }, []);
 
   const revokeSpendingSession = useCallback(async (): Promise<void> => {
     await legacyRequest<{ revoked: boolean }>('revokeSpendingSession');
+    setSpendingSession(null);
   }, []);
+
+  // Keep the spending session reactive: the wallet dispatches a DOM event when it
+  // changes (granted, revoked from the wallet, debited, or disabled).
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ session?: SpendingSessionInfo | null }>).detail;
+      setSpendingSession(detail?.session ?? null);
+    };
+    window.addEventListener(SPENDING_SESSION_EVENT, handler);
+    return () => window.removeEventListener(SPENDING_SESSION_EVENT, handler);
+  }, []);
+
+  // Populate (or clear) the session whenever the connected account changes.
+  useEffect(() => {
+    if (accounts.length === 0) {
+      setSpendingSession(null);
+      return;
+    }
+    void getSpendingSession().catch(() => setSpendingSession(null));
+  }, [accounts, getSpendingSession]);
 
   useEffect(() => {
     if (!config.autoConnect || autoConnectAttempted.current || !wallet) return;
@@ -259,6 +284,7 @@ export function MonkeyMaskProvider({
       requestSpendingSession,
       getSpendingSession,
       revokeSpendingSession,
+      spendingSession,
       clearError: () => setError(null),
     }),
     [
@@ -281,6 +307,7 @@ export function MonkeyMaskProvider({
       requestSpendingSession,
       getSpendingSession,
       revokeSpendingSession,
+      spendingSession,
     ],
   );
 
@@ -384,14 +411,17 @@ export function useSweep() {
  * Returns `{ request, get, revoke }`.
  */
 export function useSpendingSession() {
-  const { requestSpendingSession, getSpendingSession, revokeSpendingSession } = useMonkeyMask();
+  const { requestSpendingSession, getSpendingSession, revokeSpendingSession, spendingSession } =
+    useMonkeyMask();
   return useMemo(
     () => ({
+      /** Reactive current session (updates on grant/revoke/debit, incl. from the wallet). */
+      session: spendingSession,
       request: requestSpendingSession,
       get: getSpendingSession,
       revoke: revokeSpendingSession,
     }),
-    [requestSpendingSession, getSpendingSession, revokeSpendingSession],
+    [spendingSession, requestSpendingSession, getSpendingSession, revokeSpendingSession],
   );
 }
 

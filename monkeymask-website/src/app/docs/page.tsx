@@ -857,12 +857,11 @@ const { hash } = await sendAll({ to: 'ban_1...' }); // or a .ban name`}</CodeBlo
 
             <Section id="nft-read" title="Read / query">
               <P>
-                Fetch normalized NFTs for an address from <code>/api/nfts</code>. When the Convex index
-                is configured it is authoritative (its crawler traces the full mint → transfer → burn
-                chain of custody and reports the supply model + minted/held counts); a reliable
-                self-indexed &quot;minted by you&quot; crawl is merged in so your own fresh mints
-                appear instantly, and a community indexer is used as a fallback. IPFS metadata is
-                resolved server-side.
+                Fetch normalized NFTs for an address from <code>/api/nfts</code>. Ownership is read
+                directly from the account&apos;s own ledger chain (a bounded set of batched{' '}
+                <code>account_history</code> + <code>blocks_info</code> calls), so NFTs minted on any
+                site appear for the minter and every recipient with no crawler, index, or backend
+                required. IPFS metadata is resolved server-side.
               </P>
               <CodeBlock>{`const { nfts, error } = await fetch(\`/api/nfts?address=\${address}\`).then((r) => r.json());
 // nfts: {
@@ -1004,8 +1003,9 @@ useEffect(() => { /* refetch data for the active account */ }, [publicKey]);`}</
               <P>
                 The dApp template ships an optional <strong>Convex</strong> backend (
                 <code>monkeymask-website/convex/</code>) that makes SIWB nonces/sessions durable and
-                powers the NFT index with a 24/7 crawler cron. It&apos;s fully optional. Without it
-                the app uses an in-memory SIWB store and a self-crawl NFT source. Enable it with{' '}
+                serves the Explore directory. It&apos;s fully optional: NFT ownership is always read
+                crawler-free from the chain (no backend involved), and without Convex the app just uses
+                an in-memory SIWB store. Enable it with{' '}
                 <code>npx convex dev</code> and set <code>NEXT_PUBLIC_CONVEX_URL</code> /{' '}
                 <code>NEXT_PUBLIC_CONVEX_SITE_URL</code>. See the repository README for details.
               </P>

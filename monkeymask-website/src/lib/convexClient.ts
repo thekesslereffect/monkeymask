@@ -1,7 +1,8 @@
 // Thin server-side helper for talking to the Convex HTTP actions (convex/http.ts).
 //
 // The whole backend is optional: when no Convex URL is configured the app falls
-// back to its in-memory SIWB store and self-crawl NFT indexing. `npx convex dev`
+// back to its in-memory SIWB store, and NFT ownership is read crawler-free
+// straight from the chain (see lib/nft.ts). `npx convex dev`
 // writes NEXT_PUBLIC_CONVEX_SITE_URL automatically; the others are accepted too:
 //   NEXT_PUBLIC_CONVEX_SITE_URL  e.g. https://your-deployment.convex.site
 //   CONVEX_SITE_URL              (same, non-public)
@@ -36,9 +37,9 @@ export async function convexPost<T = unknown>(path: string, body: unknown): Prom
 /**
  * GET JSON from a Convex HTTP action. Returns parsed JSON or throws.
  *
- * `cache: 'no-store'` is required: NFT ownership/counts change as the crawler
- * runs, but Next.js caches `fetch` GETs in its Data Cache by default, which
- * would pin the first response (e.g. a stale `heldCount`) indefinitely.
+ * `cache: 'no-store'` avoids Next.js pinning the first response in its Data
+ * Cache (it caches `fetch` GETs by default), so the Explore catalog reflects
+ * updates instead of being frozen indefinitely.
  */
 export async function convexGet<T = unknown>(path: string): Promise<T> {
   if (!SITE_URL) throw new Error('Convex not configured');

@@ -56,12 +56,10 @@ Website (`monkeymask-website`):
 | Variable | Purpose |
 |----------|---------|
 | `PINATA_JWT` | IPFS pinning JWT used by `POST /api/ipfs` to pin NFT art + metadata (v0 CIDs). Without it, minting returns HTTP 501. |
-| `NFT_API_BASE` (optional) | Override the community NFT indexer used by the read-only gallery fallback. |
-| `NEXT_PUBLIC_CONVEX_URL` / `NEXT_PUBLIC_CONVEX_SITE_URL` (optional) | Convex deployment + HTTP-actions URLs. Written by `npx convex dev`. Enables durable SIWB + the crawler-backed NFT index. |
+| `BANANO_RPC_URL` / `IPFS_GATEWAY` (optional) | RPC node + IPFS gateway used by the crawler-free NFT scan behind `GET /api/nfts`. |
+| `NEXT_PUBLIC_CONVEX_URL` / `NEXT_PUBLIC_CONVEX_SITE_URL` (optional) | Convex deployment + HTTP-actions URLs. Written by `npx convex dev`. Enables durable SIWB and the Explore directory. |
 
-Convex deployment env (set with `npx convex env set …`, both optional): `BANANO_RPC_URL`, `IPFS_GATEWAY`.
-
-To enable the backend: `cd monkeymask-website && npx convex dev` (provisions a deployment and starts the crawler cron). Point the **extension** at the same index by building it with `MONKEYMASK_CONVEX_URL=https://your-deployment.convex.site` (falls back to self-crawl + community indexer when unset).
+NFT ownership is read directly from each account's own ledger chain (a bounded set of batched `account_history` + `blocks_info` RPC calls), so NFTs minted on **any** site show up for the minter and every recipient with no crawler, index, or backend required. A developer can build a full mint/display/transfer/burn dApp alongside MonkeyMask with zero backend. Convex is optional and only powers durable SIWB + the Explore directory: `cd monkeymask-website && npx convex dev` provisions a deployment, and building the **extension** with `MONKEYMASK_CONVEX_URL=https://your-deployment.convex.site` points its Explore tab at the same catalog.
 
 ## Security
 
