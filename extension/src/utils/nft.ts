@@ -182,34 +182,39 @@ interface EditionBlock {
 /**
  * Enumerate every edition of a collection on the issuer's chain.
  *
- * The collection is a `change#supply` block; every later block on the same
- * chain that reuses the metadata representative (subtype `send` or `change`) is
- * another edition. An edition is still *held* by the issuer if it was minted
- * in-place (`change#mint`) or sent to self (`send#mint` back to this account)
- * and was not later transferred away (a `send#asset` for that mint hash).
+ * An edition is a self-delimiting `change#supply` → `send#mint` pair: a supply
+ * block immediately followed by a send that reuses the collection's metadata
+ * representative. Counting whole pairs (never bare sends) is what prevents
+ * ordinary payments — which keep the account's representative — from ever being
+ * miscounted as phantom editions. An edition is still *held* if the mint sent it
+ * to this account and it was not later transferred away (a `send#asset`).
  */
 function collectEditions(
   history: RawHistoryEntry[],
-  supplyHeight: number,
   metadataRep: string,
   maxSupply: number,
   ownerPublicKey: string,
 ): EditionBlock[] {
-  const editions: EditionBlock[] = [];
-  for (const b of history) {
-    if (Number(b.height) <= supplyHeight) continue;
-    if (b.subtype !== 'send' && b.subtype !== 'change') continue;
-    if (b.representative !== metadataRep) continue;
+  const byHeight = new Map<number, RawHistoryEntry>();
+  for (const b of history) byHeight.set(Number(b.height), b);
 
-    const heldByOwner =
-      b.subtype === 'change' || (b.link ?? '').toUpperCase() === ownerPublicKey;
+  const editions: EditionBlock[] = [];
+  for (const entry of history) {
+    if (entry.subtype !== 'change' || !entry.representative) continue;
+    if (!isSupplyRepresentative(entry.representative)) continue;
+
+    const mint = byHeight.get(Number(entry.height) + 1);
+    if (!mint || mint.subtype !== 'send') continue;
+    if (mint.representative !== metadataRep) continue;
+
+    const heldByOwner = (mint.link ?? '').toUpperCase() === ownerPublicKey;
     const transferredAway = history.some(
       (t) =>
         t.subtype === 'send' &&
         !!t.representative &&
-        representativeMatchesAsset(t.representative, b.hash),
+        representativeMatchesAsset(t.representative, mint.hash),
     );
-    editions.push({ hash: b.hash, held: heldByOwner && !transferredAway });
+    editions.push({ hash: mint.hash, held: heldByOwner && !transferredAway });
 
     // The metaprotocol stops minting once the supply is exhausted.
     if (maxSupply > 0 && editions.length >= maxSupply) break;
@@ -265,13 +270,7 @@ export async function fetchMintedNFTsForAddress(address: string): Promise<Monkey
     seenCids.add(cid);
 
     const maxSupply = maxSupplyFromRepresentative(entry.representative);
-    const editions = collectEditions(
-      history,
-      supplyHeight,
-      mint.representative,
-      maxSupply,
-      ownerPublicKey,
-    );
+    const editions = collectEditions(history, mint.representative, maxSupply, ownerPublicKey);
     if (editions.length === 0) continue;
 
     const heldCount = editions.filter((e) => e.held).length;
@@ -338,8 +337,16 @@ export async function fetchAllNFTsForAddress(address: string): Promise<NFTFetchR
   ]);
 
   const byAsset = new Map<string, MonkeyNFT>();
-  for (const nft of minted) byAsset.set(nft.assetRepresentative ?? nft.id, nft);
+  // Self-indexed collections are grouped into one card per metadata CID; every
+  // edition shares that CID. Skip any flat "owned" asset whose CID is already
+  // covered so editions don't reappear as duplicate cards.
+  const coveredCids = new Set<string>();
+  for (const nft of minted) {
+    byAsset.set(nft.assetRepresentative ?? nft.id, nft);
+    if (nft.metadataCid) coveredCids.add(nft.metadataCid);
+  }
   for (const nft of owned.nfts) {
+    if (nft.metadataCid && coveredCids.has(nft.metadataCid)) continue;
     const key = nft.assetRepresentative ?? nft.id;
     if (!byAsset.has(key)) byAsset.set(key, nft);
   }

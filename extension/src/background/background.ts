@@ -455,6 +455,10 @@ class BackgroundService {
           await this.handleTransferNFT(request, sendResponse);
           break;
 
+        case 'BURN_NFT':
+          await this.handleBurnNFT(request, sendResponse);
+          break;
+
         case 'SWEEP_TRANSACTION':
           await this.handleSweepTransaction(request, sendResponse);
           break;
@@ -1265,6 +1269,46 @@ class BackgroundService {
       sendResponse({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to transfer NFT',
+      });
+    }
+  }
+
+  /**
+   * Permanently burn an owned NFT from within the extension popup (first-party
+   * user action). Publishes a `send#burn` to a canonical burn account.
+   */
+  private async handleBurnNFT(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      if (!this.walletManager.isWalletUnlocked()) {
+        sendResponse({ success: false, error: 'Wallet is locked' });
+        return;
+      }
+      const { fromAddress, assetRepresentative, amount } = request;
+      if (!fromAddress || !assetRepresentative) {
+        sendResponse({
+          success: false,
+          error: 'Missing required fields: fromAddress, assetRepresentative',
+        });
+        return;
+      }
+
+      const hash = await this.walletManager.burnNFT(fromAddress, {
+        assetRepresentative,
+        amount,
+      });
+
+      setTimeout(() => {
+        this.updateBalancesAsync().catch((err) => {
+          console.warn('Background: post burn refresh failed:', err);
+        });
+      }, 0);
+
+      sendResponse({ success: true, data: { hash } });
+    } catch (error) {
+      console.error('Background: Error burning NFT:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to burn NFT',
       });
     }
   }

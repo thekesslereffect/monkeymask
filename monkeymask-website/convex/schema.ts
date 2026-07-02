@@ -26,7 +26,9 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index('by_asset', ['assetRep'])
-    .index('by_issuer', ['issuer']),
+    .index('by_issuer', ['issuer'])
+    // Group editions of a collection (all mints share one metadata CID).
+    .index('by_metadataCid', ['metadataCid']),
 
   // Current owner of each asset (one row per asset).
   ownership: defineTable({

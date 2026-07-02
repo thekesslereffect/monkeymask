@@ -18,6 +18,7 @@ export {
   useMintNFT,
   useMintEdition,
   useTransferNFT,
+  useBurnNFT,
 } from './MonkeyMaskProvider.js';
 
 // `ban:` payment-URI + QR helpers (pure; re-exported from wallet-standard).
@@ -35,6 +36,7 @@ export type {
   MintNFTParams,
   MintEditionParams,
   TransferNFTParams,
+  BurnNFTParams,
 } from './MonkeyMaskProvider.js';
 
 export type {

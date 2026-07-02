@@ -29,7 +29,7 @@ interface NFTDetailProps {
   onClose: () => void;
   /** Account that currently holds the NFT (the sender for a transfer). */
   fromAddress?: string;
-  /** Called after a successful transfer, with the transferred asset id. */
+  /** Called after a successful transfer or burn, with the affected asset id. */
   onTransferred?: (assetRepresentative: string) => void;
 }
 
@@ -42,9 +42,14 @@ export const NFTDetail: React.FC<NFTDetailProps> = ({ nft, onClose, fromAddress,
   const [transferring, setTransferring] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
   const [transferHash, setTransferHash] = useState<string | null>(null);
+  const [showBurn, setShowBurn] = useState(false);
+  const [burning, setBurning] = useState(false);
+  const [burnError, setBurnError] = useState<string | null>(null);
+  const [burnHash, setBurnHash] = useState<string | null>(null);
   const showImage = nft.image && !imageFailed;
   const metadataUrl = nft.metadataCid ? `${IPFS_GATEWAY}${nft.metadataCid}` : undefined;
   const canTransfer = Boolean(nft.assetRepresentative && fromAddress);
+  const done = Boolean(transferHash || burnHash);
 
   const handleDownload = async () => {
     if (!nft.image) return;
@@ -82,6 +87,32 @@ export const NFTDetail: React.FC<NFTDetailProps> = ({ nft, onClose, fromAddress,
       setTransferError(err instanceof Error ? err.message : 'Transfer failed');
     } finally {
       setTransferring(false);
+    }
+  };
+
+  const handleBurn = async () => {
+    setBurnError(null);
+    if (!nft.assetRepresentative || !fromAddress) {
+      setBurnError('This NFT cannot be burned.');
+      return;
+    }
+    setBurning(true);
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'BURN_NFT',
+        fromAddress,
+        assetRepresentative: nft.assetRepresentative,
+      });
+      if (response?.success) {
+        setBurnHash(response.data.hash);
+        onTransferred?.(nft.assetRepresentative);
+      } else {
+        setBurnError(response?.error || 'Burn failed');
+      }
+    } catch (err) {
+      setBurnError(err instanceof Error ? err.message : 'Burn failed');
+    } finally {
+      setBurning(false);
     }
   };
 
@@ -170,7 +201,7 @@ export const NFTDetail: React.FC<NFTDetailProps> = ({ nft, onClose, fromAddress,
             </Button>
           </div>
 
-          {canTransfer && !transferHash && (
+          {canTransfer && !done && !showBurn && (
             <Button
               size="sm"
               variant={showTransfer ? 'primary' : 'secondary'}
@@ -183,7 +214,56 @@ export const NFTDetail: React.FC<NFTDetailProps> = ({ nft, onClose, fromAddress,
             </Button>
           )}
 
-          {showTransfer && !transferHash && (
+          {canTransfer && !done && !showTransfer && (
+            <Button
+              size="sm"
+              variant={showBurn ? 'danger' : 'ghost'}
+              onClick={() => setShowBurn((v) => !v)}
+              className="w-full"
+            >
+              <span className="flex items-center justify-center gap-1">
+                <Icon icon="lucide:flame" className="text-base" /> Burn
+              </span>
+            </Button>
+          )}
+
+          {showBurn && !done && (
+            <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+              <div className="flex items-start gap-2 text-destructive">
+                <Icon icon="lucide:flame" className="text-base shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <div className="font-semibold">Permanently destroy this NFT?</div>
+                  <div className="opacity-90">
+                    It will be sent to a black-hole account and can never be recovered.
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button size="sm" variant="danger" onClick={handleBurn} disabled={burning}>
+                  {burning ? (
+                    <Icon icon="mdi:loading" className="text-base animate-spin" />
+                  ) : (
+                    'Burn forever'
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowBurn(false)}
+                  disabled={burning}
+                >
+                  Cancel
+                </Button>
+              </div>
+              {burnError && <Alert variant="destructive">{burnError}</Alert>}
+            </div>
+          )}
+
+          {burnHash && (
+            <Alert variant="destructive">NFT burned. It will leave your gallery once the index updates.</Alert>
+          )}
+
+          {showTransfer && !done && (
             <div className="space-y-2 rounded-lg border border-tertiary/10 p-3">
               <Input
                 label="Send this NFT to"

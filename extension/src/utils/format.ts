@@ -39,9 +39,12 @@ export const truncateMiddle = (
   prefix = 10,
   suffix = 6,
 ): string => {
-  if (!value) return 'Unknown';
-  if (value.length <= prefix + suffix + 3) return value;
-  return `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
+  if (value === null || value === undefined || value === '') return 'Unknown';
+  // Coerce defensively: a non-string here (e.g. an object from an upstream API)
+  // must never crash the whole popup via `.slice`.
+  const str = typeof value === 'string' ? value : String(value);
+  if (str.length <= prefix + suffix + 3) return str;
+  return `${str.slice(0, prefix)}...${str.slice(-suffix)}`;
 };
 
 const CREEPER_BASE = 'https://creeper.banano.cc';

@@ -115,9 +115,11 @@ export type BananoOperation =
       /**
        * Mint an additional edition (copy) of an existing collection you issued.
        * The collection must have been created with `maxSupply` > 1 (or 0 for
-       * unlimited). The wallet publishes a single `send#mint` block reusing the
-       * collection's `metadata_representative`; its hash is the new edition's
-       * asset representative. Rejected if the edition limit is already reached.
+       * unlimited). The wallet publishes a fresh `change#supply` → `send#mint`
+       * pair reusing the collection's `metadata_representative`; the mint block's
+       * hash is the new edition's asset representative. Minting whole pairs keeps
+       * ordinary sends from ever being miscounted as editions. Rejected if the
+       * edition limit is already reached.
        */
       readonly type: 'mintEdition';
       /** IPFS v0 CID (Qm…) of the existing collection's metadata JSON. */
@@ -162,6 +164,27 @@ export type BananoOperation =
         readonly to: string;
         readonly amount?: string;
       }[];
+      /** Optional display name, shown in the approval UI only. */
+      readonly name?: string;
+    }
+  | {
+      /**
+       * Permanently destroy an owned Banano NFT. This is a `send#asset` to a
+       * canonical burn account (a black-hole address with no recoverable key),
+       * per the 73-meta-tokens `send#burn` spec, so the asset can never be moved
+       * again. Irreversible — the wallet surfaces a distinct destructive warning.
+       */
+      readonly type: 'burn';
+      /** The NFT's asset representative — its mint block hash (64 hex). */
+      readonly assetRepresentative: string;
+      /**
+       * Optional override for which burn account to send to. Defaults to the
+       * canonical burn address. Must be one of the recognized burn accounts for
+       * indexers to treat the asset as destroyed.
+       */
+      readonly to?: string;
+      /** BAN carried by the `send#burn` block (defaults to a tiny amount). */
+      readonly amount?: string;
       /** Optional display name, shown in the approval UI only. */
       readonly name?: string;
     };

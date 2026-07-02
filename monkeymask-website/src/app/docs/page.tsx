@@ -129,6 +129,7 @@ export default function RootLayout({ children }) {
   useMintNFT,      // (params, account?) => { hash, hashes }
   useMintEdition,  // (params, account?) => { hash, hashes } — extra copy of a collection
   useTransferNFT,  // (params, account?) => { hash, hashes, results? } — one or many NFTs
+  useBurnNFT,      // (params, account?) => { hash, hashes } — destroy an NFT (send#burn)
   // pure ban: payment-URI + QR helpers
   buildBananoUri, parseBananoUri, isBananoUri, banToRaw, rawToBan,
 } from '@monkeymask/react';
@@ -203,6 +204,9 @@ const {
   // ...or many at once
   | { type: 'transfer'; name?: string;
       transfers: { assetRepresentative: string; to: string; amount?: string }[] }
+  // permanently destroy an NFT (send#burn to a black-hole account)
+  | { type: 'burn'; assetRepresentative: string;
+      to?: string; amount?: string; name?: string }
   // send the entire spendable balance (claims pending first, no dust left)
   | { type: 'sweep'; to: string; name?: string };`}</Code>
       </Section>
@@ -345,6 +349,22 @@ const { hashes, results } = await transfer({
   ],
 });
 // results: { assetRepresentative, to, amount, hash? | error? }[]`}</Code>
+        <h3 className="text-lg font-semibold">Burn</h3>
+        <p className="text-sm text-muted-foreground">
+          Permanently destroy an owned NFT. This is a <code>send#asset</code> to a canonical burn
+          account (the 73-meta-tokens <code>send#burn</code> convention) — a black-hole address with
+          no recoverable key, so the asset can never be moved again. The wallet surfaces a distinct
+          red, destructive confirmation. <strong>Irreversible.</strong> The default target is the
+          canonical burn account; pass <code>to</code> only to pick a different recognized burn
+          address.
+        </p>
+        <Code>{`import { useBurnNFT } from '@monkeymask/react';
+const burn = useBurnNFT();
+
+const { hash } = await burn({
+  assetRepresentative: nft.assetRepresentative,
+  name: nft.name,   // shown in the approval UI
+});`}</Code>
         <h3 className="text-lg font-semibold">Read</h3>
         <p className="text-sm text-muted-foreground">
           Fetch normalized NFTs for an address from <code>/api/nfts</code>. When the Convex index is

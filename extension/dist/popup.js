@@ -7127,6 +7127,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   BananoSignIn: () => (/* binding */ BananoSignIn),
 /* harmony export */   BananoSignMessage: () => (/* binding */ BananoSignMessage),
 /* harmony export */   BananoSignTransaction: () => (/* binding */ BananoSignTransaction),
+/* harmony export */   CANONICAL_BURN_ACCOUNT: () => (/* binding */ CANONICAL_BURN_ACCOUNT),
 /* harmony export */   FINISH_SUPPLY_HEADER_HEX: () => (/* binding */ FINISH_SUPPLY_HEADER_HEX),
 /* harmony export */   PROTOCOL_INIT_EVENT: () => (/* binding */ PROTOCOL_INIT_EVENT),
 /* harmony export */   PROTOCOL_SOURCE_EVENT: () => (/* binding */ PROTOCOL_SOURCE_EVENT),
@@ -7153,6 +7154,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getProtocolTimeoutMs: () => (/* binding */ getProtocolTimeoutMs),
 /* harmony export */   hexToBytes: () => (/* binding */ hexToBytes),
 /* harmony export */   isBananoUri: () => (/* binding */ isBananoUri),
+/* harmony export */   isBurnAccount: () => (/* binding */ isBurnAccount),
 /* harmony export */   isSupplyRepresentative: () => (/* binding */ isSupplyRepresentative),
 /* harmony export */   isValidMetadataRepresentative: () => (/* binding */ isValidMetadataRepresentative),
 /* harmony export */   maxSupplyFromRepresentative: () => (/* binding */ maxSupplyFromRepresentative),
@@ -7244,12 +7246,16 @@ var BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy
 var SUPPLY_HEADER_HEX = "51BACEED6078000000";
 var FINISH_SUPPLY_HEADER_HEX = "3614865E0051BA0033BB581E";
 var SEND_ALL_NFTS_REPRESENTATIVE = "ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits";
+var CANONICAL_BURN_ACCOUNT = "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w";
 var BURN_ACCOUNTS = /* @__PURE__ */ new Set([
-  "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w",
+  CANONICAL_BURN_ACCOUNT,
   "ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp",
   "ban_1ban116su1fur16uo1cano16su1fur16161616161616161616166a1sf7xw",
   "ban_1111111111111111111111111111111111111111111111111111hifc8npp"
 ]);
+function isBurnAccount(account) {
+  return BURN_ACCOUNTS.has(account);
+}
 var INVALID_MINT_REPRESENTATIVES = /* @__PURE__ */ new Set([
   "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w",
   "ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp",
@@ -27760,8 +27766,14 @@ input[type="checkbox"]:disabled {
 .left-0 {
   left: 0px;
 }
+.left-1 {
+  left: 0.25rem;
+}
 .right-0 {
   right: 0px;
+}
+.right-1 {
+  right: 0.25rem;
 }
 .right-4 {
   right: 1rem;
@@ -27769,17 +27781,11 @@ input[type="checkbox"]:disabled {
 .top-0 {
   top: 0px;
 }
-.top-6 {
-  top: 1.5rem;
-}
-.left-1 {
-  left: 0.25rem;
-}
-.right-1 {
-  right: 0.25rem;
-}
 .top-1 {
   top: 0.25rem;
+}
+.top-6 {
+  top: 1.5rem;
 }
 .z-10 {
   z-index: 10;
@@ -28056,6 +28062,9 @@ input[type="checkbox"]:disabled {
 .justify-between {
   justify-content: space-between;
 }
+.gap-0\\.5 {
+  gap: 0.125rem;
+}
 .gap-1 {
   gap: 0.25rem;
 }
@@ -28067,9 +28076,6 @@ input[type="checkbox"]:disabled {
 }
 .gap-4 {
   gap: 1rem;
-}
-.gap-0\\.5 {
-  gap: 0.125rem;
 }
 .space-x-3 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-x-reverse: 0;
@@ -28180,6 +28186,9 @@ input[type="checkbox"]:disabled {
 .border-destructive\\/20 {
   border-color: hsl(var(--destructive) / 0.2);
 }
+.border-destructive\\/30 {
+  border-color: hsl(var(--destructive) / 0.3);
+}
 .border-green-500\\/20 {
   border-color: rgb(34 197 94 / 0.2);
 }
@@ -28201,6 +28210,12 @@ input[type="checkbox"]:disabled {
 .border-t-transparent {
   border-top-color: transparent;
 }
+.bg-accent {
+  background-color: hsl(var(--accent));
+}
+.bg-accent\\/15 {
+  background-color: hsl(var(--accent) / 0.15);
+}
 .bg-background {
   background-color: hsl(var(--background));
 }
@@ -28210,6 +28225,9 @@ input[type="checkbox"]:disabled {
 .bg-black\\/50 {
   background-color: rgb(0 0 0 / 0.5);
 }
+.bg-black\\/70 {
+  background-color: rgb(0 0 0 / 0.7);
+}
 .bg-card {
   background-color: hsl(var(--card));
 }
@@ -28218,6 +28236,9 @@ input[type="checkbox"]:disabled {
 }
 .bg-destructive\\/10 {
   background-color: hsl(var(--destructive) / 0.1);
+}
+.bg-destructive\\/5 {
+  background-color: hsl(var(--destructive) / 0.05);
 }
 .bg-green-500\\/10 {
   background-color: rgb(34 197 94 / 0.1);
@@ -28262,15 +28283,6 @@ input[type="checkbox"]:disabled {
 .bg-yellow-500\\/10 {
   background-color: rgb(234 179 8 / 0.1);
 }
-.bg-accent {
-  background-color: hsl(var(--accent));
-}
-.bg-black\\/70 {
-  background-color: rgb(0 0 0 / 0.7);
-}
-.bg-accent\\/15 {
-  background-color: hsl(var(--accent) / 0.15);
-}
 .object-contain {
   -o-object-fit: contain;
      object-fit: contain;
@@ -28291,6 +28303,10 @@ input[type="checkbox"]:disabled {
 .p-4 {
   padding: 1rem;
 }
+.px-1\\.5 {
+  padding-left: 0.375rem;
+  padding-right: 0.375rem;
+}
 .px-2 {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
@@ -28306,6 +28322,10 @@ input[type="checkbox"]:disabled {
 .px-6 {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
+}
+.py-0\\.5 {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
 }
 .py-1\\.5 {
   padding-top: 0.375rem;
@@ -28326,14 +28346,6 @@ input[type="checkbox"]:disabled {
 .py-8 {
   padding-top: 2rem;
   padding-bottom: 2rem;
-}
-.px-1\\.5 {
-  padding-left: 0.375rem;
-  padding-right: 0.375rem;
-}
-.py-0\\.5 {
-  padding-top: 0.125rem;
-  padding-bottom: 0.125rem;
 }
 .pb-2 {
   padding-bottom: 0.5rem;
@@ -28390,6 +28402,12 @@ input[type="checkbox"]:disabled {
 .text-\\[10px\\] {
   font-size: 10px;
 }
+.text-\\[11px\\] {
+  font-size: 11px;
+}
+.text-\\[9px\\] {
+  font-size: 9px;
+}
 .text-base {
   font-size: 1rem;
   line-height: 1.5rem;
@@ -28409,12 +28427,6 @@ input[type="checkbox"]:disabled {
 .text-xs {
   font-size: 0.75rem;
   line-height: 1rem;
-}
-.text-\\[9px\\] {
-  font-size: 9px;
-}
-.text-\\[11px\\] {
-  font-size: 11px;
 }
 .font-bold {
   font-weight: 700;
@@ -28487,6 +28499,9 @@ input[type="checkbox"]:disabled {
   --tw-text-opacity: 1 !important;
   color: rgb(250 204 21 / var(--tw-text-opacity, 1)) !important;
 }
+.text-accent {
+  color: hsl(var(--accent));
+}
 .text-background {
   color: hsl(var(--background));
 }
@@ -28547,11 +28562,11 @@ input[type="checkbox"]:disabled {
   --tw-text-opacity: 1;
   color: rgb(202 138 4 / var(--tw-text-opacity, 1));
 }
-.text-accent {
-  color: hsl(var(--accent));
-}
 .opacity-70 {
   opacity: 0.7;
+}
+.opacity-90 {
+  opacity: 0.9;
 }
 .shadow-lg {
   --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -28759,7 +28774,7 @@ input[type=number].no-spinner {
 .disabled\\:opacity-50:disabled {
   opacity: 0.5;
 }
-`, "",{"version":3,"sources":["webpack://./src/popup/styles.css"],"names":[],"mappings":"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","sourcesContent":["@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n@layer base {\n  * {\n    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n  }\n  \n  :root {\n    /* Dark theme colors */\n    --background: 0 0% 13%;\n    --foreground: 0, 0%, 95%;\n    --card: 0 0% 16%;\n    --card-foreground: 0 0% 46%;\n    --popover: 0 0% 19%;\n    --popover-foreground: 0 0% 46%;\n    --primary: 0 0% 95%;\n    --primary-foreground: 0 0% 19%;\n    --secondary: 0 0% 16%;\n    --secondary-foreground: 0, 0%, 95%;\n    --tertiary: 0 0% 46%;\n    --tertiary-foreground: 0 0% 95%;\n    --muted: 0 0% 16%;\n    --muted-foreground: 215 20.2% 65.1%;\n    --accent: 0 0% 16%;\n    --accent-foreground: 0 0% 46%;\n    --bars: 0 0% 16%;\n    --bars-foreground: 0 0% 46%;\n    --bars-border: 0 0% 21%;\n    --bars-icon: 0 0% 35%;\n    --bars-icon-active: 0 0% 95%;\n    /* --destructive: 338, 86%, 21.6%;\n    --destructive-foreground: 338, 100%, 36.6%; */\n    --destructive: 48.42,95%,52.94%;\n    --destructive-foreground: 0 0% 13%;\n    --border: 0 0% 16%;\n    --input: 0 0% 16%;\n    --ring: 0 0% 95%;\n    --radius: 0.5rem;    \n  }\n}\n\n@layer components {\n  .header {\n    @apply border-b;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .footer {\n    @apply border-t;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .icon-button {\n    @apply p-2 rounded-lg transition-colors;\n    color: hsl(var(--bars-icon));\n  }\n\n  .icon-button:hover {\n    color: hsl(var(--bars-icon-active));\n    background-color: hsl(var(--bars) / 0.5);\n  }\n\n  .btn {\n    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;\n  }\n  \n  .btn-primary {\n    @apply btn;\n    background-color: hsl(var(--primary));\n    color: hsl(var(--primary-foreground));\n  }\n  \n  .btn-primary:hover {\n    background-color: hsl(var(--primary) / 0.9);\n  }\n  \n  .btn-primary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-secondary {\n    @apply btn;\n    background-color: hsl(var(--secondary));\n    color: hsl(var(--secondary-foreground));\n  }\n  \n  .btn-secondary:hover {\n    background-color: hsl(var(--secondary) / 0.8);\n  }\n  \n  .btn-secondary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-danger {\n    @apply btn;\n    background-color: hsl(var(--destructive));\n    color: hsl(var(--destructive-foreground));\n  }\n  \n  .btn-danger:hover {\n    background-color: hsl(var(--destructive) / 0.9);\n  }\n  \n  .btn-danger:focus {\n    --tw-ring-color: hsl(var(--destructive));\n  }\n  \n  .card {\n    background-color: hsl(var(--card));\n    border: 1px solid hsl(var(--border));\n    color: hsl(var(--card-foreground));\n  }\n  \n  \n  /* Utility classes for common patterns */\n  .bg-background {\n    background-color: hsl(var(--background));\n  }\n  \n  .text-foreground {\n    color: hsl(var(--foreground));\n  }\n  \n  \n  .bg-muted {\n    background-color: hsl(var(--muted));\n  }\n  \n  .text-muted-foreground {\n    color: hsl(var(--muted-foreground));\n  }\n  \n  .border-border {\n    border-color: hsl(var(--border));\n  }\n\n  /* Custom radio button styling */\n  input[type=\"radio\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 50%;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"radio\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"radio\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 50%;\n    left: 50%;\n    transform: translate(-50%, -50%);\n    width: 6px;\n    height: 6px;\n    border-radius: 50%;\n    background-color: hsl(var(--destructive-foreground));\n  }\n\n  input[type=\"radio\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"radio\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"radio\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n\n  /* Custom checkbox styling */\n  input[type=\"checkbox\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 0.25rem;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"checkbox\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"checkbox\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 1px;\n    left: 4px;\n    width: 4px;\n    height: 8px;\n    border: solid hsl(var(--destructive-foreground));\n    border-width: 0 2px 2px 0;\n    transform: rotate(45deg);\n  }\n\n  input[type=\"checkbox\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"checkbox\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"checkbox\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n}\n\n/* Custom scrollbar */\n/* Hide number input spinners */\ninput[type=number].no-spinner::-webkit-outer-spin-button,\ninput[type=number].no-spinner::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\ninput[type=number].no-spinner {\n  -moz-appearance: textfield;\n}\n\n/* Custom scrollbar */\n::-webkit-scrollbar {\n  width: 6px;\n  height: 6px;\n}\n\n::-webkit-scrollbar-track {\n  background: #2A2A2A;\n}\n\n::-webkit-scrollbar-thumb {\n  background: #5A5A5A;\n  border-radius: 3px;\n}\n\n::-webkit-scrollbar-thumb:hover {\n  background: #5A5A5A;\n}\n"],"sourceRoot":""}]);
+`, "",{"version":3,"sources":["webpack://./src/popup/styles.css"],"names":[],"mappings":"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","sourcesContent":["@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n@layer base {\n  * {\n    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n  }\n  \n  :root {\n    /* Dark theme colors */\n    --background: 0 0% 13%;\n    --foreground: 0, 0%, 95%;\n    --card: 0 0% 16%;\n    --card-foreground: 0 0% 46%;\n    --popover: 0 0% 19%;\n    --popover-foreground: 0 0% 46%;\n    --primary: 0 0% 95%;\n    --primary-foreground: 0 0% 19%;\n    --secondary: 0 0% 16%;\n    --secondary-foreground: 0, 0%, 95%;\n    --tertiary: 0 0% 46%;\n    --tertiary-foreground: 0 0% 95%;\n    --muted: 0 0% 16%;\n    --muted-foreground: 215 20.2% 65.1%;\n    --accent: 0 0% 16%;\n    --accent-foreground: 0 0% 46%;\n    --bars: 0 0% 16%;\n    --bars-foreground: 0 0% 46%;\n    --bars-border: 0 0% 21%;\n    --bars-icon: 0 0% 35%;\n    --bars-icon-active: 0 0% 95%;\n    /* --destructive: 338, 86%, 21.6%;\n    --destructive-foreground: 338, 100%, 36.6%; */\n    --destructive: 48.42,95%,52.94%;\n    --destructive-foreground: 0 0% 13%;\n    --border: 0 0% 16%;\n    --input: 0 0% 16%;\n    --ring: 0 0% 95%;\n    --radius: 0.5rem;    \n  }\n}\n\n@layer components {\n  .header {\n    @apply border-b;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .footer {\n    @apply border-t;\n    background-color: hsl(var(--bars));\n    color: hsl(var(--bars-foreground));\n    border-color: hsl(var(--bars-border));\n  }\n\n  .icon-button {\n    @apply p-2 rounded-lg transition-colors;\n    color: hsl(var(--bars-icon));\n  }\n\n  .icon-button:hover {\n    color: hsl(var(--bars-icon-active));\n    background-color: hsl(var(--bars) / 0.5);\n  }\n\n  .btn {\n    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;\n  }\n  \n  .btn-primary {\n    @apply btn;\n    background-color: hsl(var(--primary));\n    color: hsl(var(--primary-foreground));\n  }\n  \n  .btn-primary:hover {\n    background-color: hsl(var(--primary) / 0.9);\n  }\n  \n  .btn-primary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-secondary {\n    @apply btn;\n    background-color: hsl(var(--secondary));\n    color: hsl(var(--secondary-foreground));\n  }\n  \n  .btn-secondary:hover {\n    background-color: hsl(var(--secondary) / 0.8);\n  }\n  \n  .btn-secondary:focus {\n    --tw-ring-color: hsl(var(--ring));\n  }\n  \n  .btn-danger {\n    @apply btn;\n    background-color: hsl(var(--destructive));\n    color: hsl(var(--destructive-foreground));\n  }\n  \n  .btn-danger:hover {\n    background-color: hsl(var(--destructive) / 0.9);\n  }\n  \n  .btn-danger:focus {\n    --tw-ring-color: hsl(var(--destructive));\n  }\n  \n  .card {\n    background-color: hsl(var(--card));\n    border: 1px solid hsl(var(--border));\n    color: hsl(var(--card-foreground));\n  }\n  \n  \n  /* Utility classes for common patterns */\n  .bg-background {\n    background-color: hsl(var(--background));\n  }\n  \n  .text-foreground {\n    color: hsl(var(--foreground));\n  }\n  \n  \n  .bg-muted {\n    background-color: hsl(var(--muted));\n  }\n  \n  .text-muted-foreground {\n    color: hsl(var(--muted-foreground));\n  }\n  \n  .border-border {\n    border-color: hsl(var(--border));\n  }\n\n  /* Custom radio button styling */\n  input[type=\"radio\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 50%;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"radio\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"radio\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 50%;\n    left: 50%;\n    transform: translate(-50%, -50%);\n    width: 6px;\n    height: 6px;\n    border-radius: 50%;\n    background-color: hsl(var(--destructive-foreground));\n  }\n\n  input[type=\"radio\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"radio\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"radio\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n\n  /* Custom checkbox styling */\n  input[type=\"checkbox\"] {\n    appearance: none;\n    -webkit-appearance: none;\n    -moz-appearance: none;\n    width: 1rem;\n    height: 1rem;\n    border: 2px solid hsl(var(--border));\n    border-radius: 0.25rem;\n    background-color: hsl(var(--background));\n    position: relative;\n    cursor: pointer;\n  }\n\n  input[type=\"checkbox\"]:checked {\n    border-color: hsl(var(--destructive));\n    background-color: hsl(var(--destructive));\n  }\n\n  input[type=\"checkbox\"]:checked::before {\n    content: '';\n    position: absolute;\n    top: 1px;\n    left: 4px;\n    width: 4px;\n    height: 8px;\n    border: solid hsl(var(--destructive-foreground));\n    border-width: 0 2px 2px 0;\n    transform: rotate(45deg);\n  }\n\n  input[type=\"checkbox\"]:focus {\n    outline: none;\n    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);\n  }\n\n  input[type=\"checkbox\"]:hover:not(:disabled) {\n    border-color: hsl(var(--destructive) / 0.7);\n  }\n\n  input[type=\"checkbox\"]:disabled {\n    opacity: 0.5;\n    cursor: not-allowed;\n  }\n}\n\n/* Custom scrollbar */\n/* Hide number input spinners */\ninput[type=number].no-spinner::-webkit-outer-spin-button,\ninput[type=number].no-spinner::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n  margin: 0;\n}\ninput[type=number].no-spinner {\n  -moz-appearance: textfield;\n}\n\n/* Custom scrollbar */\n::-webkit-scrollbar {\n  width: 6px;\n  height: 6px;\n}\n\n::-webkit-scrollbar-track {\n  background: #2A2A2A;\n}\n\n::-webkit-scrollbar-thumb {\n  background: #5A5A5A;\n  border-radius: 3px;\n}\n\n::-webkit-scrollbar-thumb:hover {\n  background: #5A5A5A;\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -108547,9 +108562,14 @@ const NFTDetail = ({ nft, onClose, fromAddress, onTransferred }) => {
     const [transferring, setTransferring] = (0, react_1.useState)(false);
     const [transferError, setTransferError] = (0, react_1.useState)(null);
     const [transferHash, setTransferHash] = (0, react_1.useState)(null);
+    const [showBurn, setShowBurn] = (0, react_1.useState)(false);
+    const [burning, setBurning] = (0, react_1.useState)(false);
+    const [burnError, setBurnError] = (0, react_1.useState)(null);
+    const [burnHash, setBurnHash] = (0, react_1.useState)(null);
     const showImage = nft.image && !imageFailed;
     const metadataUrl = nft.metadataCid ? `${IPFS_GATEWAY}${nft.metadataCid}` : undefined;
     const canTransfer = Boolean(nft.assetRepresentative && fromAddress);
+    const done = Boolean(transferHash || burnHash);
     const handleDownload = async () => {
         if (!nft.image)
             return;
@@ -108591,6 +108611,34 @@ const NFTDetail = ({ nft, onClose, fromAddress, onTransferred }) => {
             setTransferring(false);
         }
     };
+    const handleBurn = async () => {
+        setBurnError(null);
+        if (!nft.assetRepresentative || !fromAddress) {
+            setBurnError('This NFT cannot be burned.');
+            return;
+        }
+        setBurning(true);
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'BURN_NFT',
+                fromAddress,
+                assetRepresentative: nft.assetRepresentative,
+            });
+            if (response?.success) {
+                setBurnHash(response.data.hash);
+                onTransferred?.(nft.assetRepresentative);
+            }
+            else {
+                setBurnError(response?.error || 'Burn failed');
+            }
+        }
+        catch (err) {
+            setBurnError(err instanceof Error ? err.message : 'Burn failed');
+        }
+        finally {
+            setBurning(false);
+        }
+    };
     return ((0, jsx_runtime_1.jsxs)("div", { className: "absolute inset-0 z-50 flex flex-col bg-background", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-center justify-between px-4 py-3 border-b border-tertiary/10", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm font-semibold text-primary truncate pr-2", children: nft.name }), (0, jsx_runtime_1.jsx)("button", { onClick: onClose, className: "text-tertiary hover:text-primary shrink-0", "aria-label": "Close", children: (0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:x", className: "text-xl" }) })] }), (0, jsx_runtime_1.jsxs)("div", { className: "flex-1 overflow-y-auto", children: [(0, jsx_runtime_1.jsx)("div", { className: "aspect-square flex items-center justify-center bg-tertiary/10 overflow-hidden", children: showImage ? ((0, jsx_runtime_1.jsx)("img", { src: nft.image, alt: nft.name, className: "w-full h-full object-contain", onError: () => setImageFailed(true) })) : ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:image", className: "text-6xl text-tertiary/50" })) }), (0, jsx_runtime_1.jsxs)("div", { className: "p-4 space-y-3", children: [nft.collection && (0, jsx_runtime_1.jsx)("div", { className: "text-xs text-tertiary/70", children: nft.collection }), nft.supplyType && ((0, jsx_runtime_1.jsxs)("div", { className: "flex flex-wrap items-center gap-2 text-[11px]", children: [(0, jsx_runtime_1.jsxs)("span", { className: "inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 font-medium text-primary", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: nft.supplyType === 'unique'
                                                     ? 'lucide:gem'
                                                     : nft.supplyType === 'unlimited'
@@ -108599,7 +108647,7 @@ const NFTDetail = ({ nft, onClose, fromAddress, onTransferred }) => {
                                                 ? '1 of 1'
                                                 : nft.supplyType === 'unlimited'
                                                     ? `Unlimited · ${nft.mintedCount ?? 0} minted`
-                                                    : `Limited · ${nft.mintedCount ?? 0} of ${nft.maxSupply}`] }), (nft.heldCount ?? 0) > 0 && ((0, jsx_runtime_1.jsxs)("span", { className: "inline-flex items-center rounded-full bg-accent/15 px-2 py-0.5 font-medium text-accent", children: ["You hold ", nft.heldCount] }))] })), nft.description && (0, jsx_runtime_1.jsx)("p", { className: "text-sm text-primary/90", children: nft.description }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-3 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: handleDownload, disabled: !nft.image || downloading, children: downloading ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ((0, jsx_runtime_1.jsxs)("span", { className: "flex items-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:download", className: "text-base" }), " Save"] })) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => nft.assetRepresentative && (0, format_1.openCreeperHash)(nft.assetRepresentative), disabled: !nft.assetRepresentative, children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:external-link", className: "text-base" }), " Creeper"] }) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => metadataUrl && window.open(metadataUrl, '_blank', 'noopener,noreferrer'), disabled: !metadataUrl, children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:file-json", className: "text-base" }), " Meta"] }) })] }), canTransfer && !transferHash && ((0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: showTransfer ? 'primary' : 'secondary', onClick: () => setShowTransfer((v) => !v), className: "w-full", children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center justify-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:send", className: "text-base" }), " Transfer"] }) })), showTransfer && !transferHash && ((0, jsx_runtime_1.jsxs)("div", { className: "space-y-2 rounded-lg border border-tertiary/10 p-3", children: [(0, jsx_runtime_1.jsx)(ui_1.Input, { label: "Send this NFT to", value: recipient, onChange: (e) => setRecipient(e.target.value), placeholder: "ban_1... or name.ban", disabled: transferring, size: "sm" }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-2 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", onClick: handleTransfer, disabled: transferring, children: transferring ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ('Confirm') }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => setShowTransfer(false), disabled: transferring, children: "Cancel" })] }), transferError && (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: transferError })] })), transferHash && ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "success", children: "Transfer sent. It will leave your gallery once the index updates." })), nft.assetRepresentative && ((0, jsx_runtime_1.jsxs)("div", { className: "pt-1", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-[10px] uppercase tracking-wide text-tertiary/70", children: "Asset representative" }), (0, jsx_runtime_1.jsx)("div", { className: "font-mono text-xs text-primary/80 break-all", children: nft.assetRepresentative })] }))] })] })] }));
+                                                    : `Limited · ${nft.mintedCount ?? 0} of ${nft.maxSupply}`] }), (nft.heldCount ?? 0) > 0 && ((0, jsx_runtime_1.jsxs)("span", { className: "inline-flex items-center rounded-full bg-accent/15 px-2 py-0.5 font-medium text-accent", children: ["You hold ", nft.heldCount] }))] })), nft.description && (0, jsx_runtime_1.jsx)("p", { className: "text-sm text-primary/90", children: nft.description }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-3 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: handleDownload, disabled: !nft.image || downloading, children: downloading ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ((0, jsx_runtime_1.jsxs)("span", { className: "flex items-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:download", className: "text-base" }), " Save"] })) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => nft.assetRepresentative && (0, format_1.openCreeperHash)(nft.assetRepresentative), disabled: !nft.assetRepresentative, children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:external-link", className: "text-base" }), " Creeper"] }) }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => metadataUrl && window.open(metadataUrl, '_blank', 'noopener,noreferrer'), disabled: !metadataUrl, children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:file-json", className: "text-base" }), " Meta"] }) })] }), canTransfer && !done && !showBurn && ((0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: showTransfer ? 'primary' : 'secondary', onClick: () => setShowTransfer((v) => !v), className: "w-full", children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center justify-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:send", className: "text-base" }), " Transfer"] }) })), canTransfer && !done && !showTransfer && ((0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: showBurn ? 'danger' : 'ghost', onClick: () => setShowBurn((v) => !v), className: "w-full", children: (0, jsx_runtime_1.jsxs)("span", { className: "flex items-center justify-center gap-1", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:flame", className: "text-base" }), " Burn"] }) })), showBurn && !done && ((0, jsx_runtime_1.jsxs)("div", { className: "space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3", children: [(0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2 text-destructive", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:flame", className: "text-base shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { className: "text-xs", children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold", children: "Permanently destroy this NFT?" }), (0, jsx_runtime_1.jsx)("div", { className: "opacity-90", children: "It will be sent to a black-hole account and can never be recovered." })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-2 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "danger", onClick: handleBurn, disabled: burning, children: burning ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ('Burn forever') }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => setShowBurn(false), disabled: burning, children: "Cancel" })] }), burnError && (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: burnError })] })), burnHash && ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: "NFT burned. It will leave your gallery once the index updates." })), showTransfer && !done && ((0, jsx_runtime_1.jsxs)("div", { className: "space-y-2 rounded-lg border border-tertiary/10 p-3", children: [(0, jsx_runtime_1.jsx)(ui_1.Input, { label: "Send this NFT to", value: recipient, onChange: (e) => setRecipient(e.target.value), placeholder: "ban_1... or name.ban", disabled: transferring, size: "sm" }), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-2 gap-2", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", onClick: handleTransfer, disabled: transferring, children: transferring ? ((0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "mdi:loading", className: "text-base animate-spin" })) : ('Confirm') }), (0, jsx_runtime_1.jsx)(ui_1.Button, { size: "sm", variant: "secondary", onClick: () => setShowTransfer(false), disabled: transferring, children: "Cancel" })] }), transferError && (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", children: transferError })] })), transferHash && ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "success", children: "Transfer sent. It will leave your gallery once the index updates." })), nft.assetRepresentative && ((0, jsx_runtime_1.jsxs)("div", { className: "pt-1", children: [(0, jsx_runtime_1.jsx)("div", { className: "text-[10px] uppercase tracking-wide text-tertiary/70", children: "Asset representative" }), (0, jsx_runtime_1.jsx)("div", { className: "font-mono text-xs text-primary/80 break-all", children: nft.assetRepresentative })] }))] })] })] }));
 };
 exports.NFTDetail = NFTDetail;
 
@@ -109279,9 +109327,11 @@ function getApproveLabel(type) {
 const truncate = (value, head = 12, tail = 8) => {
     if (!value)
         return 'Unknown';
-    if (value.length <= head + tail + 3)
-        return value;
-    return `${value.slice(0, head)}...${value.slice(-tail)}`;
+    // Coerce defensively so a non-string never crashes the approval popup.
+    const str = typeof value === 'string' ? value : String(value);
+    if (str.length <= head + tail + 3)
+        return str;
+    return `${str.slice(0, head)}...${str.slice(-tail)}`;
 };
 const formatDateTime = (iso) => {
     if (!iso)
@@ -109305,6 +109355,9 @@ const ApprovalScreen = ({ request, onApproveTx, onApproveConnect, onReject }) =>
     const domain = request.origin
         .replace(/^https?:\/\//, '')
         .replace(/\/.*$/, '');
+    // Burn is destructive — surface it with a red primary action.
+    const isBurn = (request.type === 'signAndSendTransaction' || request.type === 'signTransaction') &&
+        request.data?.transaction?.type === 'burn';
     const handleReject = () => onReject(request.id);
     const handleApprove = async () => {
         if (request.type === 'connect') {
@@ -109359,9 +109412,9 @@ const ApprovalScreen = ({ request, onApproveTx, onApproveConnect, onReject }) =>
         const amount = isLegacySend ? request.data.amount : tx.amount;
         return ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(SiteHeader, { domain: domain, origin: request.origin, description: willPublish
                         ? 'This site wants to send a transaction from your wallet.'
-                        : 'This site wants you to sign a block without broadcasting it.' }), (0, jsx_runtime_1.jsxs)(ui_1.Card, { label: "Transaction Details", className: "w-full", children: [(0, jsx_runtime_1.jsx)(DetailRow, { label: "Type", children: (0, jsx_runtime_1.jsx)("span", { className: "capitalize", children: txType }) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "From", children: truncate(fromAddress) }), txType === 'mint' || txType === 'mintEdition' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), txType === 'mint' ? ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Max supply", children: tx.maxSupply ?? 1 })) : ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Edition", children: "additional copy" })), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Metadata CID", border: !!(tx.fees && tx.fees.length), children: truncate(tx.metadataCid) }), tx.fees?.map((fee, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: fee.label || 'Fee', border: i < (tx.fees?.length ?? 0) - 1, children: [(0, format_1.formatBalance)(fee.amount || '0'), " BAN \u2192 ", truncate(fee.to)] }, `${fee.to}-${i}`)))] })) : txType === 'transfer' ? (tx.transfers && tx.transfers.length ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFTs", children: tx.transfers.length }), tx.transfers.map((t, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: `#${i + 1}`, border: i < (tx.transfers?.length ?? 0) - 1, children: [truncate(t.assetRepresentative), " \u2192 ", truncate(t.to)] }, `${t.assetRepresentative}-${i}`)))] })) : ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFT", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Asset", border: false, children: truncate(tx.assetRepresentative) })] }))) : txType === 'change' ? ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Representative", border: false, children: truncate(tx.representative) })) : txType === 'receive' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Claiming", border: false, children: tx.blockHash ? truncate(tx.blockHash) : 'all pending receivables' })] })) : txType === 'sweep' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Amount", border: false, children: "Entire balance" })] })) : tx.sends && tx.sends.length ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipients", children: tx.sends.length }), tx.sends.map((send, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: send.label || `Send ${i + 1}`, border: i < (tx.sends?.length ?? 0) - 1, children: [(0, format_1.formatBalance)(send.amount || '0'), " BAN \u2192 ", truncate(send.to)] }, `${send.to}-${i}`))), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between items-center gap-3 py-2", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary shrink-0", children: "Total" }), (0, jsx_runtime_1.jsxs)("span", { className: "text-lg font-semibold text-primary text-right", children: [(0, format_1.formatBalance)((tx.sends.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0)).toString()), ' ', "BAN"] })] })] })) : ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(DetailRow, { label: "To", children: truncate(toAddress) }), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between items-center gap-3 py-2", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary shrink-0", children: "Amount" }), (0, jsx_runtime_1.jsxs)("span", { className: "text-lg font-semibold text-primary text-right", children: [(0, format_1.formatBalance)(amount || '0'), " BAN"] })] })] }))] }), (0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "warning", className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:shield-alert", className: "text-lg shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Review carefully" }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: willPublish
+                        : 'This site wants you to sign a block without broadcasting it.' }), (0, jsx_runtime_1.jsxs)(ui_1.Card, { label: "Transaction Details", className: "w-full", children: [(0, jsx_runtime_1.jsx)(DetailRow, { label: "Type", children: (0, jsx_runtime_1.jsx)("span", { className: "capitalize", children: txType }) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "From", children: truncate(fromAddress) }), txType === 'mint' || txType === 'mintEdition' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), txType === 'mint' ? ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Max supply", children: tx.maxSupply ?? 1 })) : ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Edition", children: "additional copy" })), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Metadata CID", border: !!(tx.fees && tx.fees.length), children: truncate(tx.metadataCid) }), tx.fees?.map((fee, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: fee.label || 'Fee', border: i < (tx.fees?.length ?? 0) - 1, children: [(0, format_1.formatBalance)(fee.amount || '0'), " BAN \u2192 ", truncate(fee.to)] }, `${fee.to}-${i}`)))] })) : txType === 'transfer' ? (tx.transfers && tx.transfers.length ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFTs", children: tx.transfers.length }), tx.transfers.map((t, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: `#${i + 1}`, border: i < (tx.transfers?.length ?? 0) - 1, children: [truncate(t.assetRepresentative), " \u2192 ", truncate(t.to)] }, `${t.assetRepresentative}-${i}`)))] })) : ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFT", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Asset", border: false, children: truncate(tx.assetRepresentative) })] }))) : txType === 'burn' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "NFT", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Asset", children: truncate(tx.assetRepresentative) }), (0, jsx_runtime_1.jsxs)(DetailRow, { label: "Sent to", border: false, children: [truncate(toAddress), " (burn)"] })] })) : txType === 'change' ? ((0, jsx_runtime_1.jsx)(DetailRow, { label: "Representative", border: false, children: truncate(tx.representative) })) : txType === 'receive' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Claiming", border: false, children: tx.blockHash ? truncate(tx.blockHash) : 'all pending receivables' })] })) : txType === 'sweep' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipient", children: truncate(toAddress) }), (0, jsx_runtime_1.jsx)(DetailRow, { label: "Amount", border: false, children: "Entire balance" })] })) : tx.sends && tx.sends.length ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [tx.name ? (0, jsx_runtime_1.jsx)(DetailRow, { label: "Name", children: tx.name }) : null, (0, jsx_runtime_1.jsx)(DetailRow, { label: "Recipients", children: tx.sends.length }), tx.sends.map((send, i) => ((0, jsx_runtime_1.jsxs)(DetailRow, { label: send.label || `Send ${i + 1}`, border: i < (tx.sends?.length ?? 0) - 1, children: [(0, format_1.formatBalance)(send.amount || '0'), " BAN \u2192 ", truncate(send.to)] }, `${send.to}-${i}`))), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between items-center gap-3 py-2", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary shrink-0", children: "Total" }), (0, jsx_runtime_1.jsxs)("span", { className: "text-lg font-semibold text-primary text-right", children: [(0, format_1.formatBalance)((tx.sends.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0)).toString()), ' ', "BAN"] })] })] })) : ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(DetailRow, { label: "To", children: truncate(toAddress) }), (0, jsx_runtime_1.jsxs)("div", { className: "flex justify-between items-center gap-3 py-2", children: [(0, jsx_runtime_1.jsx)("span", { className: "text-sm text-tertiary shrink-0", children: "Amount" }), (0, jsx_runtime_1.jsxs)("span", { className: "text-lg font-semibold text-primary text-right", children: [(0, format_1.formatBalance)(amount || '0'), " BAN"] })] })] }))] }), txType === 'burn' ? ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "destructive", className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:flame", className: "text-lg shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Permanently destroy this NFT" }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: "Burning sends the asset to a black-hole account. This is irreversible \u2014 the NFT can never be recovered or moved again." })] })] }) })) : ((0, jsx_runtime_1.jsx)(ui_1.Alert, { variant: "warning", className: "w-full", children: (0, jsx_runtime_1.jsxs)("div", { className: "flex items-start gap-2", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:shield-alert", className: "text-lg shrink-0 mt-0.5" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("div", { className: "font-semibold mb-1", children: "Review carefully" }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm", children: willPublish
                                             ? 'Only approve transactions you trust and understand. This action cannot be undone.'
-                                            : 'Only sign blocks from sites you trust.' })] })] }) })] }));
+                                            : 'Only sign blocks from sites you trust.' })] })] }) }))] }));
     };
     const renderBody = () => {
         switch (request.type) {
@@ -109382,7 +109435,7 @@ const ApprovalScreen = ({ request, onApproveTx, onApproveConnect, onReject }) =>
                 return null;
         }
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold relative", children: [processing && ((0, jsx_runtime_1.jsxs)("div", { className: "absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 px-6 text-center", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "animate-spin text-4xl text-primary mb-4" }), (0, jsx_runtime_1.jsx)("div", { className: "text-lg font-semibold text-foreground", children: getProcessingMessage(request.type) }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary mt-2", children: "This may take a few seconds while your wallet signs and broadcasts." })] })), (0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: getTitle(request.type), back: false }), (0, jsx_runtime_1.jsx)("div", { className: "w-full space-y-4", children: renderBody() }), (0, jsx_runtime_1.jsxs)("div", { className: "flex gap-3 w-full mt-4", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { variant: "secondary", onClick: handleReject, className: "flex-1", disabled: processing, children: "Cancel" }), (0, jsx_runtime_1.jsx)(ui_1.Button, { variant: "primary", onClick: handleApprove, disabled: request.type === 'connect' ? selectedAccounts.length === 0 : processing, className: "flex-1", children: processing ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "animate-spin mr-2" }), "Processing\u2026"] })) : request.type === 'connect' ? (`Connect (${selectedAccounts.length})`) : (getApproveLabel(request.type)) })] })] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "h-full flex flex-col font-semibold relative", children: [processing && ((0, jsx_runtime_1.jsxs)("div", { className: "absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 px-6 text-center", children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "animate-spin text-4xl text-primary mb-4" }), (0, jsx_runtime_1.jsx)("div", { className: "text-lg font-semibold text-foreground", children: getProcessingMessage(request.type) }), (0, jsx_runtime_1.jsx)("div", { className: "text-sm text-tertiary mt-2", children: "This may take a few seconds while your wallet signs and broadcasts." })] })), (0, jsx_runtime_1.jsx)(ui_1.Header, { active: true }), (0, jsx_runtime_1.jsxs)(ui_1.ContentContainer, { children: [(0, jsx_runtime_1.jsx)(ui_1.PageName, { name: getTitle(request.type), back: false }), (0, jsx_runtime_1.jsx)("div", { className: "w-full space-y-4", children: renderBody() }), (0, jsx_runtime_1.jsxs)("div", { className: "flex gap-3 w-full mt-4", children: [(0, jsx_runtime_1.jsx)(ui_1.Button, { variant: "secondary", onClick: handleReject, className: "flex-1", disabled: processing, children: "Cancel" }), (0, jsx_runtime_1.jsx)(ui_1.Button, { variant: isBurn ? 'danger' : 'primary', onClick: handleApprove, disabled: request.type === 'connect' ? selectedAccounts.length === 0 : processing, className: "flex-1", children: processing ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(react_2.Icon, { icon: "lucide:loader-2", className: "animate-spin mr-2" }), "Processing\u2026"] })) : request.type === 'connect' ? (`Connect (${selectedAccounts.length})`) : isBurn ? ('Burn NFT') : (getApproveLabel(request.type)) })] })] }), (0, jsx_runtime_1.jsx)(ui_1.Footer, {})] }));
 };
 exports.ApprovalScreen = ApprovalScreen;
 
@@ -111236,11 +111289,14 @@ exports.formatBalance = formatBalance;
  * Returns the original value untouched when it's shorter than the visible chars.
  */
 const truncateMiddle = (value, prefix = 10, suffix = 6) => {
-    if (!value)
+    if (value === null || value === undefined || value === '')
         return 'Unknown';
-    if (value.length <= prefix + suffix + 3)
-        return value;
-    return `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
+    // Coerce defensively: a non-string here (e.g. an object from an upstream API)
+    // must never crash the whole popup via `.slice`.
+    const str = typeof value === 'string' ? value : String(value);
+    if (str.length <= prefix + suffix + 3)
+        return str;
+    return `${str.slice(0, prefix)}...${str.slice(-suffix)}`;
 };
 exports.truncateMiddle = truncateMiddle;
 const CREEPER_BASE = 'https://creeper.banano.cc';

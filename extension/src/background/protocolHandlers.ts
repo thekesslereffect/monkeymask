@@ -529,6 +529,13 @@ async function handleProtocolSignAndSend(
           amount: transaction.amount ?? '0',
         };
       }
+    } else if (transaction.type === 'burn') {
+      confirmationBlock = {
+        type: 'burn',
+        fromAddress: address,
+        toAddress: transaction.to ?? 'burn account',
+        amount: transaction.amount ?? '0',
+      };
     } else {
       confirmationBlock = {
         type: transaction.type,

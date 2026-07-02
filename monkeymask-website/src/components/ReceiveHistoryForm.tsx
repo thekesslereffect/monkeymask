@@ -148,6 +148,12 @@ export function ReceiveHistoryForm() {
           </div>
         </div>
 
+        <p className="text-xs text-[var(--text-secondary)]">
+          MonkeyMask auto-claims pending funds whenever the wallet refreshes. This manual{' '}
+          <code>receive</code> primitive is exposed for dApps that need to force a claim (or claim a
+          specific block) on demand.
+        </p>
+
         {hasReceivables ? (
           <div className="space-y-1">
             {receivables!.map((r) => (

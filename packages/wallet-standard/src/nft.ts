@@ -21,13 +21,25 @@ export const FINISH_SUPPLY_HEADER_HEX = '3614865E0051BA0033BB581E';
 export const SEND_ALL_NFTS_REPRESENTATIVE =
   'ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits';
 
+/**
+ * Canonical burn account used as the default `send#burn` target. It's the
+ * readable "burn baby burn" black-hole address from the 73-meta-tokens spec.
+ */
+export const CANONICAL_BURN_ACCOUNT =
+  'ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w';
+
 /** Accounts that permanently destroy an asset sent to them. */
 export const BURN_ACCOUNTS = new Set<string>([
-  'ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w',
+  CANONICAL_BURN_ACCOUNT,
   'ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp',
   'ban_1ban116su1fur16uo1cano16su1fur16161616161616161616166a1sf7xw',
   'ban_1111111111111111111111111111111111111111111111111111hifc8npp',
 ]);
+
+/** True if `account` is a recognized burn address (asset sent here is destroyed). */
+export function isBurnAccount(account: string): boolean {
+  return BURN_ACCOUNTS.has(account);
+}
 
 /** Accounts that invalidate a mint (burn + cancel), per the spec. */
 const INVALID_MINT_REPRESENTATIVES = new Set<string>([

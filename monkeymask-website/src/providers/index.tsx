@@ -41,6 +41,7 @@ export {
   useMintNFT,
   useMintEdition,
   useTransferNFT,
+  useBurnNFT,
   buildBananoUri,
   parseBananoUri,
   isBananoUri,
@@ -55,6 +56,7 @@ export type {
   MintNFTParams,
   MintEditionParams,
   TransferNFTParams,
+  BurnNFTParams,
   BananoPaymentRequest,
   SpendingSessionInfo,
 } from '@monkeymask/react';

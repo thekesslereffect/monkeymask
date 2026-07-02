@@ -7127,6 +7127,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   BananoSignIn: () => (/* binding */ BananoSignIn),
 /* harmony export */   BananoSignMessage: () => (/* binding */ BananoSignMessage),
 /* harmony export */   BananoSignTransaction: () => (/* binding */ BananoSignTransaction),
+/* harmony export */   CANONICAL_BURN_ACCOUNT: () => (/* binding */ CANONICAL_BURN_ACCOUNT),
 /* harmony export */   FINISH_SUPPLY_HEADER_HEX: () => (/* binding */ FINISH_SUPPLY_HEADER_HEX),
 /* harmony export */   PROTOCOL_INIT_EVENT: () => (/* binding */ PROTOCOL_INIT_EVENT),
 /* harmony export */   PROTOCOL_SOURCE_EVENT: () => (/* binding */ PROTOCOL_SOURCE_EVENT),
@@ -7153,6 +7154,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getProtocolTimeoutMs: () => (/* binding */ getProtocolTimeoutMs),
 /* harmony export */   hexToBytes: () => (/* binding */ hexToBytes),
 /* harmony export */   isBananoUri: () => (/* binding */ isBananoUri),
+/* harmony export */   isBurnAccount: () => (/* binding */ isBurnAccount),
 /* harmony export */   isSupplyRepresentative: () => (/* binding */ isSupplyRepresentative),
 /* harmony export */   isValidMetadataRepresentative: () => (/* binding */ isValidMetadataRepresentative),
 /* harmony export */   maxSupplyFromRepresentative: () => (/* binding */ maxSupplyFromRepresentative),
@@ -7244,12 +7246,16 @@ var BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy
 var SUPPLY_HEADER_HEX = "51BACEED6078000000";
 var FINISH_SUPPLY_HEADER_HEX = "3614865E0051BA0033BB581E";
 var SEND_ALL_NFTS_REPRESENTATIVE = "ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits";
+var CANONICAL_BURN_ACCOUNT = "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w";
 var BURN_ACCOUNTS = /* @__PURE__ */ new Set([
-  "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w",
+  CANONICAL_BURN_ACCOUNT,
   "ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp",
   "ban_1ban116su1fur16uo1cano16su1fur16161616161616161616166a1sf7xw",
   "ban_1111111111111111111111111111111111111111111111111111hifc8npp"
 ]);
+function isBurnAccount(account) {
+  return BURN_ACCOUNTS.has(account);
+}
 var INVALID_MINT_REPRESENTATIVES = /* @__PURE__ */ new Set([
   "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w",
   "ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp",
@@ -74587,6 +74593,9 @@ class BackgroundService {
                 case 'TRANSFER_NFT':
                     await this.handleTransferNFT(request, sendResponse);
                     break;
+                case 'BURN_NFT':
+                    await this.handleBurnNFT(request, sendResponse);
+                    break;
                 case 'SWEEP_TRANSACTION':
                     await this.handleSweepTransaction(request, sendResponse);
                     break;
@@ -75252,6 +75261,43 @@ class BackgroundService {
             sendResponse({
                 success: false,
                 error: error instanceof Error ? error.message : 'Failed to transfer NFT',
+            });
+        }
+    }
+    /**
+     * Permanently burn an owned NFT from within the extension popup (first-party
+     * user action). Publishes a `send#burn` to a canonical burn account.
+     */
+    async handleBurnNFT(request, sendResponse) {
+        try {
+            if (!this.walletManager.isWalletUnlocked()) {
+                sendResponse({ success: false, error: 'Wallet is locked' });
+                return;
+            }
+            const { fromAddress, assetRepresentative, amount } = request;
+            if (!fromAddress || !assetRepresentative) {
+                sendResponse({
+                    success: false,
+                    error: 'Missing required fields: fromAddress, assetRepresentative',
+                });
+                return;
+            }
+            const hash = await this.walletManager.burnNFT(fromAddress, {
+                assetRepresentative,
+                amount,
+            });
+            setTimeout(() => {
+                this.updateBalancesAsync().catch((err) => {
+                    console.warn('Background: post burn refresh failed:', err);
+                });
+            }, 0);
+            sendResponse({ success: true, data: { hash } });
+        }
+        catch (error) {
+            console.error('Background: Error burning NFT:', error);
+            sendResponse({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to burn NFT',
             });
         }
     }
@@ -76789,6 +76835,14 @@ async function handleProtocolSignAndSend(host, origin, params, sendResponse) {
                 };
             }
         }
+        else if (transaction.type === 'burn') {
+            confirmationBlock = {
+                type: 'burn',
+                fromAddress: address,
+                toAddress: transaction.to ?? 'burn account',
+                amount: transaction.amount ?? '0',
+            };
+        }
         else {
             confirmationBlock = {
                 type: transaction.type,
@@ -77235,7 +77289,6 @@ function isEncryptedPayload(value) {
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
-/* provided dependency */ var process = __webpack_require__(/*! process/browser */ "./node_modules/process/browser.js");
 
 // Banano NFT fetching + normalization.
 //
@@ -77258,7 +77311,7 @@ const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 const REQUEST_TIMEOUT_MS = 8000;
 // Optional MonkeyMask Convex NFT index (injected at build time). When set, it
 // replaces the flaky community indexer for NFTs received from others.
-const CONVEX_URL = (process.env.MONKEYMASK_CONVEX_URL || '').replace(/\/$/, '');
+const CONVEX_URL = ("https://laudable-cow-124.convex.site" || 0).replace(/\/$/, '');
 async function fetchJson(url, timeoutMs = REQUEST_TIMEOUT_MS) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -77368,26 +77421,33 @@ async function fetchNFTsForAddress(address) {
 /**
  * Enumerate every edition of a collection on the issuer's chain.
  *
- * The collection is a `change#supply` block; every later block on the same
- * chain that reuses the metadata representative (subtype `send` or `change`) is
- * another edition. An edition is still *held* by the issuer if it was minted
- * in-place (`change#mint`) or sent to self (`send#mint` back to this account)
- * and was not later transferred away (a `send#asset` for that mint hash).
+ * An edition is a self-delimiting `change#supply` → `send#mint` pair: a supply
+ * block immediately followed by a send that reuses the collection's metadata
+ * representative. Counting whole pairs (never bare sends) is what prevents
+ * ordinary payments — which keep the account's representative — from ever being
+ * miscounted as phantom editions. An edition is still *held* if the mint sent it
+ * to this account and it was not later transferred away (a `send#asset`).
  */
-function collectEditions(history, supplyHeight, metadataRep, maxSupply, ownerPublicKey) {
+function collectEditions(history, metadataRep, maxSupply, ownerPublicKey) {
+    const byHeight = new Map();
+    for (const b of history)
+        byHeight.set(Number(b.height), b);
     const editions = [];
-    for (const b of history) {
-        if (Number(b.height) <= supplyHeight)
+    for (const entry of history) {
+        if (entry.subtype !== 'change' || !entry.representative)
             continue;
-        if (b.subtype !== 'send' && b.subtype !== 'change')
+        if (!(0, wallet_standard_1.isSupplyRepresentative)(entry.representative))
             continue;
-        if (b.representative !== metadataRep)
+        const mint = byHeight.get(Number(entry.height) + 1);
+        if (!mint || mint.subtype !== 'send')
             continue;
-        const heldByOwner = b.subtype === 'change' || (b.link ?? '').toUpperCase() === ownerPublicKey;
+        if (mint.representative !== metadataRep)
+            continue;
+        const heldByOwner = (mint.link ?? '').toUpperCase() === ownerPublicKey;
         const transferredAway = history.some((t) => t.subtype === 'send' &&
             !!t.representative &&
-            (0, wallet_standard_1.representativeMatchesAsset)(t.representative, b.hash));
-        editions.push({ hash: b.hash, held: heldByOwner && !transferredAway });
+            (0, wallet_standard_1.representativeMatchesAsset)(t.representative, mint.hash));
+        editions.push({ hash: mint.hash, held: heldByOwner && !transferredAway });
         // The metaprotocol stops minting once the supply is exhausted.
         if (maxSupply > 0 && editions.length >= maxSupply)
             break;
@@ -77445,7 +77505,7 @@ async function fetchMintedNFTsForAddress(address) {
             continue;
         seenCids.add(cid);
         const maxSupply = (0, wallet_standard_1.maxSupplyFromRepresentative)(entry.representative);
-        const editions = collectEditions(history, supplyHeight, mint.representative, maxSupply, ownerPublicKey);
+        const editions = collectEditions(history, mint.representative, maxSupply, ownerPublicKey);
         if (editions.length === 0)
             continue;
         const heldCount = editions.filter((e) => e.held).length;
@@ -77508,9 +77568,18 @@ async function fetchAllNFTsForAddress(address) {
         CONVEX_URL ? fetchConvexNFTs(address) : fetchNFTsForAddress(address),
     ]);
     const byAsset = new Map();
-    for (const nft of minted)
+    // Self-indexed collections are grouped into one card per metadata CID; every
+    // edition shares that CID. Skip any flat "owned" asset whose CID is already
+    // covered so editions don't reappear as duplicate cards.
+    const coveredCids = new Set();
+    for (const nft of minted) {
         byAsset.set(nft.assetRepresentative ?? nft.id, nft);
+        if (nft.metadataCid)
+            coveredCids.add(nft.metadataCid);
+    }
     for (const nft of owned.nfts) {
+        if (nft.metadataCid && coveredCids.has(nft.metadataCid))
+            continue;
         const key = nft.assetRepresentative ?? nft.id;
         if (!byAsset.has(key))
             byAsset.set(key, nft);
@@ -78725,9 +78794,9 @@ class WalletManager {
      * Look up an existing collection this account issued by its metadata CID, and
      * report the max supply plus how many editions have already been minted.
      *
-     * Mirrors the banano-nft-crawler: the collection is the `change#supply` block
-     * whose first following mint sets `metadata_representative`; every later block
-     * on the issuer chain reusing that representative is another edition.
+     * An edition is a self-delimiting `change#supply` → `send#mint` pair (the mint
+     * reuses `metadata_representative`). Counting whole pairs — never bare sends —
+     * is what keeps ordinary payments from being miscounted as phantom editions.
      */
     async collectionEditionStats(issuer, metadataRepAccount) {
         let history;
@@ -78742,29 +78811,34 @@ class WalletManager {
         const byHeight = new Map();
         for (const b of history)
             byHeight.set(Number(b.height), b);
+        let maxSupply = null;
+        let minted = 0;
         for (const entry of history) {
             if (entry.subtype !== 'change' || !entry.representative)
                 continue;
             if (!(0, wallet_standard_1.isSupplyRepresentative)(entry.representative))
                 continue;
-            const firstMint = byHeight.get(Number(entry.height) + 1);
-            if (!firstMint?.representative)
+            const mint = byHeight.get(Number(entry.height) + 1);
+            if (!mint || mint.subtype !== 'send')
                 continue;
-            if (firstMint.representative !== metadataRepAccount)
+            if (mint.representative !== metadataRepAccount)
                 continue;
-            // Found our collection. Count every block reusing the metadata rep.
-            const maxSupply = (0, wallet_standard_1.maxSupplyFromRepresentative)(entry.representative);
-            const minted = history.filter((b) => (b.subtype === 'send' || b.subtype === 'change') &&
-                b.representative === metadataRepAccount).length;
-            return { maxSupply, minted };
+            // Each qualifying pair is one edition of this collection.
+            if (maxSupply === null)
+                maxSupply = (0, wallet_standard_1.maxSupplyFromRepresentative)(entry.representative);
+            minted += 1;
         }
-        return null;
+        if (maxSupply === null)
+            return null;
+        return { maxSupply, minted };
     }
     /**
      * Mint an additional edition of an existing collection (one this account
-     * issued with maxSupply > 1 or unlimited). Publishes a single `send#mint`
-     * block reusing the collection's metadata_representative; its hash is the new
-     * edition's asset representative. Rejects if the edition limit is reached.
+     * issued with maxSupply > 1 or unlimited). Publishes a fresh `change#supply` →
+     * `send#mint` pair (reusing the collection's metadata_representative); the mint
+     * block's hash is the new edition's asset representative. Minting whole pairs
+     * keeps ordinary sends from ever being miscounted as editions. Rejects if the
+     * edition limit is reached.
      */
     async mintEdition(fromAddress, params) {
         if (!this.isUnlocked) {
@@ -78842,8 +78916,22 @@ class WalletManager {
         const cleanRep = baseRep && !(0, wallet_standard_1.isSupplyRepresentative)(baseRep) && baseRep !== metadataRep
             ? baseRep
             : CLEAN_REPRESENTATIVE;
-        // Publish the edition: a send#mint reusing the collection's metadata rep.
-        const mintResult = await bananojs.sendBananoWithdrawalFromSeed(this.currentSeed, accountIndex, resolvedTo, amount, metadataRep);
+        // Publish the edition as its own self-delimiting change#supply → send#mint
+        // pair (same shape as the first mint). This is what makes an edition a real
+        // mint the crawler counts — and, crucially, makes it impossible for an
+        // ordinary send to ever be miscounted as an edition, since a mint always
+        // requires a preceding supply block.
+        const supplyRep = (0, nftMint_1.supplyRepresentative)(stats.maxSupply);
+        const supplyResult = await bananojs.changeBananoRepresentativeForSeed(this.currentSeed, accountIndex, supplyRep);
+        const supplyBlockHash = typeof supplyResult === 'string'
+            ? supplyResult
+            : typeof supplyResult?.hash === 'string'
+                ? supplyResult.hash
+                : null;
+        if (!supplyBlockHash) {
+            throw new Error('Failed to publish edition supply block: missing hash');
+        }
+        const mintResult = await bananojs.sendBananoWithdrawalFromSeed(this.currentSeed, accountIndex, resolvedTo, amount, metadataRep, supplyBlockHash);
         const assetRepresentative = typeof mintResult === 'string'
             ? mintResult
             : typeof mintResult?.hash === 'string'
@@ -78872,7 +78960,7 @@ class WalletManager {
                 account.balance = Math.max(0, (parseFloat(account.balance) || 0) - fee.raw).toString();
             }
         }
-        return { assetRepresentative, supplyBlockHash: '', feeHashes };
+        return { assetRepresentative, supplyBlockHash, feeHashes };
     }
     /**
      * Transfer an owned Banano NFT (73-meta-tokens) to another account.
@@ -78921,6 +79009,24 @@ class WalletManager {
         const sentAmount = parseFloat(amount) || 0;
         account.balance = Math.max(0, currentBalance - sentAmount).toString();
         return hash;
+    }
+    /**
+     * Permanently destroy an owned NFT by publishing a `send#burn` — a `send#asset`
+     * to a canonical burn account (73-meta-tokens spec). Irreversible: the burn
+     * address has no recoverable key, so the asset can never move again. Defaults
+     * to the canonical burn account; any override must be a recognized burn
+     * account or the send would just be an ordinary transfer.
+     */
+    async burnNFT(fromAddress, params) {
+        const to = params.to ?? wallet_standard_1.CANONICAL_BURN_ACCOUNT;
+        if (!(0, wallet_standard_1.isBurnAccount)(to)) {
+            throw new Error('Burn target must be a recognized burn account');
+        }
+        return this.transferNFT(fromAddress, {
+            assetRepresentative: params.assetRepresentative,
+            to,
+            amount: params.amount,
+        });
     }
     /**
      * Sweep an account: claim any pending, then send the entire confirmed balance
@@ -79290,7 +79396,10 @@ class WalletManager {
             /* fall back to default representative */
         }
         const received = await bananojs.receiveBananoDepositsForSeed(this.currentSeed, accountIndex, representative, blockHash);
-        return Array.isArray(received) ? received : received ? [received] : [];
+        // bananojs' DepositUtil returns a summary object, not a hash/array:
+        //   { pendingBlocks, receiveBlocks, receiveCount, ... }
+        // The freshly-published receive/open block hashes are in `receiveBlocks`.
+        return extractReceiveBlockHashes(received);
     }
     async autoReceivePending(accountAddress, pendingAmount) {
         if (!this.isUnlocked) {
@@ -79318,9 +79427,9 @@ class WalletManager {
             catch { }
             const receivedHashes = await bananojs.receiveBananoDepositsForSeed(this.currentSeed, accountIndex, representative);
             console.log('WalletManager: Received deposits result:', receivedHashes);
-            // Return array of hashes (or empty array if no deposits)
-            const hashArray = Array.isArray(receivedHashes) ? receivedHashes :
-                receivedHashes ? [receivedHashes] : [];
+            // DepositUtil returns a summary object; the new receive block hashes live
+            // in `receiveBlocks`.
+            const hashArray = extractReceiveBlockHashes(receivedHashes);
             console.log('WalletManager: Auto-received', hashArray.length, 'pending transactions');
             return hashArray;
         }
@@ -79400,6 +79509,9 @@ class WalletManager {
         if (operation.type === 'transfer') {
             throw new Error('NFT transfer requires publishing; use signAndSendTransaction');
         }
+        if (operation.type === 'burn') {
+            throw new Error('NFT burn requires publishing; use signAndSendTransaction');
+        }
         throw new Error('Unsupported operation type');
     }
     /**
@@ -79464,6 +79576,14 @@ class WalletManager {
                 })));
             }
             const hash = await this.transferNFT(accountAddress, {
+                assetRepresentative: operation.assetRepresentative,
+                to: operation.to,
+                amount: operation.amount,
+            });
+            return { hashes: [hash] };
+        }
+        if (operation.type === 'burn') {
+            const hash = await this.burnNFT(accountAddress, {
                 assetRepresentative: operation.assetRepresentative,
                 to: operation.to,
                 amount: operation.amount,
@@ -79541,6 +79661,26 @@ exports.WalletManager = WalletManager;
 WalletManager.SESSION_DATA_KEY = 'mm_session_data';
 WalletManager.SESSION_EXPIRY_KEY = 'mm_session_expiry';
 // --------- local utils ---------
+/**
+ * Normalize the value returned by bananojs' `receiveBananoDepositsForSeed`.
+ * DepositUtil resolves to a summary object shaped like
+ * `{ pendingBlocks, receiveBlocks, receiveCount, ... }` (not a hash or array),
+ * so we pull the freshly-published receive/open block hashes out of
+ * `receiveBlocks`. Older/edge return shapes (a bare string or array) are handled
+ * defensively so callers always get a clean `string[]`.
+ */
+function extractReceiveBlockHashes(received) {
+    if (!received)
+        return [];
+    if (typeof received === 'string')
+        return [received];
+    if (Array.isArray(received))
+        return received.filter((h) => typeof h === 'string');
+    const blocks = received.receiveBlocks;
+    if (Array.isArray(blocks))
+        return blocks.filter((h) => typeof h === 'string');
+    return [];
+}
 function hexToUint8(hex) {
     const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
     if (clean.length % 2 !== 0)

@@ -11,37 +11,109 @@ const nftValidator = v.object({
   assetRepresentative: v.optional(v.string()),
   supplyBlockHash: v.optional(v.string()),
   metadataCid: v.optional(v.string()),
+  maxSupply: v.optional(v.number()),
+  mintedCount: v.optional(v.number()),
+  heldCount: v.optional(v.number()),
+  supplyType: v.optional(
+    v.union(v.literal('unique'), v.literal('limited'), v.literal('unlimited')),
+  ),
 });
+
+function supplyTypeFor(maxSupply: number | undefined): 'unique' | 'limited' | 'unlimited' | undefined {
+  if (maxSupply === undefined) return undefined;
+  if (maxSupply === 1) return 'unique';
+  if (maxSupply === 0) return 'unlimited';
+  return 'limited';
+}
 
 /**
  * List the NFTs currently owned by `ownerPubKey` (uppercase public-key hex).
  * Reactive: updates automatically as the crawler records new mints/transfers.
+ *
+ * Editions of a collection are distinct assets that share one metadata CID, so
+ * we group owned editions into a single card and report the supply model, the
+ * total minted, and how many copies this owner holds — mirroring the wallet's
+ * self-indexed cards so the count always displays regardless of source.
  */
 export const nftsByOwner = query({
   args: { ownerPubKey: v.string() },
   returns: v.array(nftValidator),
   handler: async (ctx, args) => {
+    const owner = args.ownerPubKey.toUpperCase();
     const owned = await ctx.db
       .query('ownership')
-      .withIndex('by_owner', (q) => q.eq('ownerPubKey', args.ownerPubKey.toUpperCase()))
+      .withIndex('by_owner', (q) => q.eq('ownerPubKey', owner))
       .collect();
 
-    const results = [];
+    // Load each owned asset, grouping editions by metadata CID (assets without a
+    // CID stand alone, keyed by their asset rep).
+    interface Group {
+      primary: {
+        assetRep: string;
+        name?: string;
+        description?: string;
+        image?: string;
+        collection?: string;
+        supplyBlockHash?: string;
+        metadataCid?: string;
+        maxSupply?: number;
+      };
+      heldCount: number;
+    }
+    const groups = new Map<string, Group>();
     for (const row of owned) {
       const asset = await ctx.db
         .query('assets')
         .withIndex('by_asset', (q) => q.eq('assetRep', row.assetRep))
         .unique();
       if (!asset) continue;
+      const key = asset.metadataCid ?? asset.assetRep;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.heldCount += 1;
+      } else {
+        groups.set(key, {
+          primary: {
+            assetRep: asset.assetRep,
+            name: asset.name,
+            description: asset.description,
+            image: asset.image,
+            collection: asset.collection,
+            supplyBlockHash: asset.supplyBlockHash,
+            metadataCid: asset.metadataCid,
+            maxSupply: asset.maxSupply,
+          },
+          heldCount: 1,
+        });
+      }
+    }
+
+    const results = [];
+    for (const group of groups.values()) {
+      const { primary, heldCount } = group;
+      // Total editions ever minted for this collection (all issuers' mints share
+      // the CID). Falls back to the held count when there's no CID to group by.
+      let mintedCount = heldCount;
+      if (primary.metadataCid) {
+        const all = await ctx.db
+          .query('assets')
+          .withIndex('by_metadataCid', (q) => q.eq('metadataCid', primary.metadataCid))
+          .collect();
+        if (all.length > 0) mintedCount = all.length;
+      }
       results.push({
-        id: asset.assetRep,
-        name: asset.name ?? `NFT ${asset.assetRep.slice(0, 6)}`,
-        description: asset.description,
-        image: asset.image,
-        collection: asset.collection,
-        assetRepresentative: asset.assetRep,
-        supplyBlockHash: asset.supplyBlockHash,
-        metadataCid: asset.metadataCid,
+        id: primary.assetRep,
+        name: primary.name ?? `NFT ${primary.assetRep.slice(0, 6)}`,
+        description: primary.description,
+        image: primary.image,
+        collection: primary.collection,
+        assetRepresentative: primary.assetRep,
+        supplyBlockHash: primary.supplyBlockHash,
+        metadataCid: primary.metadataCid,
+        maxSupply: primary.maxSupply,
+        mintedCount,
+        heldCount,
+        supplyType: supplyTypeFor(primary.maxSupply),
       });
     }
     return results;

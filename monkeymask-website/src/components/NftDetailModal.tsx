@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
-import { useMonkeyMask, useTransferNFT, useMintEdition } from '@/providers';
+import { useMonkeyMask, useTransferNFT, useMintEdition, useBurnNFT } from '@/providers';
 import { Button, StatusBox } from '@/components/ui';
 import type { NormalizedNFT } from '@/lib/nft';
 
@@ -40,6 +40,7 @@ export function NftDetailModal({
   const { publicKey } = useMonkeyMask();
   const transferNFT = useTransferNFT();
   const mintEdition = useMintEdition();
+  const burnNFT = useBurnNFT();
   const [imageFailed, setImageFailed] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
@@ -53,6 +54,11 @@ export function NftDetailModal({
   const [minting, setMinting] = useState(false);
   const [editionError, setEditionError] = useState<string | null>(null);
   const [editionHash, setEditionHash] = useState<string | null>(null);
+
+  const [showBurn, setShowBurn] = useState(false);
+  const [burning, setBurning] = useState(false);
+  const [burnError, setBurnError] = useState<string | null>(null);
+  const [burnHash, setBurnHash] = useState<string | null>(null);
 
   // Supply model for display + gating the "Mint copy" action.
   const maxSupply = nft.maxSupply;
@@ -98,6 +104,28 @@ export function NftDetailModal({
       setEditionError(err instanceof Error ? err.message : 'Mint failed');
     } finally {
       setMinting(false);
+    }
+  };
+
+  const handleBurn = async () => {
+    setBurnError(null);
+    if (!nft.assetRepresentative) {
+      setBurnError('This NFT has no asset representative to burn.');
+      return;
+    }
+    setBurning(true);
+    try {
+      const result = await burnNFT({
+        assetRepresentative: nft.assetRepresentative,
+        name: nft.name,
+      });
+      const hash = typeof result === 'string' ? result : (result as { hash?: string })?.hash ?? '';
+      setBurnHash(hash);
+      onTransferred?.();
+    } catch (err) {
+      setBurnError(err instanceof Error ? err.message : 'Burn failed');
+    } finally {
+      setBurning(false);
     }
   };
 
@@ -244,7 +272,7 @@ export function NftDetailModal({
                 </Button>
               </a>
             )}
-            {nft.assetRepresentative && !transferHash && (
+            {nft.assetRepresentative && !transferHash && !burnHash && (
               <Button
                 size="sm"
                 variant={showTransfer ? 'default' : 'secondary'}
@@ -254,7 +282,7 @@ export function NftDetailModal({
                 Transfer
               </Button>
             )}
-            {canMintEdition && (
+            {canMintEdition && !burnHash && (
               <Button
                 size="sm"
                 variant={showEdition ? 'default' : 'secondary'}
@@ -264,7 +292,74 @@ export function NftDetailModal({
                 Mint copy
               </Button>
             )}
+            {nft.assetRepresentative && !transferHash && !burnHash && (
+              <Button
+                size="sm"
+                variant={showBurn ? 'destructive' : 'ghost'}
+                onClick={() => setShowBurn((v) => !v)}
+              >
+                <Icon icon="lucide:flame" className="size-4 mr-2" />
+                Burn
+              </Button>
+            )}
           </div>
+
+          {showBurn && !burnHash && (
+            <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+              <div className="flex items-start gap-2 text-destructive">
+                <Icon icon="lucide:flame" className="size-4 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <div className="font-semibold">Permanently destroy this NFT?</div>
+                  <div className="text-xs opacity-90">
+                    Burning sends the asset to a black-hole account (73-meta-tokens{' '}
+                    <code>send#burn</code>). This is irreversible — it can never be recovered or
+                    moved again.
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="destructive" onClick={handleBurn} disabled={burning}>
+                  {burning ? (
+                    <>
+                      <Icon icon="mdi:loading" className="size-4 animate-spin mr-2" />
+                      Burning…
+                    </>
+                  ) : (
+                    'Burn forever'
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowBurn(false)}
+                  disabled={burning}
+                >
+                  Cancel
+                </Button>
+              </div>
+              {burnError && (
+                <StatusBox variant="error" title="Burn failed">
+                  {burnError}
+                </StatusBox>
+              )}
+            </div>
+          )}
+
+          {burnHash && (
+            <StatusBox variant="success" title="NFT burned">
+              <div className="space-y-1">
+                <div>The NFT has been destroyed. It will leave your gallery once the index updates.</div>
+                <a
+                  className="underline break-all"
+                  href={`https://creeper.banano.cc/hash/${burnHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {burnHash.slice(0, 16)}…
+                </a>
+              </div>
+            </StatusBox>
+          )}
 
           {showEdition && (
             <div className="space-y-2 rounded-md border border-[var(--border)] p-3">

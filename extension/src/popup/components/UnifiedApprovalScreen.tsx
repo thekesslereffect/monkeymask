@@ -87,8 +87,10 @@ function getApproveLabel(type: ApprovalType): string {
 
 const truncate = (value?: string, head = 12, tail = 8): string => {
   if (!value) return 'Unknown';
-  if (value.length <= head + tail + 3) return value;
-  return `${value.slice(0, head)}...${value.slice(-tail)}`;
+  // Coerce defensively so a non-string never crashes the approval popup.
+  const str = typeof value === 'string' ? value : String(value);
+  if (str.length <= head + tail + 3) return str;
+  return `${str.slice(0, head)}...${str.slice(-tail)}`;
 };
 
 const formatDateTime = (iso?: string): string => {
@@ -152,6 +154,11 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
   const domain = request.origin
     .replace(/^https?:\/\//, '')
     .replace(/\/.*$/, '');
+
+  // Burn is destructive — surface it with a red primary action.
+  const isBurn =
+    (request.type === 'signAndSendTransaction' || request.type === 'signTransaction') &&
+    (request.data?.transaction as { type?: string } | undefined)?.type === 'burn';
 
   const handleReject = () => onReject(request.id);
 
@@ -462,6 +469,14 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
                 </DetailRow>
               </>
             )
+          ) : txType === 'burn' ? (
+            <>
+              {tx.name ? <DetailRow label="NFT">{tx.name}</DetailRow> : null}
+              <DetailRow label="Asset">{truncate(tx.assetRepresentative)}</DetailRow>
+              <DetailRow label="Sent to" border={false}>
+                {truncate(toAddress)} (burn)
+              </DetailRow>
+            </>
           ) : txType === 'change' ? (
             <DetailRow label="Representative" border={false}>
               {truncate(tx.representative)}
@@ -517,19 +532,34 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
           )}
         </Card>
 
-        <Alert variant="warning" className="w-full">
-          <div className="flex items-start gap-2">
-            <Icon icon="lucide:shield-alert" className="text-lg shrink-0 mt-0.5" />
-            <div>
-              <div className="font-semibold mb-1">Review carefully</div>
-              <div className="text-sm">
-                {willPublish
-                  ? 'Only approve transactions you trust and understand. This action cannot be undone.'
-                  : 'Only sign blocks from sites you trust.'}
+        {txType === 'burn' ? (
+          <Alert variant="destructive" className="w-full">
+            <div className="flex items-start gap-2">
+              <Icon icon="lucide:flame" className="text-lg shrink-0 mt-0.5" />
+              <div>
+                <div className="font-semibold mb-1">Permanently destroy this NFT</div>
+                <div className="text-sm">
+                  Burning sends the asset to a black-hole account. This is irreversible — the NFT
+                  can never be recovered or moved again.
+                </div>
               </div>
             </div>
-          </div>
-        </Alert>
+          </Alert>
+        ) : (
+          <Alert variant="warning" className="w-full">
+            <div className="flex items-start gap-2">
+              <Icon icon="lucide:shield-alert" className="text-lg shrink-0 mt-0.5" />
+              <div>
+                <div className="font-semibold mb-1">Review carefully</div>
+                <div className="text-sm">
+                  {willPublish
+                    ? 'Only approve transactions you trust and understand. This action cannot be undone.'
+                    : 'Only sign blocks from sites you trust.'}
+                </div>
+              </div>
+            </div>
+          </Alert>
+        )}
       </>
     );
   };
@@ -576,7 +606,7 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
             Cancel
           </Button>
           <Button
-            variant="primary"
+            variant={isBurn ? 'danger' : 'primary'}
             onClick={handleApprove}
             disabled={request.type === 'connect' ? selectedAccounts.length === 0 : processing}
             className="flex-1"
@@ -588,6 +618,8 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
               </>
             ) : request.type === 'connect' ? (
               `Connect (${selectedAccounts.length})`
+            ) : isBurn ? (
+              'Burn NFT'
             ) : (
               getApproveLabel(request.type)
             )}

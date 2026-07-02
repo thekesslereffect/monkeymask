@@ -6,14 +6,27 @@ import { convexEnabled, convexGet } from '@/lib/convexClient';
 const BANANO_ADDRESS = /^ban_[13][0-9a-z]{59}$/;
 
 function mergeByAsset(...lists: NormalizedNFT[][]): NormalizedNFT[] {
+  // Collections are grouped by their shared metadata CID (every edition of a
+  // collection reuses one CID). When multiple sources describe the same
+  // collection we keep the card reporting the most copies held — whichever of
+  // the self-index or the crawler currently has the freshest ownership view
+  // wins, so a momentarily-behind source can't pin a stale `heldCount`.
+  const byCid = new Map<string, NormalizedNFT>();
   const byAsset = new Map<string, NormalizedNFT>();
   for (const list of lists) {
     for (const nft of list) {
-      const key = nft.assetRepresentative ?? nft.id;
-      if (!byAsset.has(key)) byAsset.set(key, nft);
+      if (nft.metadataCid) {
+        const existing = byCid.get(nft.metadataCid);
+        if (!existing || (nft.heldCount ?? 0) > (existing.heldCount ?? 0)) {
+          byCid.set(nft.metadataCid, nft);
+        }
+      } else {
+        const key = nft.assetRepresentative ?? nft.id;
+        if (!byAsset.has(key)) byAsset.set(key, nft);
+      }
     }
   }
-  return Array.from(byAsset.values());
+  return [...byCid.values(), ...byAsset.values()];
 }
 
 export async function GET(request: Request) {
@@ -32,8 +45,9 @@ export async function GET(request: Request) {
         convexGet<{ nfts: NormalizedNFT[] }>(`/nfts?address=${address}`),
         fetchMintedNFTs(address),
       ]);
-      // Prefer the self-indexed cards for the viewer's own collections — they
-      // carry the supply model + held-count the flat convex list doesn't.
+      // Prefer the self-indexed cards for the viewer's own collections (they
+      // reflect the freshest on-chain state); the convex index also now reports
+      // the supply model + minted/held counts, so a count shows either way.
       const nfts = mergeByAsset(minted, convex.nfts ?? []);
       return NextResponse.json({ nfts });
     } catch {

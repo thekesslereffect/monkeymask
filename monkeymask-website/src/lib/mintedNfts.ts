@@ -78,33 +78,40 @@ interface EditionBlock {
 }
 
 /**
- * Enumerate every edition of a collection on the issuer's chain: each block
- * after the supply block that reuses the metadata rep is another edition. An
- * edition is still held if minted in-place (`change#mint`) or sent to self and
- * not later transferred away.
+ * Enumerate every edition of a collection on the issuer's chain.
+ *
+ * An edition is a self-delimiting `change#supply` → `send#mint` pair (the mint
+ * reuses the collection's metadata rep). Counting whole pairs — never bare sends
+ * — is what stops ordinary payments (which keep the account's representative)
+ * from being miscounted as phantom editions. An edition is still held if the
+ * mint sent it to this account and it was not later transferred away.
  */
 function collectEditions(
   history: RawHistoryEntry[],
-  supplyHeight: number,
   metadataRep: string,
   maxSupply: number,
   ownerPublicKey: string,
 ): EditionBlock[] {
-  const editions: EditionBlock[] = [];
-  for (const b of history) {
-    if (Number(b.height) <= supplyHeight) continue;
-    if (b.subtype !== 'send' && b.subtype !== 'change') continue;
-    if (b.representative !== metadataRep) continue;
+  const byHeight = new Map<number, RawHistoryEntry>();
+  for (const b of history) byHeight.set(Number(b.height), b);
 
-    const heldByOwner =
-      b.subtype === 'change' || (b.link ?? '').toUpperCase() === ownerPublicKey;
+  const editions: EditionBlock[] = [];
+  for (const entry of history) {
+    if (entry.subtype !== 'change' || !entry.representative) continue;
+    if (!isSupplyRepresentative(entry.representative)) continue;
+
+    const mint = byHeight.get(Number(entry.height) + 1);
+    if (!mint || mint.subtype !== 'send') continue;
+    if (mint.representative !== metadataRep) continue;
+
+    const heldByOwner = (mint.link ?? '').toUpperCase() === ownerPublicKey;
     const transferredAway = history.some(
       (t) =>
         t.subtype === 'send' &&
         !!t.representative &&
-        representativeMatchesAsset(t.representative, b.hash),
+        representativeMatchesAsset(t.representative, mint.hash),
     );
-    editions.push({ hash: b.hash, held: heldByOwner && !transferredAway });
+    editions.push({ hash: mint.hash, held: heldByOwner && !transferredAway });
     if (maxSupply > 0 && editions.length >= maxSupply) break;
   }
   return editions;
@@ -148,13 +155,7 @@ export async function fetchMintedNFTs(address: string): Promise<NormalizedNFT[]>
     seenCids.add(cid);
 
     const maxSupply = maxSupplyFromRepresentative(entry.representative);
-    const editions = collectEditions(
-      history,
-      supplyHeight,
-      mint.representative,
-      maxSupply,
-      ownerPublicKey,
-    );
+    const editions = collectEditions(history, mint.representative, maxSupply, ownerPublicKey);
     if (editions.length === 0) continue;
 
     const heldCount = editions.filter((e) => e.held).length;

@@ -10,6 +10,8 @@ import {
   createSignInMessageText,
   isSupplyRepresentative,
   maxSupplyFromRepresentative,
+  isBurnAccount,
+  CANONICAL_BURN_ACCOUNT,
   type BananoBatchLegResult,
   type BananoOperation,
   type BananoSignInInput,
@@ -1062,9 +1064,9 @@ export class WalletManager {
    * Look up an existing collection this account issued by its metadata CID, and
    * report the max supply plus how many editions have already been minted.
    *
-   * Mirrors the banano-nft-crawler: the collection is the `change#supply` block
-   * whose first following mint sets `metadata_representative`; every later block
-   * on the issuer chain reusing that representative is another edition.
+   * An edition is a self-delimiting `change#supply` → `send#mint` pair (the mint
+   * reuses `metadata_representative`). Counting whole pairs — never bare sends —
+   * is what keeps ordinary payments from being miscounted as phantom editions.
    */
   private async collectionEditionStats(
     issuer: string,
@@ -1079,34 +1081,34 @@ export class WalletManager {
     }
     history.sort((a, b) => Number(a.height) - Number(b.height));
 
-    const byHeight = new Map<number, { representative?: string }>();
+    const byHeight = new Map<number, { subtype?: string; representative?: string }>();
     for (const b of history) byHeight.set(Number(b.height), b);
 
+    let maxSupply: number | null = null;
+    let minted = 0;
     for (const entry of history) {
       if (entry.subtype !== 'change' || !entry.representative) continue;
       if (!isSupplyRepresentative(entry.representative)) continue;
 
-      const firstMint = byHeight.get(Number(entry.height) + 1);
-      if (!firstMint?.representative) continue;
-      if (firstMint.representative !== metadataRepAccount) continue;
+      const mint = byHeight.get(Number(entry.height) + 1);
+      if (!mint || mint.subtype !== 'send') continue;
+      if (mint.representative !== metadataRepAccount) continue;
 
-      // Found our collection. Count every block reusing the metadata rep.
-      const maxSupply = maxSupplyFromRepresentative(entry.representative);
-      const minted = history.filter(
-        (b) =>
-          (b.subtype === 'send' || b.subtype === 'change') &&
-          b.representative === metadataRepAccount,
-      ).length;
-      return { maxSupply, minted };
+      // Each qualifying pair is one edition of this collection.
+      if (maxSupply === null) maxSupply = maxSupplyFromRepresentative(entry.representative);
+      minted += 1;
     }
-    return null;
+    if (maxSupply === null) return null;
+    return { maxSupply, minted };
   }
 
   /**
    * Mint an additional edition of an existing collection (one this account
-   * issued with maxSupply > 1 or unlimited). Publishes a single `send#mint`
-   * block reusing the collection's metadata_representative; its hash is the new
-   * edition's asset representative. Rejects if the edition limit is reached.
+   * issued with maxSupply > 1 or unlimited). Publishes a fresh `change#supply` →
+   * `send#mint` pair (reusing the collection's metadata_representative); the mint
+   * block's hash is the new edition's asset representative. Minting whole pairs
+   * keeps ordinary sends from ever being miscounted as editions. Rejects if the
+   * edition limit is reached.
    */
   async mintEdition(
     fromAddress: string,
@@ -1200,13 +1202,34 @@ export class WalletManager {
         ? baseRep
         : CLEAN_REPRESENTATIVE;
 
-    // Publish the edition: a send#mint reusing the collection's metadata rep.
+    // Publish the edition as its own self-delimiting change#supply → send#mint
+    // pair (same shape as the first mint). This is what makes an edition a real
+    // mint the crawler counts — and, crucially, makes it impossible for an
+    // ordinary send to ever be miscounted as an edition, since a mint always
+    // requires a preceding supply block.
+    const supplyRep = supplyRepresentative(stats.maxSupply);
+    const supplyResult = await bananojs.changeBananoRepresentativeForSeed(
+      this.currentSeed,
+      accountIndex,
+      supplyRep,
+    );
+    const supplyBlockHash =
+      typeof supplyResult === 'string'
+        ? supplyResult
+        : typeof (supplyResult as { hash?: string })?.hash === 'string'
+          ? (supplyResult as { hash: string }).hash
+          : null;
+    if (!supplyBlockHash) {
+      throw new Error('Failed to publish edition supply block: missing hash');
+    }
+
     const mintResult = await bananojs.sendBananoWithdrawalFromSeed(
       this.currentSeed,
       accountIndex,
       resolvedTo,
       amount,
       metadataRep,
+      supplyBlockHash,
     );
     const assetRepresentative =
       typeof mintResult === 'string'
@@ -1246,7 +1269,7 @@ export class WalletManager {
       }
     }
 
-    return { assetRepresentative, supplyBlockHash: '', feeHashes };
+    return { assetRepresentative, supplyBlockHash, feeHashes };
   }
 
   /**
@@ -1310,6 +1333,28 @@ export class WalletManager {
     account.balance = Math.max(0, currentBalance - sentAmount).toString();
 
     return hash;
+  }
+
+  /**
+   * Permanently destroy an owned NFT by publishing a `send#burn` — a `send#asset`
+   * to a canonical burn account (73-meta-tokens spec). Irreversible: the burn
+   * address has no recoverable key, so the asset can never move again. Defaults
+   * to the canonical burn account; any override must be a recognized burn
+   * account or the send would just be an ordinary transfer.
+   */
+  async burnNFT(
+    fromAddress: string,
+    params: { assetRepresentative: string; to?: string; amount?: string },
+  ): Promise<string> {
+    const to = params.to ?? CANONICAL_BURN_ACCOUNT;
+    if (!isBurnAccount(to)) {
+      throw new Error('Burn target must be a recognized burn account');
+    }
+    return this.transferNFT(fromAddress, {
+      assetRepresentative: params.assetRepresentative,
+      to,
+      amount: params.amount,
+    });
   }
 
   /**
@@ -1743,7 +1788,10 @@ export class WalletManager {
       representative,
       blockHash,
     );
-    return Array.isArray(received) ? received : received ? [received] : [];
+    // bananojs' DepositUtil returns a summary object, not a hash/array:
+    //   { pendingBlocks, receiveBlocks, receiveCount, ... }
+    // The freshly-published receive/open block hashes are in `receiveBlocks`.
+    return extractReceiveBlockHashes(received);
   }
 
   async autoReceivePending(accountAddress: string, pendingAmount?: string): Promise<string[]> {
@@ -1783,9 +1831,9 @@ export class WalletManager {
       
       console.log('WalletManager: Received deposits result:', receivedHashes);
       
-      // Return array of hashes (or empty array if no deposits)
-      const hashArray = Array.isArray(receivedHashes) ? receivedHashes : 
-                       receivedHashes ? [receivedHashes] : [];
+      // DepositUtil returns a summary object; the new receive block hashes live
+      // in `receiveBlocks`.
+      const hashArray = extractReceiveBlockHashes(receivedHashes);
       
       console.log('WalletManager: Auto-received', hashArray.length, 'pending transactions');
       return hashArray;
@@ -1870,6 +1918,9 @@ export class WalletManager {
     if (operation.type === 'transfer') {
       throw new Error('NFT transfer requires publishing; use signAndSendTransaction');
     }
+    if (operation.type === 'burn') {
+      throw new Error('NFT burn requires publishing; use signAndSendTransaction');
+    }
     throw new Error('Unsupported operation type');
   }
 
@@ -1943,6 +1994,14 @@ export class WalletManager {
         );
       }
       const hash = await this.transferNFT(accountAddress, {
+        assetRepresentative: operation.assetRepresentative,
+        to: operation.to,
+        amount: operation.amount,
+      });
+      return { hashes: [hash] };
+    }
+    if (operation.type === 'burn') {
+      const hash = await this.burnNFT(accountAddress, {
         assetRepresentative: operation.assetRepresentative,
         to: operation.to,
         amount: operation.amount,
@@ -2038,6 +2097,24 @@ export class WalletManager {
 }
 
 // --------- local utils ---------
+
+/**
+ * Normalize the value returned by bananojs' `receiveBananoDepositsForSeed`.
+ * DepositUtil resolves to a summary object shaped like
+ * `{ pendingBlocks, receiveBlocks, receiveCount, ... }` (not a hash or array),
+ * so we pull the freshly-published receive/open block hashes out of
+ * `receiveBlocks`. Older/edge return shapes (a bare string or array) are handled
+ * defensively so callers always get a clean `string[]`.
+ */
+function extractReceiveBlockHashes(received: unknown): string[] {
+  if (!received) return [];
+  if (typeof received === 'string') return [received];
+  if (Array.isArray(received)) return received.filter((h): h is string => typeof h === 'string');
+  const blocks = (received as { receiveBlocks?: unknown }).receiveBlocks;
+  if (Array.isArray(blocks)) return blocks.filter((h): h is string => typeof h === 'string');
+  return [];
+}
+
 function hexToUint8(hex: string): Uint8Array {
   const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
   if (clean.length % 2 !== 0) throw new Error('Invalid hex');

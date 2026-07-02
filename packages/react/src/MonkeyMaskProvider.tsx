@@ -512,3 +512,31 @@ export function useTransferNFT() {
     [signAndSendTransaction],
   );
 }
+
+export interface BurnNFTParams {
+  /** The NFT's asset representative — i.e. its mint block hash (64 hex). */
+  assetRepresentative: string;
+  /**
+   * Optional burn account override. Defaults to the canonical burn address;
+   * must be a recognized burn account for indexers to treat the asset as gone.
+   */
+  to?: string;
+  /** BAN carried by the burn block (optional; wallet uses a tiny default). */
+  amount?: string;
+  /** Optional display name shown in the wallet approval UI. */
+  name?: string;
+}
+
+/**
+ * Convenience wrapper over `signAndSendTransaction` that permanently destroys an
+ * owned Banano NFT by sending it to a canonical burn account (73-meta-tokens
+ * `send#burn`). Irreversible. Returns `{ hash, hashes }`.
+ */
+export function useBurnNFT() {
+  const { signAndSendTransaction } = useMonkeyMask();
+  return useCallback(
+    (params: BurnNFTParams, account?: WalletAccount) =>
+      signAndSendTransaction({ type: 'burn', ...params }, account),
+    [signAndSendTransaction],
+  );
+}

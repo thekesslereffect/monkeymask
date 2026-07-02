@@ -18,6 +18,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   BananoSignIn: () => (/* binding */ BananoSignIn),
 /* harmony export */   BananoSignMessage: () => (/* binding */ BananoSignMessage),
 /* harmony export */   BananoSignTransaction: () => (/* binding */ BananoSignTransaction),
+/* harmony export */   CANONICAL_BURN_ACCOUNT: () => (/* binding */ CANONICAL_BURN_ACCOUNT),
 /* harmony export */   FINISH_SUPPLY_HEADER_HEX: () => (/* binding */ FINISH_SUPPLY_HEADER_HEX),
 /* harmony export */   PROTOCOL_INIT_EVENT: () => (/* binding */ PROTOCOL_INIT_EVENT),
 /* harmony export */   PROTOCOL_SOURCE_EVENT: () => (/* binding */ PROTOCOL_SOURCE_EVENT),
@@ -44,6 +45,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   getProtocolTimeoutMs: () => (/* binding */ getProtocolTimeoutMs),
 /* harmony export */   hexToBytes: () => (/* binding */ hexToBytes),
 /* harmony export */   isBananoUri: () => (/* binding */ isBananoUri),
+/* harmony export */   isBurnAccount: () => (/* binding */ isBurnAccount),
 /* harmony export */   isSupplyRepresentative: () => (/* binding */ isSupplyRepresentative),
 /* harmony export */   isValidMetadataRepresentative: () => (/* binding */ isValidMetadataRepresentative),
 /* harmony export */   maxSupplyFromRepresentative: () => (/* binding */ maxSupplyFromRepresentative),
@@ -135,12 +137,16 @@ var BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy
 var SUPPLY_HEADER_HEX = "51BACEED6078000000";
 var FINISH_SUPPLY_HEADER_HEX = "3614865E0051BA0033BB581E";
 var SEND_ALL_NFTS_REPRESENTATIVE = "ban_1senda11nfts1111111111111111111111111111111111111111rtbtxits";
+var CANONICAL_BURN_ACCOUNT = "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w";
 var BURN_ACCOUNTS = /* @__PURE__ */ new Set([
-  "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w",
+  CANONICAL_BURN_ACCOUNT,
   "ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp",
   "ban_1ban116su1fur16uo1cano16su1fur16161616161616161616166a1sf7xw",
   "ban_1111111111111111111111111111111111111111111111111111hifc8npp"
 ]);
+function isBurnAccount(account) {
+  return BURN_ACCOUNTS.has(account);
+}
 var INVALID_MINT_REPRESENTATIVES = /* @__PURE__ */ new Set([
   "ban_1burnbabyburndiscoinferno111111111111111111111111111aj49sw3w",
   "ban_1uo1cano1bot1a1pha1616161616161616161616161616161616p3s5tifp",

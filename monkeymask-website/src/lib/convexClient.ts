@@ -33,10 +33,16 @@ export async function convexPost<T = unknown>(path: string, body: unknown): Prom
   return (await res.json()) as T;
 }
 
-/** GET JSON from a Convex HTTP action. Returns parsed JSON or throws. */
+/**
+ * GET JSON from a Convex HTTP action. Returns parsed JSON or throws.
+ *
+ * `cache: 'no-store'` is required: NFT ownership/counts change as the crawler
+ * runs, but Next.js caches `fetch` GETs in its Data Cache by default, which
+ * would pin the first response (e.g. a stale `heldCount`) indefinitely.
+ */
 export async function convexGet<T = unknown>(path: string): Promise<T> {
   if (!SITE_URL) throw new Error('Convex not configured');
-  const res = await fetch(`${SITE_URL}${path}`);
+  const res = await fetch(`${SITE_URL}${path}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Convex ${path} HTTP ${res.status}`);
   return (await res.json()) as T;
 }
