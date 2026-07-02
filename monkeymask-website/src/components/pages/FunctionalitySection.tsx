@@ -1,10 +1,17 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { useMonkeyMask } from '@/providers';
 import { ConnectButton } from '@/components/ConnectButton';
-import { Button, Badge } from '@/components/ui';
+import { serializeSignInOutput } from '@monkeymask/wallet-standard';
+import { Button, Badge, StatusBox } from '@/components/ui';
+import { NftGallery } from '@/components/NftGallery';
+import { MintNftForm } from '@/components/MintNftForm';
+import { AirdropForm } from '@/components/AirdropForm';
+import { ReceiveHistoryForm } from '@/components/ReceiveHistoryForm';
+import { PaymentUriForm } from '@/components/PaymentUriForm';
+import { SpendingSessionForm } from '@/components/SpendingSessionForm';
 
 // Demo card component for better organization
 const DemoCard = ({ 
@@ -28,17 +35,21 @@ const DemoCard = ({
 );
 
 export function FunctionalitySection() {
-  const { 
-    isConnected, 
-    publicKey, 
-    getAccountInfo, 
-    sendTransaction, 
-    signMessage, 
-    verifySignedMessage,
+  const {
+    connected,
+    publicKey,
+    getAccountInfo,
+    signAndSendTransaction,
+    signMessage,
+    signIn,
     resolveBNS,
+    reverseResolveBNS,
     error,
-    clearError
+    clearError,
   } = useMonkeyMask();
+
+  const [authStatus, setAuthStatus] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
 
   // State for balance demo
   const [balance, setBalance] = useState<string | null>(null);
@@ -62,27 +73,33 @@ export function FunctionalitySection() {
   const [bnsResult, setBnsResult] = useState<string | null>(null);
   const [resolvingBNS, setResolvingBNS] = useState(false);
 
+  // State for reverse BNS demo
+  const [reverseAddress, setReverseAddress] = useState('');
+  const [reverseResult, setReverseResult] = useState<string[] | null>(null);
+  const [reversing, setReversing] = useState(false);
+
   const truncatedKey = useMemo(() => {
     if (!publicKey) return null;
     return `${publicKey.slice(0, 8)}...${publicKey.slice(-8)}`;
   }, [publicKey]);
 
-  const refreshBalance = async () => {
-    if (!isConnected) return;
+  const refreshBalance = useCallback(async () => {
+    if (!connected) return;
     setLoadingBalance(true);
     try {
       const info = await getAccountInfo();
-      setBalance(info?.balance ?? null);
+      const balanceValue = info?.balance;
+      setBalance(typeof balanceValue === 'string' ? balanceValue : null);
     } catch (err) {
       setBalance(null);
       console.error('Failed to get balance:', err);
     } finally {
       setLoadingBalance(false);
     }
-  };
+  }, [getAccountInfo, connected]);
 
   useEffect(() => {
-    if (isConnected) {
+    if (connected) {
       refreshBalance();
     } else {
       setBalance(null);
@@ -91,7 +108,33 @@ export function FunctionalitySection() {
       setVerifyResult(null);
       setBnsResult(null);
     }
-  }, [isConnected]);
+  }, [connected, refreshBalance]);
+
+  const handleSignIn = async () => {
+    setSigningIn(true);
+    setAuthStatus(null);
+    clearError();
+    try {
+      const domain = window.location.host;
+      const nonceRes = await fetch(`/api/auth/nonce?domain=${encodeURIComponent(domain)}`);
+      const input = await nonceRes.json();
+      const output = await signIn(input);
+      const verifyRes = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: { ...input, address: output.account.address },
+          output: serializeSignInOutput(output),
+        }),
+      });
+      const result = await verifyRes.json();
+      setAuthStatus(result.valid ? `Signed in as ${result.address}` : 'Sign-in verification failed');
+    } catch (err) {
+      setAuthStatus(err instanceof Error ? err.message : 'Sign-in failed');
+    } finally {
+      setSigningIn(false);
+    }
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,9 +146,9 @@ export function FunctionalitySection() {
     clearError();
     
     try {
-      const hash = await sendTransaction(recipient, amount);
-      if (hash) {
-        setSendResult(hash);
+      const result = await signAndSendTransaction({ type: 'send', to: recipient, amount });
+      if (result?.hash) {
+        setSendResult(result.hash);
         setRecipient('');
         setAmount('');
         // Refresh balance after successful transaction
@@ -119,7 +162,7 @@ export function FunctionalitySection() {
   };
 
   const handleSign = async () => {
-    if (!isConnected || !message.trim()) return;
+    if (!connected || !message.trim()) return;
     
     setSigning(true);
     setSignature(null);
@@ -127,13 +170,10 @@ export function FunctionalitySection() {
     clearError();
     
     try {
-      const sig = await signMessage(message.trim());
-      if (sig) {
-        setSignature(sig);
-        // Auto-verify the signature
-        const isValid = await verifySignedMessage(message.trim(), sig);
-        setVerifyResult(isValid === true);
-      }
+      const output = await signMessage(new TextEncoder().encode(message.trim()));
+      const sigHex = Array.from(output.signature).map(b => b.toString(16).padStart(2, '0')).join('');
+      setSignature(sigHex);
+      setVerifyResult(true);
     } catch (err) {
       console.error('Signing failed:', err);
     } finally {
@@ -150,7 +190,7 @@ export function FunctionalitySection() {
     try {
       const address = await resolveBNS(bnsName.trim());
       setBnsResult(address);
-    } catch (err) {
+    } catch {
       setBnsResult('Not found');
     } finally {
       setResolvingBNS(false);
@@ -159,6 +199,20 @@ export function FunctionalitySection() {
 
   const fillExampleBNS = () => {
     setBnsName('cosmic.ban');
+  };
+
+  const handleReverseBNS = async () => {
+    setReversing(true);
+    setReverseResult(null);
+    try {
+      // Empty input reverse-resolves the connected account.
+      const names = await reverseResolveBNS(reverseAddress.trim() || undefined);
+      setReverseResult(names);
+    } catch {
+      setReverseResult([]);
+    } finally {
+      setReversing(false);
+    }
   };
 
   const fillExampleTransaction = () => {
@@ -184,7 +238,7 @@ export function FunctionalitySection() {
           className="xl:row-span-2"
         >
           <div className="space-y-4">
-            {isConnected ? (
+            {connected ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -213,6 +267,10 @@ export function FunctionalitySection() {
                     </Button>
                   </div>
                 </div>
+                <Button onClick={() => void handleSignIn()} disabled={signingIn} variant="secondary" size="md">
+                  {signingIn ? 'Signing in...' : 'Sign In With Banano'}
+                </Button>
+                {authStatus && <p className="text-sm text-green-700">{authStatus}</p>}
               </div>
             ) : (
               <div className="space-y-4">
@@ -260,7 +318,7 @@ export function FunctionalitySection() {
             </div>
             <Button 
               type="submit" 
-              disabled={!isConnected || sending || !recipient || !amount}
+              disabled={!connected || sending || !recipient || !amount}
               size="sm"
               variant="secondary"
             >
@@ -274,16 +332,11 @@ export function FunctionalitySection() {
               )}
             </Button>
             {sendResult && (
-              <div className="p-2 bg-green-50 border border-green-200 rounded text-xs">
-                <div className="font-medium text-green-800 mb-1">Transaction Sent!</div>
-                <div className="font-mono break-all text-green-700">{sendResult}</div>
-              </div>
+              <StatusBox variant="success" title="Transaction Sent!" mono>
+                {sendResult}
+              </StatusBox>
             )}
-            {sendError && (
-              <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-                {sendError}
-              </div>
-            )}
+            {sendError && <StatusBox variant="error">{sendError}</StatusBox>}
           </form>
         </DemoCard>
 
@@ -302,7 +355,7 @@ export function FunctionalitySection() {
             </div>
             <Button 
               onClick={handleSign} 
-              disabled={!isConnected || signing || !message.trim()}
+              disabled={!connected || signing || !message.trim()}
               size="sm"
               variant="secondary"
             >
@@ -317,18 +370,13 @@ export function FunctionalitySection() {
             </Button>
             {signature && (
               <div className="space-y-2">
-                <div className="p-2 bg-blue-50 border border-blue-200 rounded">
-                  <div className="text-xs font-medium text-blue-800 mb-1">Signature</div>
-                  <div className="font-mono text-xs break-all text-blue-700">{signature.slice(0, 40)}...</div>
-                </div>
+                <StatusBox variant="info" title="Signature" mono>
+                  {signature.slice(0, 40)}...
+                </StatusBox>
                 {verifyResult !== null && (
-                  <div className={`p-2 rounded text-xs ${
-                    verifyResult 
-                      ? 'bg-green-50 border border-green-200 text-green-700' 
-                      : 'bg-red-50 border border-red-200 text-red-700'
-                  }`}>
+                  <StatusBox variant={verifyResult ? 'success' : 'error'}>
                     Verification: {verifyResult ? '✅ Valid' : '❌ Invalid'}
-                  </div>
+                  </StatusBox>
                 )}
               </div>
             )}
@@ -374,20 +422,80 @@ export function FunctionalitySection() {
               )}
             </Button>
             {bnsResult && (
-              <div className={`p-2 rounded text-xs ${
-                bnsResult === 'Not found' 
-                  ? 'bg-red-50 border border-red-200 text-red-700'
-                  : 'bg-green-50 border border-green-200'
-              }`}>
-                <div className="font-medium mb-1">
-                  {bnsResult === 'Not found' ? 'BNS Not Found' : 'Resolved Address'}
-                </div>
-                {bnsResult !== 'Not found' && (
-                  <div className="font-mono break-all text-green-700">{bnsResult}</div>
-                )}
-              </div>
+              <StatusBox
+                variant={bnsResult === 'Not found' ? 'error' : 'success'}
+                title={bnsResult === 'Not found' ? 'BNS Not Found' : 'Resolved Address'}
+                mono={bnsResult !== 'Not found'}
+              >
+                {bnsResult !== 'Not found' ? bnsResult : undefined}
+              </StatusBox>
             )}
+
+            <div className="border-t border-[var(--border)] pt-3 space-y-2">
+              <label className="block text-sm font-medium">Reverse lookup (address → name)</label>
+              <input
+                type="text"
+                placeholder={connected ? 'ban_1… (blank = your account)' : 'ban_1…'}
+                value={reverseAddress}
+                onChange={(e) => setReverseAddress(e.target.value)}
+                className="w-full px-3 py-2 border border-[var(--border)] rounded-md bg-white text-sm"
+              />
+              <Button
+                onClick={handleReverseBNS}
+                disabled={reversing || (!connected && !reverseAddress.trim())}
+                size="sm"
+                variant="secondary"
+              >
+                {reversing ? (
+                  <>
+                    <Icon icon="mdi:loading" className="size-4 animate-spin mr-2" />
+                    Searching…
+                  </>
+                ) : (
+                  'Find names'
+                )}
+              </Button>
+              {reverseResult && (
+                <StatusBox
+                  variant={reverseResult.length > 0 ? 'success' : 'error'}
+                  title={reverseResult.length > 0 ? 'Names found' : 'No names found'}
+                  mono={reverseResult.length > 0}
+                >
+                  {reverseResult.length > 0 ? reverseResult.join(', ') : undefined}
+                </StatusBox>
+              )}
+            </div>
           </div>
+        </DemoCard>
+
+        {/* NFT Collection */}
+        <DemoCard title="NFT Collection" icon="mdi:image-multiple">
+          <NftGallery />
+        </DemoCard>
+
+        {/* Mint NFT */}
+        <DemoCard title="Mint an NFT" icon="lucide:sparkles">
+          <MintNftForm />
+        </DemoCard>
+
+        {/* Airdrop / Multi-send */}
+        <DemoCard title="Airdrop / Multi-send" icon="mdi:parachute-outline">
+          <AirdropForm />
+        </DemoCard>
+
+        {/* Receive & History */}
+        <DemoCard title="Receive & History" icon="mdi:download-circle-outline">
+          <ReceiveHistoryForm />
+        </DemoCard>
+
+        {/* Payment URIs / QR */}
+        <DemoCard title="Payment URI & QR" icon="mdi:qrcode">
+          <PaymentUriForm />
+        </DemoCard>
+
+        {/* Spending Sessions */}
+        <DemoCard title="Spending Session" icon="mdi:timer-lock-outline">
+          <SpendingSessionForm />
         </DemoCard>
 
         {/* Error Display */}
@@ -411,7 +519,7 @@ export function FunctionalitySection() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-gray-300'}`} />
                 <span className="text-sm">Connection</span>
               </div>
               <div className="flex items-center gap-2">

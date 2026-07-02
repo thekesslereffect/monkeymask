@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Header, ContentContainer, Footer, PageName, Card, Button } from './ui';
+import { Header, ContentContainer, Footer, PageName, Card, Button, EmptyState } from './ui';
 import { Icon } from '@iconify/react';
+import { truncateMiddle } from '../../utils/format';
 
 interface ConnectedAccount {
   account: string;
@@ -126,15 +127,11 @@ export const ConnectedSitesScreen: React.FC = () => {
         <PageName name="Connected Sites" back={true} />
         
         {connectedSites.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center py-8">
-              <Icon icon="lucide:link" className="text-4xl text-tertiary mb-4 mx-auto" />
-              <div className="text-tertiary">
-                <div className="text-lg mb-2">No connected sites</div>
-                <div className="text-sm">Sites you connect to will appear here</div>
-              </div>
-            </div>
-          </div>
+          <EmptyState
+            icon="lucide:link"
+            title="No connected sites"
+            description="Sites you connect to will appear here"
+          />
         ) : (
           <div className="w-full space-y-4">
             {connectedSites.map((site) => (
@@ -171,7 +168,7 @@ export const ConnectedSitesScreen: React.FC = () => {
                       >
                         <div className="flex-1 min-w-0 mr-2">
                           <div className="text-xs font-mono text-primary truncate">
-                            {connectedAccount.account.slice(0, 12)}...{connectedAccount.account.slice(-8)}
+                            {truncateMiddle(connectedAccount.account, 12, 8)}
                           </div>
                           <div className="text-xs text-tertiary/60 mt-1">
                             Connected: {formatDate(connectedAccount.approvedAt)}

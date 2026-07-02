@@ -186,128 +186,144 @@ export class BNSResolver {
     return /^[a-zA-Z0-9_-]+$/.test(domain) && domain.length > 0;
   }
 
+  /** POST a JSON-RPC action to the node and return the parsed response. */
+  private async rpc(body: Record<string, unknown>): Promise<any> {
+    const res = await fetch(this.rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  }
+
+  /** Reverse the TLD_MAPPING: TLD account → its label (e.g. "ban"). */
+  private tldLabelForAccount(account: string): string | undefined {
+    return Object.keys(TLD_MAPPING).find(
+      (label) => TLD_MAPPING[label as keyof typeof TLD_MAPPING] === account,
+    );
+  }
+
   /**
-   * Find domain addresses for a given Banano address
-   * Based on the official BNS library's reverse resolution approach
-   * @param address - The Banano address to search for domain addresses
-   * @returns Promise<string[]> - Array of domain addresses found
+   * Given a Domain Account, recover its `{ name, tld }` by reading the account's
+   * opening (Domain Receive) block, following its `link` to the corresponding
+   * Domain Transfer send from the TLD account, and decoding the domain name from
+   * that send's representative. Returns null if it can't be determined.
    */
-  private async findDomainAddresses(address: string): Promise<string[]> {
+  private async domainNameForAccount(
+    domainAccount: string,
+  ): Promise<{ name: string; tld: string } | null> {
     try {
-      console.log('BNS: Finding domain addresses for:', address);
-      
-      // Get account history including receivable transactions
-      const historyResponse = await fetch(this.rpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'account_history',
-          account: address,
-          count: 500
-        })
+      // Opening block = first block on the chain (reverse history, count 1).
+      const openResp = await this.rpc({
+        action: 'account_history',
+        account: domainAccount,
+        count: 1,
+        reverse: true,
+        raw: true,
       });
-      
-      const historyData = await historyResponse.json();
-      
-      if (historyData.error || !historyData.history) {
-        console.log('BNS: No history found for address:', address);
-        return [];
-      }
-      
-      // Also check receivable transactions
-      const receivableResponse = await fetch(this.rpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'receivable',
-          account: address,
-          count: 50,
-          threshold: '0'
-        })
+      const opening = openResp?.history?.[0];
+      const transferHash: string | undefined = opening?.link;
+      if (!transferHash || /^0+$/.test(transferHash)) return null;
+
+      // The Domain Transfer (send from the TLD account) carries the name in its
+      // representative, and its `block_account` is the TLD account.
+      const blockResp = await this.rpc({
+        action: 'block_info',
+        hash: transferHash,
+        json_block: true,
       });
-      
-      const receivableData = await receivableResponse.json();
-      
-      const domainAddresses: string[] = [];
-      
-      // Look for Domain Resolve blocks in transaction history
-      // Based on official BNS library: look for transactions with amount "4224"
-      for (const block of historyData.history) {
-        try {
-          // Get block details
-          const blockResponse = await fetch(this.rpcUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'block_info',
-              hash: block.hash
-            })
-          });
-          
-          const blockData = await blockResponse.json();
-          
-          if (blockData.error) continue;
-          
-          // Check if this is a Domain Resolve block
-          // Domain Resolve blocks typically have specific characteristics:
-          // - They are send blocks with a specific amount (like 4224 raw)
-          // - They have a specific destination pattern
-          if (blockData.type === 'send' && blockData.destination) {
-            // Check if the destination looks like a domain address
-            if (blockData.destination.startsWith('ban_') && blockData.destination.length === 64) {
-              // Check if this is a domain resolve block by amount
-              // Domain resolve blocks often have specific amounts
-              if (blockData.amount === '4224' || blockData.amount === '1000000000000000000000000000') {
-                console.log('BNS: Found potential domain address:', blockData.destination);
-                domainAddresses.push(blockData.destination);
-              }
-            }
-          }
-        } catch (blockError) {
-          console.log('BNS: Error processing block:', blockError);
-          continue;
-        }
-      }
-      
-      // Also check receivable transactions for domain addresses
-      if (receivableData.blocks) {
-        for (const [hash, blockInfo] of Object.entries(receivableData.blocks)) {
-          const block = blockInfo as any; // Type assertion for receivable block
-          if (block.source && block.source.startsWith('ban_') && block.source.length === 64) {
-            // Check if this receivable is from a domain address
-            if (block.amount === '4224' || block.amount === '1000000000000000000000000000') {
-              console.log('BNS: Found potential domain address in receivable:', block.source);
-              domainAddresses.push(block.source);
-            }
-          }
-        }
-      }
-      
-      console.log('BNS: Found', domainAddresses.length, 'potential domain addresses');
-      return [...new Set(domainAddresses)]; // Remove duplicates
-      
+      if (blockResp?.error) return null;
+      const tldAccount: string | undefined = blockResp?.block_account;
+      const representative: string | undefined = blockResp?.contents?.representative;
+      if (!tldAccount || !representative) return null;
+
+      const tld = this.tldLabelForAccount(tldAccount);
+      if (!tld) return null; // Registered under a TLD we don't know.
+
+      const publicKey = this.getPublicKeyFromAddress(representative);
+      const name = this.decodeDomainName(publicKey).toLowerCase();
+      if (!name) return null;
+      return { name, tld };
     } catch (error) {
-      console.error('BNS: Error finding domain addresses:', error);
-      return [];
+      console.log('BNS: domainNameForAccount error:', error);
+      return null;
     }
   }
 
   /**
-   * Resolve backwards from a Banano address to find BNS names
-   * Based on the official BNS library's reverse resolution approach
-   * @param address - The Banano address to reverse lookup
-   * @param tld - The TLD to search in (optional)
-   * @returns Promise<string[]> - Array of BNS names for this address
+   * Reverse-resolve a Banano address into the BNS name(s) that currently point
+   * to it. Implements the canonical banani-bns approach: scan the address for
+   * receives / receivables of exactly 4224 raw (Domain Resolver blocks) to find
+   * candidate Domain Accounts, recover each domain's name + TLD, then forward
+   * resolve to confirm it still resolves to this address.
+   *
+   * Best-effort and inherently ambiguous (multiple names can map to one
+   * address). Never throws — returns [] on failure.
+   *
+   * @param address - The Banano address to reverse lookup.
+   * @param tld - Optional TLD filter (e.g. "ban").
    */
   async reverseResolve(address: string, tld?: string): Promise<string[]> {
     try {
       console.log('BNS: Reverse resolving address:', address);
-      
-      // For now, return empty array to avoid interfering with balance display
-      // TODO: Implement proper reverse resolution when needed
-      console.log('BNS: Reverse resolution not implemented, returning empty array');
-      return [];
-      
+      const candidates = new Set<string>();
+
+      // 1. Receivable (pending) Domain Resolver blocks of 4224 raw.
+      try {
+        const recv = await this.rpc({
+          action: 'receivable',
+          account: address,
+          count: 50,
+          threshold: RESOLVER_AMOUNT,
+          source: true,
+        });
+        const blocks = recv?.blocks;
+        if (blocks && typeof blocks === 'object') {
+          for (const info of Object.values(blocks) as any[]) {
+            if (info?.amount === RESOLVER_AMOUNT && info?.source) candidates.add(info.source);
+          }
+        }
+      } catch (e) {
+        console.log('BNS: receivable lookup failed:', e);
+      }
+
+      // 2. Already-received Domain Resolver blocks of 4224 raw.
+      try {
+        const hist = await this.rpc({
+          action: 'account_history',
+          account: address,
+          count: 500,
+        });
+        if (Array.isArray(hist?.history)) {
+          for (const b of hist.history) {
+            if (b?.type === 'receive' && b?.amount === RESOLVER_AMOUNT && b?.account) {
+              candidates.add(b.account);
+            }
+          }
+        }
+      } catch (e) {
+        console.log('BNS: history lookup failed:', e);
+      }
+
+      // 3. For each candidate Domain Account, recover the name and verify it
+      //    forward-resolves back to this address (confirms current ownership).
+      const names = new Set<string>();
+      for (const domainAccount of candidates) {
+        const info = await this.domainNameForAccount(domainAccount);
+        if (!info) continue;
+        if (tld && info.tld !== tld) continue;
+        const full = `${info.name}.${info.tld}`;
+        try {
+          const resolved = await this.resolveBNS(full);
+          if (resolved === address) names.add(full);
+        } catch {
+          // Domain no longer resolves here; skip.
+        }
+      }
+
+      const result = [...names];
+      console.log('BNS: Reverse resolved', address, '→', result);
+      return result;
     } catch (error) {
       console.error('BNS: Failed to reverse resolve', address, ':', error);
       return [];

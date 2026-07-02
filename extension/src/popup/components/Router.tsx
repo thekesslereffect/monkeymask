@@ -29,7 +29,7 @@ interface RouterProps {
   onWalletUnlocked: () => void;
   onWalletLocked: () => void;
   onSendComplete: (result: any) => void;
-  onApproveTransaction: (requestId: string) => void;
+  onApproveTransaction: (requestId: string) => Promise<void>;
   onRejectTransaction: (requestId: string) => void;
   onApproveConnection: (requestId: string, accounts: string[]) => void;
 }

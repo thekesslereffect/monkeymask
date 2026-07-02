@@ -5,23 +5,6 @@ import { DrawerProvider } from './hooks/useDrawer';
 import { Router } from './components/Router';
 import './styles.css';
 
-// Theme utilities
-type Theme = 'dark' | 'light' | 'banano';
-
-const applyTheme = (theme: Theme) => {
-  document.documentElement.setAttribute('data-theme', theme);
-};
-
-const loadSavedTheme = async (): Promise<Theme> => {
-  try {
-    const result = await chrome.storage.local.get(['theme']);
-    return (result.theme as Theme) ?? 'dark';
-  } catch (error) {
-    console.warn('Failed to load saved theme:', error);
-    return 'dark';
-  }
-};
-
 interface Account {
   address: string;
   name: string;
@@ -48,19 +31,8 @@ interface TransactionResult {
 // Main App wrapper with router and accounts providers
 export const App: React.FC = () => {
   useEffect(() => {
-    // Initialize theme as early as possible
-    const initializeTheme = async () => {
-      try {
-        const savedTheme = await loadSavedTheme();
-        applyTheme(savedTheme);
-        console.log('App: Theme initialized:', savedTheme);
-      } catch (error) {
-        console.error('App: Failed to initialize theme:', error);
-        applyTheme('dark'); // Fallback to dark theme
-      }
-    };
-
-    initializeTheme();
+    // Single dark theme.
+    document.documentElement.setAttribute('data-theme', 'dark');
   }, []);
 
   return (
@@ -93,21 +65,27 @@ const AppContent: React.FC = () => {
     // Check for pending requests first, then wallet state
     const initializeApp = async () => {
       console.log('App: Starting app initialization...');
-      try {
-        // Check for pending requests first
+      const initWork = async () => {
         console.log('App: Step 1 - Checking for pending requests...');
         await checkPendingRequests();
-        
-        // Wait a moment for state to update
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Then check wallet state (but respect any pending request that was found)
+        await new Promise((resolve) => setTimeout(resolve, 100));
         console.log('App: Step 2 - Checking wallet state...');
         await checkWalletState();
-        
+      };
+
+      const timeout = new Promise<void>((resolve) => {
+        setTimeout(() => {
+          console.warn('App: Initialization timed out — showing UI anyway');
+          resolve();
+        }, 5000);
+      });
+
+      try {
+        await Promise.race([initWork(), timeout]);
         console.log('App: App initialization complete');
       } catch (error) {
         console.error('App: Error during initialization:', error);
+      } finally {
         setLoading(false);
       }
     };
@@ -161,13 +139,15 @@ const AppContent: React.FC = () => {
   const checkPendingRequests = async () => {
     try {
       console.log('App: Checking for pending requests...');
-      console.log('App: Current route before check:', router.currentRoute);
-      console.log('App: Current pending request state:', pendingRequest);
-      
-      const response = await chrome.runtime.sendMessage({ type: 'GET_PENDING_APPROVAL' });
+      const response = await Promise.race([
+        chrome.runtime.sendMessage({ type: 'GET_PENDING_APPROVAL' }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('GET_PENDING_APPROVAL timeout')), 4000),
+        ),
+      ]);
       console.log('App: Pending approval response:', response);
       
-      if (response.success && response.data) {
+      if (response?.success && response.data) {
         console.log('App: Found pending request:', response.data);
         console.log('App: Request type:', response.data.type);
         console.log('App: Request origin:', response.data.origin);
@@ -197,11 +177,15 @@ const AppContent: React.FC = () => {
   const checkWalletState = async () => {
     try {
       console.log('App: Checking wallet state...');
-      console.log('App: Current route before wallet state check:', router.currentRoute);
-      const response = await chrome.runtime.sendMessage({ type: 'GET_WALLET_STATE' });
+      const response = await Promise.race([
+        chrome.runtime.sendMessage({ type: 'GET_WALLET_STATE' }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('GET_WALLET_STATE timeout')), 4000),
+        ),
+      ]);
       console.log('App: Wallet state response:', response);
       
-      if (response.success) {
+      if (response?.success) {
         setWalletState(response.data);
         
         // Only set the route if we don't have a pending approval request
@@ -223,8 +207,6 @@ const AppContent: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to check wallet state:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -292,40 +274,61 @@ const AppContent: React.FC = () => {
     navigation.goToConfirmation(result);
   };
 
+  const waitForOperationResult = async (requestId: string, timeoutMs = 60_000) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const resultResponse = await chrome.runtime.sendMessage({
+        type: 'GET_TRANSACTION_RESULT',
+        requestId,
+      });
+      if (resultResponse?.success && resultResponse.data) {
+        return resultResponse.data as {
+          success: boolean;
+          type?: string;
+          hash?: string;
+          error?: string;
+          block?: Record<string, unknown>;
+        };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    return null;
+  };
+
   const handleApproveTransaction = async (requestId: string) => {
     try {
       console.log('App: Approving transaction:', requestId);
-      await chrome.runtime.sendMessage({ 
-        type: 'APPROVE_TRANSACTION', 
-        requestId 
+      await chrome.runtime.sendMessage({
+        type: 'APPROVE_TRANSACTION',
+        requestId,
       });
-      
-      // Wait a moment for the transaction to process
-      console.log('App: Transaction approved, waiting for completion...');
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Get the transaction result
-      console.log('App: Getting transaction result...');
-      const resultResponse = await chrome.runtime.sendMessage({
-        type: 'GET_TRANSACTION_RESULT',
-        requestId
-      });
-      
-      if (resultResponse.success && resultResponse.data) {
-        console.log('App: Got transaction result:', resultResponse.data);
-        setPendingRequest(null);
-        
-        // If transaction was successful, trigger account refresh (same as SendScreen)
-        if (resultResponse.data.success) {
-          console.log('App: dApp transaction successful, triggering account refresh...');
-          window.dispatchEvent(new CustomEvent('monkeymask:transaction-complete'));
-        }
-        
-        navigation.goToConfirmation(resultResponse.data);
-      } else {
-        console.log('App: No transaction result found, going to dashboard');
-        setPendingRequest(null);
+
+      console.log('App: Waiting for operation result...');
+      const result = await waitForOperationResult(requestId);
+      setPendingRequest(null);
+
+      if (!result) {
+        console.log('App: Operation timed out, going to dashboard');
         navigation.goToDashboard();
+        return;
+      }
+
+      const nonConfirmationTypes = new Set(['signMessage', 'signIn', 'signTransaction']);
+      if (nonConfirmationTypes.has(result.type ?? '')) {
+        if (!result.success) {
+          navigation.goToConfirmation({ success: false, error: result.error ?? 'Operation failed' });
+        } else {
+          navigation.goToDashboard();
+        }
+        return;
+      }
+
+      if (result.success) {
+        console.log('App: Operation successful:', result);
+        window.dispatchEvent(new CustomEvent('monkeymask:transaction-complete'));
+        navigation.goToConfirmation(result);
+      } else {
+        navigation.goToConfirmation({ success: false, error: result.error ?? 'Operation failed' });
       }
     } catch (error) {
       console.error('Failed to approve transaction:', error);
@@ -368,8 +371,8 @@ const AppContent: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="text-white text-lg font-semibold">Loading...</div>
+      <div className="flex items-center justify-center h-full bg-background text-foreground">
+        <div className="text-lg font-semibold">Loading...</div>
       </div>
     );
   }

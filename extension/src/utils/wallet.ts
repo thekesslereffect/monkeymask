@@ -6,15 +6,66 @@ try {
     bananojs.BananodeApi.setUseRateLimit(true);
   }
 } catch {}
-import nacl from 'tweetnacl';
+import {
+  createSignInMessageText,
+  isSupplyRepresentative,
+  maxSupplyFromRepresentative,
+  type BananoBatchLegResult,
+  type BananoOperation,
+  type BananoSignInInput,
+} from '@monkeymask/wallet-standard';
 import * as bip39 from 'bip39';
 import CryptoJS from 'crypto-js';
-import { blake2b } from 'blakejs';
 import { Account, StoredWallet } from '../types/wallet';
 import { BananoRPC } from './rpc';
+import { bnsResolver } from './bns';
+import { decryptString, encryptString, isEncryptedPayload, type EncryptedPayload } from './keystore';
+import { assetRepresentativeAccount, metadataRepresentativeFromCidV0, supplyRepresentative } from './nftMint';
+
+export interface MintNFTResult {
+  assetRepresentative: string;
+  supplyBlockHash: string;
+  /** Hashes of the fee sends published after the mint (empty if none). */
+  feeHashes?: string[];
+}
+
+/**
+ * A neutral representative to restore an issuer's account to after minting.
+ *
+ * The metaprotocol footgun: a `send#mint` sets the account's representative to
+ * the metadata rep, and EVERY later block reusing that rep (fees, normal sends)
+ * counts as another edition. After minting we always change the rep back to a
+ * clean value so ordinary activity never accidentally mints phantom editions.
+ */
+const CLEAN_REPRESENTATIVE =
+  'ban_1ka1ium4pfue3uxtntqkkksy3c3s5xy3q3xr8usayqp2yz3h2msc8jqm7yxs';
+
+interface MintFee {
+  to: string;
+  amount: string;
+  label?: string;
+}
+
+/** One state block in a locally-chained publish sequence (see publishStateChain). */
+interface EngineLeg {
+  /** `send` debits the balance; `change` (rep restore) keeps it. */
+  subtype: 'send' | 'change';
+  /** Amount to debit, in raw (0 for change). */
+  amountRaw: bigint;
+  /** Block link: destination public key (send) or zeros (change). */
+  link: string;
+  /** Representative override for this block (defaults to the account's current rep). */
+  representative?: string;
+  /** Internal legs (e.g. rep restore) are published but excluded from results. */
+  internal?: boolean;
+  /** User-facing metadata copied into the per-leg result. */
+  report: BananoBatchLegResult;
+}
 
 export class WalletManager {
   private static instance: WalletManager;
+  private static readonly SESSION_DATA_KEY = 'mm_session_data';
+  private static readonly SESSION_EXPIRY_KEY = 'mm_session_expiry';
   private accounts: Account[] = [];
   private isUnlocked = false;
   private currentSeed: string | null = null;
@@ -320,40 +371,37 @@ export class WalletManager {
   }
 
   /**
-   * Encrypt accounts with password
+   * Encrypt accounts with password (WebCrypto AES-GCM + PBKDF2 600k)
    */
-  encryptAccounts(accounts: Account[], password: string): { encryptedData: string; salt: string } {
-    const salt = CryptoJS.lib.WordArray.random(128/8).toString();
-    const key = CryptoJS.PBKDF2(password, salt, {
-      keySize: 256/32,
-      iterations: 10000
-    });
-
-    const accountsJson = JSON.stringify(accounts);
-    const encryptedData = CryptoJS.AES.encrypt(accountsJson, key.toString()).toString();
-
-    return { encryptedData, salt };
+  async encryptAccounts(accounts: Account[], password: string): Promise<{ encryptedData: string; salt: string }> {
+    const payload = await encryptString(JSON.stringify(accounts), password);
+    return {
+      encryptedData: JSON.stringify(payload),
+      salt: payload.salt,
+    };
   }
 
   /**
-   * Decrypt accounts with password
+   * Decrypt accounts with password (v2 WebCrypto or legacy CryptoJS)
    */
-  decryptAccounts(encryptedData: string, salt: string, password: string): Account[] {
+  async decryptAccounts(encryptedData: string, salt: string, password: string): Promise<Account[]> {
     try {
-      const key = CryptoJS.PBKDF2(password, salt, {
-        keySize: 256/32,
-        iterations: 10000
-      });
+      const parsed = JSON.parse(encryptedData);
+      if (isEncryptedPayload(parsed)) {
+        const decrypted = await decryptString(parsed as EncryptedPayload, password);
+        return JSON.parse(decrypted) as Account[];
+      }
+    } catch {
+      // Fall through to legacy decryption.
+    }
 
+    try {
+      const key = CryptoJS.PBKDF2(password, salt, { keySize: 256 / 32, iterations: 10000 });
       const decryptedBytes = CryptoJS.AES.decrypt(encryptedData, key.toString());
       const decryptedData = decryptedBytes.toString(CryptoJS.enc.Utf8);
-      
-      if (!decryptedData) {
-        throw new Error('Invalid password');
-      }
-
-      return JSON.parse(decryptedData);
-    } catch (error) {
+      if (!decryptedData) throw new Error('Invalid password');
+      return JSON.parse(decryptedData) as Account[];
+    } catch {
       throw new Error('Invalid password or corrupted data');
     }
   }
@@ -362,20 +410,20 @@ export class WalletManager {
    * Save wallet to browser storage
    */
   async saveWallet(accounts: Account[], password: string): Promise<void> {
-    const { encryptedData, salt } = this.encryptAccounts(accounts, password);
-    
-    // Encrypt the seed if we have one
+    const { encryptedData, salt } = await this.encryptAccounts(accounts, password);
+
     let encryptedSeed = '';
     if (this.currentSeed) {
-      const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
-      encryptedSeed = CryptoJS.AES.encrypt(this.currentSeed, key.toString()).toString();
+      const seedPayload = await encryptString(this.currentSeed, password);
+      encryptedSeed = JSON.stringify(seedPayload);
     }
-    
+
     const walletData: StoredWallet = {
       encryptedAccounts: encryptedData,
       encryptedSeed,
       salt,
-      isInitialized: true
+      isInitialized: true,
+      keystoreVersion: 2,
     };
 
     // Also store account addresses separately for connection purposes (non-sensitive data)
@@ -410,20 +458,19 @@ export class WalletManager {
       }
 
       // Re-encrypt accounts with the same password and salt
-      const { encryptedData, salt } = this.encryptAccounts(this.accounts, password);
-      
-      // Encrypt the seed if we have one
+      const { encryptedData, salt } = await this.encryptAccounts(this.accounts, password);
+
       let encryptedSeed = '';
       if (this.currentSeed) {
-        const key = CryptoJS.PBKDF2(password, salt, { keySize: 256/32, iterations: 10000 });
-        encryptedSeed = CryptoJS.AES.encrypt(this.currentSeed, key.toString()).toString();
+        encryptedSeed = JSON.stringify(await encryptString(this.currentSeed, password));
       }
-      
+
       const updatedWalletData: StoredWallet = {
         encryptedAccounts: encryptedData,
         encryptedSeed,
         salt,
-        isInitialized: true
+        isInitialized: true,
+        keystoreVersion: 2,
       };
 
       // Also store account addresses separately for connection purposes
@@ -535,23 +582,25 @@ export class WalletManager {
       throw new Error('No wallet found');
     }
 
-    const accounts = this.decryptAccounts(
+    const accounts = await this.decryptAccounts(
       walletData.encryptedAccounts,
       walletData.salt,
       password
     );
 
-    // Store password hash and salt for later use when saving accounts
-    const key = CryptoJS.PBKDF2(password, walletData.salt, { keySize: 256/32, iterations: 10000 });
-    this.currentPasswordHash = key.toString();
     this.currentSalt = walletData.salt;
 
-    // Decrypt the seed if it exists
     if (walletData.encryptedSeed) {
       try {
-        const decryptedSeed = CryptoJS.AES.decrypt(walletData.encryptedSeed, key.toString()).toString(CryptoJS.enc.Utf8);
-        this.currentSeed = decryptedSeed;
-        console.log('WalletManager: Decrypted seed for receive operations');
+        const parsedSeed = JSON.parse(walletData.encryptedSeed);
+        if (isEncryptedPayload(parsedSeed)) {
+          this.currentSeed = await decryptString(parsedSeed as EncryptedPayload, password);
+        } else {
+          const key = CryptoJS.PBKDF2(password, walletData.salt, { keySize: 256 / 32, iterations: 10000 });
+          this.currentSeed = CryptoJS.AES.decrypt(walletData.encryptedSeed, key.toString()).toString(
+            CryptoJS.enc.Utf8,
+          );
+        }
       } catch (error) {
         console.warn('WalletManager: Failed to decrypt seed:', error);
       }
@@ -594,6 +643,104 @@ export class WalletManager {
     this.currentPasswordHash = null;
     this.currentSalt = null;
     this.isUnlocked = false;
+    // Clear the in-memory session so a restarted service worker stays locked.
+    void this.clearSession();
+  }
+
+  /**
+   * Persist the unlocked session to chrome.storage.session so that the wallet
+   * survives MV3 service-worker restarts until the auto-lock deadline.
+   *
+   * chrome.storage.session is in-memory only (never written to disk), cleared on
+   * browser close, and only readable by trusted extension contexts — the same
+   * security posture as holding the seed in service-worker memory.
+   */
+  async persistSession(expiresAt: number): Promise<void> {
+    if (!this.isUnlocked || !this.currentSeed) return;
+    try {
+      await chrome.storage.session.set({
+        [WalletManager.SESSION_DATA_KEY]: {
+          seed: this.currentSeed,
+          accounts: this.accounts,
+          salt: this.currentSalt,
+        },
+        [WalletManager.SESSION_EXPIRY_KEY]: expiresAt,
+      });
+    } catch (error) {
+      console.warn('WalletManager: Failed to persist session:', error);
+    }
+  }
+
+  /**
+   * Update only the auto-lock deadline for the current session (activity reset).
+   */
+  async updateSessionExpiry(expiresAt: number): Promise<void> {
+    if (!this.isUnlocked) return;
+    try {
+      await chrome.storage.session.set({ [WalletManager.SESSION_EXPIRY_KEY]: expiresAt });
+    } catch (error) {
+      console.warn('WalletManager: Failed to update session expiry:', error);
+    }
+  }
+
+  /**
+   * Restore an unlocked session after a service-worker restart, if one exists
+   * and has not passed its auto-lock deadline.
+   */
+  async restoreSession(): Promise<boolean> {
+    try {
+      const result = await chrome.storage.session.get([
+        WalletManager.SESSION_DATA_KEY,
+        WalletManager.SESSION_EXPIRY_KEY,
+      ]);
+      const data = result[WalletManager.SESSION_DATA_KEY] as
+        | { seed: string; accounts: Account[]; salt: string | null }
+        | undefined;
+      const expiry = result[WalletManager.SESSION_EXPIRY_KEY] as number | undefined;
+
+      if (!data || typeof expiry !== 'number') return false;
+      if (Date.now() >= expiry) {
+        await this.clearSession();
+        return false;
+      }
+
+      this.currentSeed = data.seed;
+      this.accounts = data.accounts ?? [];
+      this.currentSalt = data.salt ?? null;
+      this.isUnlocked = true;
+      console.log('WalletManager: Restored unlocked session from storage');
+      return true;
+    } catch (error) {
+      console.warn('WalletManager: Failed to restore session:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Read the current session auto-lock deadline (ms epoch), if any.
+   */
+  async getSessionExpiry(): Promise<number | null> {
+    try {
+      const result = await chrome.storage.session.get([WalletManager.SESSION_EXPIRY_KEY]);
+      const expiry = result[WalletManager.SESSION_EXPIRY_KEY];
+      return typeof expiry === 'number' ? expiry : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Remove the persisted session.
+   */
+  async clearSession(): Promise<void> {
+    try {
+      await chrome.storage.session.remove([
+        WalletManager.SESSION_DATA_KEY,
+        WalletManager.SESSION_EXPIRY_KEY,
+      ]);
+    } catch (error) {
+      console.warn('WalletManager: Failed to clear session:', error);
+    }
   }
 
   /**
@@ -669,7 +816,7 @@ export class WalletManager {
       console.log('WalletManager: Signing block for account:', accountAddress);
       
       // Use BananoUtil to sign the block structure
-      const signature = await bananojs.BananoUtil.getSignature(account.privateKey, block);
+      const signature = await bananojs.getSignature(account.privateKey, block);
       
       // Add work (proof of work). For now, use zeroed work bytes placeholder.
       // Consider integrating a remote work server for production.
@@ -690,6 +837,20 @@ export class WalletManager {
   }
 
   /**
+   * Resolve a recipient to a ban_ address (supports BNS names like user.ban).
+   */
+  private async resolveRecipientAddress(toAddress: string): Promise<string> {
+    const trimmed = toAddress.trim();
+    if (trimmed.startsWith('ban_')) {
+      return trimmed;
+    }
+    if (bnsResolver.isBNSName(trimmed)) {
+      return bnsResolver.resolveBNS(trimmed);
+    }
+    throw new Error(`Invalid recipient "${trimmed}". Use a ban_ address or BNS name (e.g. username.ban).`);
+  }
+
+  /**
    * Send Banano using bananojs
    */
   async sendBanano(fromAddress: string, toAddress: string, amount: string): Promise<string> {
@@ -707,7 +868,8 @@ export class WalletManager {
     }
 
     try {
-      console.log('WalletManager: Sending', amount, 'BAN from', fromAddress, 'to', toAddress);
+      const resolvedTo = await this.resolveRecipientAddress(toAddress);
+      console.log('WalletManager: Sending', amount, 'BAN from', fromAddress, 'to', resolvedTo);
       
       // Get the account index for seed derivation
       const accountIndex = this.accounts.indexOf(account);
@@ -716,11 +878,21 @@ export class WalletManager {
       const result = await bananojs.sendBananoWithdrawalFromSeed(
         this.currentSeed,
         accountIndex,
-        toAddress,
+        resolvedTo,
         amount
       );
       
       console.log('WalletManager: Send result:', result);
+
+      const transactionHash =
+        typeof result === 'string'
+          ? result
+          : typeof result?.hash === 'string'
+            ? result.hash
+            : null;
+      if (!transactionHash) {
+        throw new Error('Invalid send result: missing transaction hash');
+      }
       
       // Update the account balance locally (subtract sent amount)
       const currentBalance = parseFloat(account.balance) || 0;
@@ -731,12 +903,716 @@ export class WalletManager {
       console.log('WalletManager: Updated local balance from', currentBalance, 'to', newBalance);
       
       // Return the transaction hash
-      return result;
+      return transactionHash;
       
     } catch (error) {
       console.error('WalletManager: Error sending Banano:', error);
       throw error;
     }
+  }
+
+  /**
+   * Mint a Banano NFT (73-meta-tokens) and send it to a recipient.
+   *
+   * Publishes two consecutive blocks on the issuer's chain:
+   *   1. `change#supply` — representative encodes protocol header + version + max supply.
+   *   2. `send#mint`     — representative = metadata_representative (IPFS CID);
+   *                        `previous` is pinned to the supply block hash so the
+   *                        mint provably immediately follows the supply block.
+   *
+   * The `send#mint` block hash is the NFT's asset representative. The recipient
+   * takes ownership by receiving the send (a normal Banano receive).
+   */
+  async mintNFT(
+    fromAddress: string,
+    params: {
+      metadataCid: string;
+      to: string;
+      amount?: string;
+      maxSupply?: number;
+      fees?: MintFee[];
+    },
+  ): Promise<MintNFTResult> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet is locked');
+    }
+    if (!this.currentSeed) {
+      throw new Error('Seed not available for minting');
+    }
+    const account = this.accounts.find((acc) => acc.address === fromAddress);
+    if (!account) {
+      throw new Error('Account not found in wallet');
+    }
+
+    const supplyRep = supplyRepresentative(params.maxSupply ?? 1);
+    const metadataRep = metadataRepresentativeFromCidV0(params.metadataCid);
+    const resolvedTo = await this.resolveRecipientAddress(params.to);
+    const amount = params.amount && params.amount.trim() !== '' ? params.amount : '0.0001';
+    const accountIndex = this.accounts.indexOf(account);
+
+    // Capture a clean rep to restore after minting (see CLEAN_REPRESENTATIVE).
+    let baseRep: string | undefined;
+    try {
+      baseRep = await bananojs.bananodeApi.getAccountRepresentative(fromAddress);
+    } catch {
+      /* fall back to the neutral rep below */
+    }
+    const cleanRep =
+      baseRep && !isSupplyRepresentative(baseRep) && baseRep !== metadataRep
+        ? baseRep
+        : CLEAN_REPRESENTATIVE;
+
+    // Resolve + validate fees up front so we never mint if the balance can't
+    // also cover every fee — a failed fee should never happen after a mint, and
+    // a short balance must fail before anything is published.
+    const fees = params.fees ?? [];
+    const resolvedFees: { to: string; amount: string; raw: number }[] = [];
+    let feeTotal = 0;
+    for (const fee of fees) {
+      const feeAmount = parseFloat(fee.amount);
+      if (!Number.isFinite(feeAmount) || feeAmount < 0) {
+        throw new Error(`Invalid fee amount: ${fee.amount}`);
+      }
+      const feeTo = await this.resolveRecipientAddress(fee.to);
+      resolvedFees.push({ to: feeTo, amount: fee.amount, raw: feeAmount });
+      feeTotal += feeAmount;
+    }
+    const mintAmount = parseFloat(amount) || 0;
+    const availableBalance = parseFloat(account.balance) || 0;
+    if (mintAmount + feeTotal > availableBalance) {
+      throw new Error(
+        `Insufficient balance: need ${(mintAmount + feeTotal).toString()} BAN ` +
+          `(mint + fees) but only ${availableBalance.toString()} BAN available`,
+      );
+    }
+
+    // 1. change#supply — establishes the collection on the issuer's chain.
+    const supplyResult = await bananojs.changeBananoRepresentativeForSeed(
+      this.currentSeed,
+      accountIndex,
+      supplyRep,
+    );
+    const supplyBlockHash =
+      typeof supplyResult === 'string'
+        ? supplyResult
+        : typeof (supplyResult as { hash?: string })?.hash === 'string'
+          ? (supplyResult as { hash: string }).hash
+          : null;
+    if (!supplyBlockHash) {
+      throw new Error('Failed to publish supply block: missing hash');
+    }
+
+    // 2. send#mint — pin `previous` to the supply hash so the mint immediately
+    //    follows the supply block, and set the representative to the metadata CID.
+    const mintResult = await bananojs.sendBananoWithdrawalFromSeed(
+      this.currentSeed,
+      accountIndex,
+      resolvedTo,
+      amount,
+      metadataRep,
+      supplyBlockHash,
+    );
+    const assetRepresentative =
+      typeof mintResult === 'string'
+        ? mintResult
+        : typeof (mintResult as { hash?: string })?.hash === 'string'
+          ? (mintResult as { hash: string }).hash
+          : null;
+    if (!assetRepresentative) {
+      throw new Error('Failed to publish mint block: missing hash');
+    }
+
+    const currentBalance = parseFloat(account.balance) || 0;
+    const sentAmount = parseFloat(amount) || 0;
+    account.balance = Math.max(0, currentBalance - sentAmount).toString();
+
+    // 3. Restore a clean representative so the fees (and any later normal send)
+    //    don't inherit the metadata rep and mint phantom editions.
+    try {
+      await bananojs.changeBananoRepresentativeForSeed(this.currentSeed, accountIndex, cleanRep);
+    } catch (error) {
+      console.warn('WalletManager: failed to restore representative after mint:', error);
+    }
+
+    // 4. Fees — plain sends published only after a successful mint.
+    const feeHashes: string[] = [];
+    for (const fee of resolvedFees) {
+      const feeResult = await bananojs.sendBananoWithdrawalFromSeed(
+        this.currentSeed,
+        accountIndex,
+        fee.to,
+        fee.amount,
+      );
+      const feeHash =
+        typeof feeResult === 'string'
+          ? feeResult
+          : typeof (feeResult as { hash?: string })?.hash === 'string'
+            ? (feeResult as { hash: string }).hash
+            : null;
+      if (feeHash) {
+        feeHashes.push(feeHash);
+        account.balance = Math.max(0, (parseFloat(account.balance) || 0) - fee.raw).toString();
+      }
+    }
+
+    return { assetRepresentative, supplyBlockHash, feeHashes };
+  }
+
+  /**
+   * Look up an existing collection this account issued by its metadata CID, and
+   * report the max supply plus how many editions have already been minted.
+   *
+   * Mirrors the banano-nft-crawler: the collection is the `change#supply` block
+   * whose first following mint sets `metadata_representative`; every later block
+   * on the issuer chain reusing that representative is another edition.
+   */
+  private async collectionEditionStats(
+    issuer: string,
+    metadataRepAccount: string,
+  ): Promise<{ maxSupply: number; minted: number } | null> {
+    let history: Array<{ height: string; subtype?: string; representative?: string }>;
+    try {
+      const result = await bananojs.getAccountHistory(issuer, -1, undefined, true);
+      history = Array.isArray(result?.history) ? result.history : [];
+    } catch {
+      return null;
+    }
+    history.sort((a, b) => Number(a.height) - Number(b.height));
+
+    const byHeight = new Map<number, { representative?: string }>();
+    for (const b of history) byHeight.set(Number(b.height), b);
+
+    for (const entry of history) {
+      if (entry.subtype !== 'change' || !entry.representative) continue;
+      if (!isSupplyRepresentative(entry.representative)) continue;
+
+      const firstMint = byHeight.get(Number(entry.height) + 1);
+      if (!firstMint?.representative) continue;
+      if (firstMint.representative !== metadataRepAccount) continue;
+
+      // Found our collection. Count every block reusing the metadata rep.
+      const maxSupply = maxSupplyFromRepresentative(entry.representative);
+      const minted = history.filter(
+        (b) =>
+          (b.subtype === 'send' || b.subtype === 'change') &&
+          b.representative === metadataRepAccount,
+      ).length;
+      return { maxSupply, minted };
+    }
+    return null;
+  }
+
+  /**
+   * Mint an additional edition of an existing collection (one this account
+   * issued with maxSupply > 1 or unlimited). Publishes a single `send#mint`
+   * block reusing the collection's metadata_representative; its hash is the new
+   * edition's asset representative. Rejects if the edition limit is reached.
+   */
+  async mintEdition(
+    fromAddress: string,
+    params: { metadataCid: string; to: string; amount?: string; fees?: MintFee[] },
+  ): Promise<MintNFTResult> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet is locked');
+    }
+    if (!this.currentSeed) {
+      throw new Error('Seed not available for minting');
+    }
+    const account = this.accounts.find((acc) => acc.address === fromAddress);
+    if (!account) {
+      throw new Error('Account not found in wallet');
+    }
+    const accountIndex = this.accounts.indexOf(account);
+
+    const metadataRep = metadataRepresentativeFromCidV0(params.metadataCid);
+    const resolvedTo = await this.resolveRecipientAddress(params.to);
+    const amount = params.amount && params.amount.trim() !== '' ? params.amount : '0.0001';
+
+    // Pocket any pending first. Editions minted to self return the send as a
+    // receivable; without claiming it the locally-tracked balance drifts down
+    // until mints start failing with "Insufficient balance". Claiming also
+    // guarantees a clean frontier before we publish.
+    try {
+      await this.autoReceivePending(fromAddress);
+    } catch (error) {
+      console.warn('WalletManager: auto-receive before edition mint failed (continuing):', error);
+    }
+
+    // Verify the collection exists on this issuer and has room for another copy.
+    const stats = await this.collectionEditionStats(fromAddress, metadataRep);
+    if (!stats) {
+      throw new Error(
+        'Collection not found for this account — you can only mint editions of a collection you issued',
+      );
+    }
+    if (stats.maxSupply > 0 && stats.minted >= stats.maxSupply) {
+      throw new Error(
+        `Edition limit reached: ${stats.minted}/${stats.maxSupply} already minted`,
+      );
+    }
+
+    // Resolve + validate fees up front (same guarantees as mintNFT).
+    const fees = params.fees ?? [];
+    const resolvedFees: { to: string; amount: string; raw: number }[] = [];
+    let feeTotal = 0;
+    for (const fee of fees) {
+      const feeAmount = parseFloat(fee.amount);
+      if (!Number.isFinite(feeAmount) || feeAmount < 0) {
+        throw new Error(`Invalid fee amount: ${fee.amount}`);
+      }
+      const feeTo = await this.resolveRecipientAddress(fee.to);
+      resolvedFees.push({ to: feeTo, amount: fee.amount, raw: feeAmount });
+      feeTotal += feeAmount;
+    }
+    const mintAmount = parseFloat(amount) || 0;
+
+    // Read the confirmed balance straight from the node (raw) so the check is
+    // never fooled by a stale cached figure after a self-mint loop.
+    let availableBalance = parseFloat(account.balance) || 0;
+    try {
+      const info = await bananojs.BananodeApi.getAccountInfo(fromAddress, true);
+      if (info && !info.error && info.balance !== undefined) {
+        availableBalance = parseFloat(
+          bananojs.getBananoPartsAsDecimal(bananojs.getBananoPartsFromRaw(String(info.balance))),
+        );
+        account.balance = availableBalance.toString();
+      }
+    } catch {
+      /* fall back to the cached balance */
+    }
+    if (mintAmount + feeTotal > availableBalance) {
+      throw new Error(
+        `Insufficient balance: need ${(mintAmount + feeTotal).toString()} BAN ` +
+          `(mint + fees) but only ${availableBalance.toString()} BAN available`,
+      );
+    }
+
+    // Restore a clean rep after minting so fees / future sends don't inherit the
+    // metadata rep and mint phantom editions.
+    let baseRep: string | undefined;
+    try {
+      baseRep = await bananojs.bananodeApi.getAccountRepresentative(fromAddress);
+    } catch {
+      /* fall back to the neutral rep below */
+    }
+    const cleanRep =
+      baseRep && !isSupplyRepresentative(baseRep) && baseRep !== metadataRep
+        ? baseRep
+        : CLEAN_REPRESENTATIVE;
+
+    // Publish the edition: a send#mint reusing the collection's metadata rep.
+    const mintResult = await bananojs.sendBananoWithdrawalFromSeed(
+      this.currentSeed,
+      accountIndex,
+      resolvedTo,
+      amount,
+      metadataRep,
+    );
+    const assetRepresentative =
+      typeof mintResult === 'string'
+        ? mintResult
+        : typeof (mintResult as { hash?: string })?.hash === 'string'
+          ? (mintResult as { hash: string }).hash
+          : null;
+    if (!assetRepresentative) {
+      throw new Error('Failed to publish edition mint block: missing hash');
+    }
+
+    account.balance = Math.max(0, availableBalance - mintAmount).toString();
+
+    try {
+      await bananojs.changeBananoRepresentativeForSeed(this.currentSeed, accountIndex, cleanRep);
+    } catch (error) {
+      console.warn('WalletManager: failed to restore representative after edition mint:', error);
+    }
+
+    const feeHashes: string[] = [];
+    for (const fee of resolvedFees) {
+      const feeResult = await bananojs.sendBananoWithdrawalFromSeed(
+        this.currentSeed,
+        accountIndex,
+        fee.to,
+        fee.amount,
+      );
+      const feeHash =
+        typeof feeResult === 'string'
+          ? feeResult
+          : typeof (feeResult as { hash?: string })?.hash === 'string'
+            ? (feeResult as { hash: string }).hash
+            : null;
+      if (feeHash) {
+        feeHashes.push(feeHash);
+        account.balance = Math.max(0, (parseFloat(account.balance) || 0) - fee.raw).toString();
+      }
+    }
+
+    return { assetRepresentative, supplyBlockHash: '', feeHashes };
+  }
+
+  /**
+   * Transfer an owned Banano NFT (73-meta-tokens) to another account.
+   *
+   * Publishes a `send#asset` block: a normal send whose `representative` is the
+   * asset representative (the mint block hash encoded as an account). Indexers
+   * follow that representative to move ownership to the recipient.
+   *
+   * The asset must be held (received) by the sender first, so any pending
+   * balance is pocketed before the send is published.
+   *
+   * @param assetRepresentative The NFT's asset representative — its mint block hash (64 hex).
+   */
+  async transferNFT(
+    fromAddress: string,
+    params: { assetRepresentative: string; to: string; amount?: string },
+  ): Promise<string> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet is locked');
+    }
+    if (!this.currentSeed) {
+      throw new Error('Seed not available for transfer');
+    }
+    const account = this.accounts.find((acc) => acc.address === fromAddress);
+    if (!account) {
+      throw new Error('Account not found in wallet');
+    }
+
+    const assetRep = assetRepresentativeAccount(params.assetRepresentative);
+    const resolvedTo = await this.resolveRecipientAddress(params.to);
+    const amount = params.amount && params.amount.trim() !== '' ? params.amount : '0.0001';
+    const accountIndex = this.accounts.indexOf(account);
+
+    // The asset must be pocketed before it can be sent onward.
+    try {
+      await this.autoReceivePending(fromAddress);
+    } catch (error) {
+      console.warn('WalletManager: auto-receive before transfer failed (continuing):', error);
+    }
+
+    const result = await bananojs.sendBananoWithdrawalFromSeed(
+      this.currentSeed,
+      accountIndex,
+      resolvedTo,
+      amount,
+      assetRep,
+    );
+    const hash =
+      typeof result === 'string'
+        ? result
+        : typeof (result as { hash?: string })?.hash === 'string'
+          ? (result as { hash: string }).hash
+          : null;
+    if (!hash) {
+      throw new Error('Failed to publish transfer block: missing hash');
+    }
+
+    const currentBalance = parseFloat(account.balance) || 0;
+    const sentAmount = parseFloat(amount) || 0;
+    account.balance = Math.max(0, currentBalance - sentAmount).toString();
+
+    return hash;
+  }
+
+  /**
+   * Sweep an account: claim any pending, then send the entire confirmed balance
+   * (in raw, so no dust is left) to one recipient. Returns the send hash and the
+   * BAN amount swept.
+   */
+  async sweep(fromAddress: string, to: string): Promise<{ hash: string; amount: string }> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet is locked');
+    }
+    if (!this.currentSeed) {
+      throw new Error('Seed not available for sweep');
+    }
+    const account = this.accounts.find((acc) => acc.address === fromAddress);
+    if (!account) {
+      throw new Error('Account not found in wallet');
+    }
+    const accountIndex = this.accounts.indexOf(account);
+    const resolvedTo = await this.resolveRecipientAddress(to);
+
+    // Pocket pending so the full balance is spendable.
+    try {
+      await this.autoReceivePending(fromAddress);
+    } catch (error) {
+      console.warn('WalletManager: auto-receive before sweep failed (continuing):', error);
+    }
+
+    const info = await bananojs.BananodeApi.getAccountInfo(fromAddress, true);
+    if (!info || info.error || info.balance === undefined) {
+      throw new Error(`Unable to load balance for sweep: ${info?.error ?? 'no data'}`);
+    }
+    const balanceRaw = BigInt(info.balance);
+    if (balanceRaw <= 0n) {
+      throw new Error('Nothing to sweep: balance is zero');
+    }
+
+    const amount = bananojs.getBananoPartsAsDecimal(
+      bananojs.getBananoPartsFromRaw(balanceRaw.toString(10)),
+    );
+    const result = await bananojs.sendBananoWithdrawalFromSeed(
+      this.currentSeed,
+      accountIndex,
+      resolvedTo,
+      amount,
+    );
+    const hash =
+      typeof result === 'string'
+        ? result
+        : typeof (result as { hash?: string })?.hash === 'string'
+          ? (result as { hash: string }).hash
+          : null;
+    if (!hash) {
+      throw new Error('Failed to publish sweep block: missing hash');
+    }
+
+    account.balance = '0';
+    return { hash, amount };
+  }
+
+  /**
+   * Publish a chain of state blocks from one account in a single pass.
+   *
+   * This is the executor behind multi-send / airdrop and multi-NFT transfer. It
+   * embraces how Banano's block-lattice actually works:
+   *  - Fetches account_info ONCE, then tracks the frontier + balance locally,
+   *    building each block off the previous one's (locally computed) hash. This
+   *    avoids the per-block `account_info` round-trip and the frontier race that
+   *    a naive loop hits when the node's view lags a just-published block.
+   *  - Pipelines proof-of-work: the block hash is computed locally (blake2b), so
+   *    work for block N+1 is requested *while* block N is being broadcast.
+   *  - Runs best-effort: a leg that fails to publish is recorded and skipped
+   *    (the chain continues from the last good frontier), so one bad recipient
+   *    doesn't sink the whole airdrop. Per-leg results are returned.
+   *
+   * @returns the published hashes (in order) and a per-leg result list.
+   */
+  private async publishStateChain(
+    account: Account,
+    legs: EngineLeg[],
+    opts?: { minBalanceRaw?: bigint; restoreRepresentative?: boolean },
+  ): Promise<{ hashes: string[]; results: BananoBatchLegResult[] }> {
+    const info = await bananojs.BananodeApi.getAccountInfo(account.address, true);
+    if (!info || info.error || !info.frontier || info.balance === undefined) {
+      throw new Error(
+        `Unable to load account frontier (account may be unopened): ${info?.error ?? 'no data'}`,
+      );
+    }
+
+    let frontier: string = info.frontier;
+    let balance = BigInt(info.balance);
+    const baseRep: string =
+      info.representative || (await bananojs.bananodeApi.getAccountRepresentative(account.address));
+    let lastRep = baseRep;
+
+    if (opts?.minBalanceRaw !== undefined && balance < opts.minBalanceRaw) {
+      throw new Error(
+        `Insufficient balance: need ${opts.minBalanceRaw.toString()} raw but only ${balance.toString()} raw available`,
+      );
+    }
+
+    const safeWork = (hash: string): Promise<string | null> =>
+      bananojs.bananodeApi.getGeneratedWork(hash).catch(() => null);
+
+    const hashes: string[] = [];
+    const results: BananoBatchLegResult[] = [];
+    let workPromise = safeWork(frontier);
+
+    for (const leg of legs) {
+      const newBalance = leg.subtype === 'send' ? balance - leg.amountRaw : balance;
+      if (newBalance < 0n) {
+        if (!leg.internal) results.push({ ...leg.report, error: 'Insufficient balance' });
+        continue;
+      }
+
+      const representative = leg.representative ?? baseRep;
+      let work = await workPromise;
+      try {
+        if (!work) work = await bananojs.bananodeApi.getGeneratedWork(frontier);
+
+        const block: Record<string, unknown> = {
+          type: 'state',
+          account: account.address,
+          previous: frontier,
+          representative,
+          balance: newBalance.toString(10),
+          link: leg.link,
+          work,
+        };
+        block.signature = await bananojs.getSignature(account.privateKey, block);
+
+        // Hash is deterministic from the block, so we can start the next block's
+        // work now, overlapping it with this block's broadcast round-trip.
+        const localHash: string = bananojs.BananoUtil.hash(block);
+        const nextWorkPromise = safeWork(localHash);
+
+        const processedHash: string = await bananojs.bananodeApi.process(block, leg.subtype);
+        const finalHash = processedHash || localHash;
+
+        frontier = finalHash;
+        balance = newBalance;
+        lastRep = representative;
+        workPromise = nextWorkPromise;
+
+        hashes.push(finalHash);
+        if (!leg.internal) results.push({ ...leg.report, hash: finalHash });
+      } catch (error) {
+        // Publish failed: the chain is unchanged, so rebuild the next leg from
+        // the same frontier. Reset the pipelined work to the current frontier.
+        workPromise = safeWork(frontier);
+        const message = error instanceof Error ? error.message : 'Failed to publish block';
+        if (!leg.internal) results.push({ ...leg.report, error: message });
+      }
+    }
+
+    // Restore the account's original representative if a transfer left it
+    // pointing at an asset representative.
+    if (opts?.restoreRepresentative && hashes.length > 0 && lastRep !== baseRep) {
+      try {
+        let work = await workPromise;
+        if (!work) work = await bananojs.bananodeApi.getGeneratedWork(frontier);
+        const block: Record<string, unknown> = {
+          type: 'state',
+          account: account.address,
+          previous: frontier,
+          representative: baseRep,
+          balance: balance.toString(10),
+          link: '0000000000000000000000000000000000000000000000000000000000000000',
+          work,
+        };
+        block.signature = await bananojs.getSignature(account.privateKey, block);
+        const processedHash: string = await bananojs.bananodeApi.process(block, 'change');
+        frontier = processedHash || frontier;
+      } catch (error) {
+        console.warn('WalletManager: failed to restore representative after transfer:', error);
+      }
+    }
+
+    // Reconcile the cached display balance from the final raw balance.
+    try {
+      account.balance = bananojs.getBananoPartsAsDecimal(
+        bananojs.getBananoPartsFromRaw(balance.toString(10)),
+      );
+    } catch {
+      /* display-only; ignore */
+    }
+
+    return { hashes, results };
+  }
+
+  private toRaw(amountBan: string): bigint {
+    return BigInt(
+      bananojs.BananoUtil.getRawStrFromMajorAmountStr(amountBan, bananojs.BANANO_PREFIX),
+    );
+  }
+
+  /**
+   * Publish several plain sends in one approval (multi-send / airdrop). Resolves
+   * every recipient (BNS supported), verifies the balance covers the total up
+   * front, then publishes a locally-chained block sequence with pipelined work.
+   * Best-effort: returns per-recipient results; throws only if nothing sent.
+   */
+  async batchSend(
+    fromAddress: string,
+    sends: { to: string; amount: string }[],
+  ): Promise<{ hashes: string[]; results: BananoBatchLegResult[] }> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet is locked');
+    }
+    if (!this.currentSeed) {
+      throw new Error('Seed not available for sending');
+    }
+    const account = this.accounts.find((acc) => acc.address === fromAddress);
+    if (!account) {
+      throw new Error('Account not found in wallet');
+    }
+    if (!sends.length) {
+      throw new Error('Batch send requires at least one recipient');
+    }
+
+    const legs: EngineLeg[] = [];
+    let total = 0n;
+    for (const send of sends) {
+      const raw = this.toRaw(send.amount);
+      if (raw <= 0n) {
+        throw new Error(`Invalid amount: ${send.amount}`);
+      }
+      const to = await this.resolveRecipientAddress(send.to);
+      total += raw;
+      legs.push({
+        subtype: 'send',
+        amountRaw: raw,
+        link: bananojs.BananoUtil.getAccountPublicKey(to),
+        report: { to, amount: send.amount },
+      });
+    }
+
+    const { hashes, results } = await this.publishStateChain(account, legs, {
+      minBalanceRaw: total,
+    });
+    if (hashes.length === 0) {
+      throw new Error(results[0]?.error || 'Batch send failed');
+    }
+    return { hashes, results };
+  }
+
+  /**
+   * Transfer several owned NFTs in one approval. Pockets any pending balance
+   * once up front, then publishes one `send#asset` block per NFT as a locally-
+   * chained sequence (pipelined work), and finally restores the account's
+   * representative. Best-effort: returns per-NFT results; throws only if none
+   * transferred.
+   */
+  async transferNFTs(
+    fromAddress: string,
+    transfers: { assetRepresentative: string; to: string; amount?: string }[],
+  ): Promise<{ hashes: string[]; results: BananoBatchLegResult[] }> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet is locked');
+    }
+    if (!this.currentSeed) {
+      throw new Error('Seed not available for transfer');
+    }
+    const account = this.accounts.find((acc) => acc.address === fromAddress);
+    if (!account) {
+      throw new Error('Account not found in wallet');
+    }
+    if (!transfers.length) {
+      throw new Error('Transfer requires at least one NFT');
+    }
+
+    // Pocket every pending block once so all assets are held before sending.
+    try {
+      await this.autoReceivePending(fromAddress);
+    } catch (error) {
+      console.warn('WalletManager: auto-receive before multi-transfer failed (continuing):', error);
+    }
+
+    const legs: EngineLeg[] = [];
+    let total = 0n;
+    for (const t of transfers) {
+      const assetRep = assetRepresentativeAccount(t.assetRepresentative);
+      const to = await this.resolveRecipientAddress(t.to);
+      const amount = t.amount && t.amount.trim() !== '' ? t.amount : '0.0001';
+      const raw = this.toRaw(amount);
+      total += raw;
+      legs.push({
+        subtype: 'send',
+        amountRaw: raw,
+        link: bananojs.BananoUtil.getAccountPublicKey(to),
+        representative: assetRep,
+        report: { assetRepresentative: t.assetRepresentative, to, amount },
+      });
+    }
+
+    const { hashes, results } = await this.publishStateChain(account, legs, {
+      minBalanceRaw: total,
+      restoreRepresentative: true,
+    });
+    if (hashes.length === 0) {
+      throw new Error(results[0]?.error || 'NFT transfer failed');
+    }
+    return { hashes, results };
   }
 
   /**
@@ -787,144 +1663,44 @@ export class WalletManager {
   }
 
   /**
-   * Sign an arbitrary message (currently supports UTF-8 messages)
-   * Returns signature as hex string
+   * Sign an arbitrary message (legacy helper — uses BananoUtil only)
    */
   async signMessage(publicKeyOrAddress: string, message: string, display: 'utf8' | 'hex' = 'utf8', origin?: string): Promise<string> {
     if (!this.isUnlocked) {
       throw new Error('Wallet is locked');
     }
 
-    console.log('WalletManager: Signing message for publicKeyOrAddress:', publicKeyOrAddress);
-    console.log('WalletManager: Available accounts:', this.accounts.map(acc => ({ address: acc.address, publicKey: acc.publicKey })));
-
-    // Find account by public key or address
     const account = this.getAccountByIdentifier(publicKeyOrAddress);
-    console.log('WalletManager: Found account:', account ? { address: account.address, publicKey: account.publicKey } : 'null');
-    
     if (!account) {
       throw new Error('Account not found for provided public key');
     }
 
-    // Build domain-separated message bytes (must match verification format)
-    const enc = new TextEncoder();
-    const prefix = enc.encode(`MonkeyMask Signed Message:\nOrigin: ${origin || ''}\nMessage: `);
-    const messageBytes = display === 'hex' ? hexToUint8(message) : enc.encode(message);
-    const bytes = concatUint8(prefix, messageBytes);
-    
-    console.log('WalletManager: Signing with prefix string:', `MonkeyMask Signed Message:\nOrigin: ${origin || ''}\nMessage: ${message}`);
-    console.log('WalletManager: Signing bytes length:', bytes.length);
-    console.log('WalletManager: Signing bytes hex:', uint8ToHex(bytes));
-
-    // Use BananoUtil.signMessage for UTF-8 messages
-    if (display === 'utf8' && bananojs.BananoUtil && typeof bananojs.BananoUtil.signMessage === 'function') {
-      console.log('WalletManager: Using BananoUtil.signMessage');
-      try {
-        // Use the domain-separated message string
-        const messageToSign = `MonkeyMask Signed Message:\nOrigin: ${origin || ''}\nMessage: ${message}`;
-        console.log('WalletManager: Signing message string:', messageToSign);
-        
-        const signature = await bananojs.BananoUtil.signMessage(account!.privateKey, messageToSign);
-        console.log('WalletManager: BananoUtil signature result type:', typeof signature);
-        console.log('WalletManager: BananoUtil signature result:', signature);
-        
-        // Convert to string if it's not already
-        const signatureStr = typeof signature === 'string' ? signature : String(signature);
-        console.log('WalletManager: Final signature string:', signatureStr.substring(0, 20) + '...');
-        return signatureStr;
-      } catch (error) {
-        console.error('WalletManager: BananoUtil.signMessage error:', error);
-        throw error; // Don't fall back, we want to see the error
-      }
+    if (display === 'hex') {
+      const bytes = hexToUint8(message);
+      return this.signMessageBytes(account.address, bytes);
     }
 
-    // Local Ed25519 signing (tweetnacl)
-    const priv = hexToUint8(account.privateKey);
-    const pub = hexToUint8(account.publicKey);
-    
-    console.log('WalletManager: Signing with private key length:', priv.length);
-    console.log('WalletManager: Signing with public key hex:', account.publicKey);
-    console.log('WalletManager: Signing with public key length:', pub.length);
-    
-    if (priv.length !== 32 || pub.length !== 32) {
-      throw new Error('Invalid key lengths for Ed25519');
-    }
-    
-    // For tweetnacl, we need to use the private key seed directly
-    // Let's try using blake2b hash of the message instead of raw bytes
-    const hashedMessage = blake2b(bytes, undefined, 32);
-    console.log('WalletManager: Hashed message bytes:', uint8ToHex(hashedMessage));
-    
-    // Try using the correct tweetnacl format
-    // tweetnacl.sign.detached expects a 64-byte secret key (seed + public key)
-    try {
-      const secretKey = new Uint8Array(64);
-      secretKey.set(priv, 0);
-      secretKey.set(pub, 32);
-      
-      console.log('WalletManager: About to sign with nacl.sign.detached');
-      const sig = nacl.sign.detached(hashedMessage, secretKey);
-      const sigHex = uint8ToHex(sig);
-      console.log('WalletManager: Generated signature hex:', sigHex.substring(0, 20) + '...');
-      return sigHex;
-    } catch (error) {
-      console.error('WalletManager: Signing error:', error);
-      throw error;
-    }
+    const messageToSign = origin
+      ? `MonkeyMask Signed Message:\nOrigin: ${origin}\nMessage: ${message}`
+      : message;
+    return bananojs.BananoUtil.signMessage(account.privateKey, messageToSign);
   }
 
   /**
-   * Verify a signed message using Ed25519
+   * Verify a signed message using BananoUtil
    */
-  async verifySignedMessage(publicKeyOrAddress: string, messageBytes: Uint8Array, signatureHex: string, message?: string, origin?: string): Promise<boolean> {
-    console.log('WalletManager: Verifying signature for publicKeyOrAddress:', publicKeyOrAddress);
-    
-    // Find account by public key or address
+  async verifySignedMessage(publicKeyOrAddress: string, _messageBytes: Uint8Array, signatureHex: string, message?: string, origin?: string): Promise<boolean> {
     const account = this.getAccountByIdentifier(publicKeyOrAddress);
     if (!account) {
-      console.log('WalletManager: Account not found for verification');
       return false;
     }
 
     try {
-      console.log('WalletManager: Using public key hex:', account.publicKey);
-      console.log('WalletManager: Signature hex:', signatureHex.substring(0, 20) + '...');
-      
-      // Use BananoUtil.verifyMessage if available
-      if (bananojs.BananoUtil && typeof bananojs.BananoUtil.verifyMessage === 'function') {
-        console.log('WalletManager: Using BananoUtil.verifyMessage');
-        
-        // Build the same domain-separated message string as in signing
-        const messageToVerify = `MonkeyMask Signed Message:\nOrigin: ${origin || 'unknown'}\nMessage: ${message}`;
-        console.log('WalletManager: Verifying message string:', messageToVerify);
-        
-        const isValid = bananojs.BananoUtil.verifyMessage(account.publicKey, messageToVerify, signatureHex);
-        console.log('WalletManager: BananoUtil verification result:', isValid);
-        return isValid;
-      }
-      
-      // Fallback to tweetnacl verification
-      const publicKeyBytes = hexToUint8(account.publicKey);
-      const signatureBytes = hexToUint8(signatureHex);
-      
-      console.log('WalletManager: Using tweetnacl fallback verification');
-      console.log('WalletManager: Public key bytes length:', publicKeyBytes.length);
-      console.log('WalletManager: Signature bytes length:', signatureBytes.length);
-      
-      if (publicKeyBytes.length !== 32 || signatureBytes.length !== 64) {
-        console.log('WalletManager: Invalid key or signature length');
-        return false;
-      }
-
-      // Hash the message bytes the same way as in signing
-      const hashedMessage = blake2b(messageBytes, undefined, 32);
-      console.log('WalletManager: Verification hashed message bytes:', uint8ToHex(hashedMessage));
-      
-      const isValid = nacl.sign.detached.verify(hashedMessage, signatureBytes, publicKeyBytes);
-      console.log('WalletManager: tweetnacl verification result:', isValid);
-      return isValid;
-    } catch (error) {
-      console.error('WalletManager: Verification error:', error);
+      const messageToVerify = origin
+        ? `MonkeyMask Signed Message:\nOrigin: ${origin}\nMessage: ${message ?? ''}`
+        : (message ?? new TextDecoder().decode(_messageBytes));
+      return bananojs.BananoUtil.verifyMessage(account.publicKey, messageToVerify, signatureHex);
+    } catch {
       return false;
     }
   }
@@ -932,6 +1708,44 @@ export class WalletManager {
   /**
    * Auto-receive pending transactions for an account using real bananojs
    */
+  /**
+   * Claim receivable (pending) blocks. With no `blockHash`, claims all pending;
+   * with `blockHash`, claims only that specific receivable. Unlike
+   * `autoReceivePending` (best-effort, swallows errors), this surfaces failures
+   * so a dApp-triggered receive reports why it failed. Returns published hashes.
+   */
+  async receivePending(accountAddress: string, blockHash?: string): Promise<string[]> {
+    if (!this.isUnlocked) {
+      throw new Error('Wallet is locked');
+    }
+    if (!this.currentSeed) {
+      throw new Error('Seed not available for receiving');
+    }
+    const account = this.accounts.find((acc) => acc.address === accountAddress);
+    if (!account) {
+      throw new Error('Account not found');
+    }
+    const accountIndex = this.accounts.indexOf(account);
+
+    let representative = 'ban_1ka1ium4pfue3uxtntqkkksy3c3s5xy3q3xr8usayqp2yz3h2msc8jqm7yxs';
+    try {
+      const info = await this.rpc.getAccountInfo(accountAddress);
+      if (info.success && (info.data as { representative?: string })?.representative) {
+        representative = (info.data as { representative: string }).representative;
+      }
+    } catch {
+      /* fall back to default representative */
+    }
+
+    const received = await bananojs.receiveBananoDepositsForSeed(
+      this.currentSeed,
+      accountIndex,
+      representative,
+      blockHash,
+    );
+    return Array.isArray(received) ? received : received ? [received] : [];
+  }
+
   async autoReceivePending(accountAddress: string, pendingAmount?: string): Promise<string[]> {
     if (!this.isUnlocked) {
       throw new Error('Wallet is locked');
@@ -997,6 +1811,229 @@ export class WalletManager {
    */
   getAccountByIdentifier(identifier: string): Account | undefined {
     return this.accounts.find(acc => acc.address === identifier || acc.publicKey === identifier);
+  }
+
+  async signMessageBytes(accountAddress: string, messageBytes: Uint8Array): Promise<string> {
+    if (!this.isUnlocked) throw new Error('Wallet is locked');
+    const account = this.getAccountByIdentifier(accountAddress);
+    if (!account) throw new Error('Account not found');
+    const messageText = new TextDecoder().decode(messageBytes);
+    return bananojs.BananoUtil.signMessage(account.privateKey, messageText);
+  }
+
+  async signIn(
+    accountAddress: string,
+    input: BananoSignInInput,
+    _origin: string,
+  ): Promise<{ signedMessage: Uint8Array; signature: Uint8Array }> {
+    if (!this.isUnlocked) throw new Error('Wallet is locked');
+    const account = this.getAccountByIdentifier(accountAddress);
+    if (!account) throw new Error('Account not found');
+    const messageText = createSignInMessageText({
+      ...input,
+      domain: input.domain!,
+      address: input.address ?? account.address,
+    });
+    const signatureHex = await bananojs.BananoUtil.signMessage(account.privateKey, messageText);
+    const signatureBytes = hexToUint8(signatureHex);
+    return {
+      signedMessage: new TextEncoder().encode(messageText),
+      signature: signatureBytes,
+    };
+  }
+
+  async signOperation(accountAddress: string, operation: BananoOperation): Promise<string> {
+    if (!this.isUnlocked) throw new Error('Wallet is locked');
+    const account = this.accounts.find((acc) => acc.address === accountAddress);
+    if (!account) throw new Error('Account not found');
+
+    if (operation.type === 'send') {
+      if ('sends' in operation) {
+        throw new Error('Multi-send requires publishing; use signAndSendTransaction');
+      }
+      const block = await this.buildSignedSendBlock(account, operation.to, operation.amount);
+      return JSON.stringify(block);
+    }
+    if (operation.type === 'change') {
+      const block = await this.buildSignedChangeBlock(account, operation.representative);
+      return JSON.stringify(block);
+    }
+    if (operation.type === 'receive') {
+      throw new Error('Receiving requires publishing; use signAndSendTransaction');
+    }
+    if (operation.type === 'sweep') {
+      throw new Error('Sweep requires publishing; use signAndSendTransaction');
+    }
+    if (operation.type === 'mint' || operation.type === 'mintEdition') {
+      throw new Error('Minting requires publishing; use signAndSendTransaction');
+    }
+    if (operation.type === 'transfer') {
+      throw new Error('NFT transfer requires publishing; use signAndSendTransaction');
+    }
+    throw new Error('Unsupported operation type');
+  }
+
+  /**
+   * Build, sign, and publish an operation. Returns every block hash produced, in
+   * publish order (a single op returns one hash; multi-send/transfer returns all;
+   * a mint returns the mint hash followed by any fee-send hashes), plus per-leg
+   * `results` for the array forms of send/transfer.
+   */
+  async sendOperation(
+    accountAddress: string,
+    operation: BananoOperation,
+  ): Promise<{ hashes: string[]; results?: BananoBatchLegResult[] }> {
+    if (!this.isUnlocked) throw new Error('Wallet is locked');
+    if (operation.type === 'send') {
+      if ('sends' in operation) {
+        if (operation.sends.length === 0) {
+          throw new Error('send requires a non-empty `sends` array');
+        }
+        return this.batchSend(
+          accountAddress,
+          operation.sends.map((s) => ({ to: s.to, amount: s.amount })),
+        );
+      }
+      const hash = await this.sendBanano(accountAddress, operation.to, operation.amount);
+      return { hashes: [hash] };
+    }
+    if (operation.type === 'change') {
+      const hash = await this.changeRepresentative(accountAddress, operation.representative);
+      return { hashes: [hash] };
+    }
+    if (operation.type === 'receive') {
+      const hashes = await this.receivePending(accountAddress, operation.blockHash);
+      return { hashes };
+    }
+    if (operation.type === 'sweep') {
+      const { hash } = await this.sweep(accountAddress, operation.to);
+      return { hashes: [hash] };
+    }
+    if (operation.type === 'mint') {
+      const result = await this.mintNFT(accountAddress, {
+        metadataCid: operation.metadataCid,
+        to: operation.to,
+        amount: operation.amount,
+        maxSupply: operation.maxSupply,
+        fees: operation.fees ? [...operation.fees] : undefined,
+      });
+      return { hashes: [result.assetRepresentative, ...(result.feeHashes ?? [])] };
+    }
+    if (operation.type === 'mintEdition') {
+      const result = await this.mintEdition(accountAddress, {
+        metadataCid: operation.metadataCid,
+        to: operation.to,
+        amount: operation.amount,
+        fees: operation.fees ? [...operation.fees] : undefined,
+      });
+      return { hashes: [result.assetRepresentative, ...(result.feeHashes ?? [])] };
+    }
+    if (operation.type === 'transfer') {
+      if ('transfers' in operation) {
+        if (operation.transfers.length === 0) {
+          throw new Error('transfer requires a non-empty `transfers` array');
+        }
+        return this.transferNFTs(
+          accountAddress,
+          operation.transfers.map((t) => ({
+            assetRepresentative: t.assetRepresentative,
+            to: t.to,
+            amount: t.amount,
+          })),
+        );
+      }
+      const hash = await this.transferNFT(accountAddress, {
+        assetRepresentative: operation.assetRepresentative,
+        to: operation.to,
+        amount: operation.amount,
+      });
+      return { hashes: [hash] };
+    }
+    throw new Error('Unsupported operation type');
+  }
+
+  private async changeRepresentative(accountAddress: string, representative: string): Promise<string> {
+    if (!this.currentSeed) throw new Error('Seed not available');
+    const account = this.accounts.find((acc) => acc.address === accountAddress);
+    if (!account) throw new Error('Account not found');
+    const accountIndex = this.accounts.indexOf(account);
+    const result = await bananojs.changeBananoRepresentativeForSeed(
+      this.currentSeed,
+      accountIndex,
+      representative,
+    );
+    const hash =
+      typeof result === 'string'
+        ? result
+        : typeof (result as { hash?: string })?.hash === 'string'
+          ? (result as { hash: string }).hash
+          : null;
+    if (!hash) throw new Error('Invalid change result: missing transaction hash');
+    return hash;
+  }
+
+  private async buildSignedSendBlock(
+    account: Account,
+    toAddress: string,
+    amount: string,
+  ): Promise<Record<string, unknown>> {
+    const resolvedTo = await this.resolveRecipientAddress(toAddress);
+    const accountInfo = await bananojs.getAccountInfo(account.address);
+    if (!accountInfo?.balance || !accountInfo?.frontier) {
+      throw new Error('Unable to load account frontier for signing');
+    }
+
+    const amountRaw = bananojs.BananoUtil.getRawStrFromMajorAmountStr(
+      amount.toString(),
+      bananojs.BANANO_PREFIX,
+    );
+    const balanceRaw = accountInfo.balance as string;
+    if (BigInt(balanceRaw) < BigInt(amountRaw)) {
+      throw new Error('Insufficient balance');
+    }
+
+    const remaining = (BigInt(balanceRaw) - BigInt(amountRaw)).toString(10);
+    const representative =
+      (accountInfo.representative as string | undefined) ??
+      (await bananojs.bananodeApi.getAccountRepresentative(account.address));
+    const previous = accountInfo.frontier as string;
+    const work = await bananojs.bananodeApi.getGeneratedWork(previous);
+
+    const block: Record<string, unknown> = {
+      type: 'state',
+      account: account.address,
+      previous,
+      representative,
+      balance: remaining,
+      link: bananojs.BananoUtil.getAccountPublicKey(resolvedTo),
+      work,
+    };
+    block.signature = await bananojs.getSignature(account.privateKey, block);
+    return block;
+  }
+
+  private async buildSignedChangeBlock(
+    account: Account,
+    representative: string,
+  ): Promise<Record<string, unknown>> {
+    const accountInfo = await bananojs.getAccountInfo(account.address);
+    if (!accountInfo?.balance || !accountInfo?.frontier) {
+      throw new Error('Unable to load account info for change block');
+    }
+
+    const previous = accountInfo.frontier as string;
+    const work = await bananojs.bananodeApi.getGeneratedWork(previous);
+    const block: Record<string, unknown> = {
+      type: 'state',
+      account: account.address,
+      previous,
+      representative,
+      balance: accountInfo.balance as string,
+      link: '0000000000000000000000000000000000000000000000000000000000000000',
+      work,
+    };
+    block.signature = await bananojs.getSignature(account.privateKey, block);
+    return block;
   }
 }
 

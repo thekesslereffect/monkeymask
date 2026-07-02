@@ -1,99 +1,52 @@
-import { useMonkeyMask } from '@/providers';
-import { useState, useEffect } from 'react';
-import { Button } from './ui/Button';
+'use client';
+
+import React, { useState } from 'react';
 import { Icon } from '@iconify/react';
+import { useMonkeyMask } from '@/providers';
+import { Button } from '@/components/ui';
+
+const DONATION_AMOUNT = '1';
+const DONATION_RECIPIENT = 'cosmic.ban';
 
 export function DonateButton() {
-  const { sendTransaction } = useMonkeyMask();
-  const [sending, setSending] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const DONATION_AMOUNT = '100';
+  const { signAndSendTransaction, connected } = useMonkeyMask();
+  const [status, setStatus] = useState<string | null>(null);
+  const [donating, setDonating] = useState(false);
 
-  // Reset success/error states after 3 seconds
-  useEffect(() => {
-    if (success || error) {
-      const timer = setTimeout(() => {
-        setSuccess(false);
-        setError(null);
-      }, 3000);
-      return () => clearTimeout(timer);
+  const handleDonate = async () => {
+    if (!connected) {
+      setStatus('Connect wallet first');
+      return;
     }
-  }, [success, error]);
-
-  const handleSend = async () => {
-    // Reset states immediately when user clicks
-    setError(null);
-    setSuccess(false);
-    setSending(true);
-    
+    setDonating(true);
+    setStatus(null);
     try {
-      console.log('Starting transaction...');
-      const result = await sendTransaction('cosmic.ban', DONATION_AMOUNT);
-      console.log('Transaction successful:', result);
-      
-      // Only set success if we got a transaction hash
-      if (result) {
-        setSuccess(true);
-      } else {
-        throw new Error('Transaction failed - no hash returned');
-      }
+      const result = await signAndSendTransaction({
+        type: 'send',
+        to: DONATION_RECIPIENT,
+        amount: DONATION_AMOUNT,
+      });
+      setStatus(result.hash ? `Thank you! ${result.hash.slice(0, 12)}...` : 'Donation sent');
     } catch (err) {
-      console.log('Transaction failed:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Transaction failed';
-      setError(errorMessage);
-      setSuccess(false);
+      setStatus(err instanceof Error ? err.message : 'Donation failed');
     } finally {
-      setSending(false);
+      setDonating(false);
     }
-  };
-  const getButtonContent = () => {
-    if (sending) {
-      return (
-        <>
-          <Icon icon="mdi:loading" className="size-4 animate-spin text-rose-500" />
-          Sending...
-        </>
-      );
-    }
-    
-    if (success) {
-      return (
-        <>
-          <Icon icon="mdi:heart" className="size-4 text-rose-500" />
-          Thank you!
-        </>
-      );
-    }
-    
-    if (error) {
-      return (
-        <>
-          <Icon icon="mdi:heart" className="size-4 text-rose-500" />
-          Maybe next time...
-        </>
-      );
-    }
-    
-    return (
-      <>
-        <Icon icon="mdi:heart" className="size-4 text-rose-500" />
-        Donate {DONATION_AMOUNT} BAN
-      </>
-    );
   };
 
   return (
-    <Button 
-      onClick={handleSend} 
-      disabled={sending} 
-      variant="secondary" 
-      size="sm" 
-      className="fixed bottom-4 right-4 gap-2 hidden md:flex" 
-      title={error ? `Error: ${error}` : `Donate ${DONATION_AMOUNT} BAN to cosmic.ban`}
-    >
-      {getButtonContent()}
-    </Button>
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
+      {status && <span className="text-xs bg-white border rounded px-2 py-1">{status}</span>}
+      <Button onClick={() => void handleDonate()} variant="default" size="sm" disabled={donating}>
+        {donating ? (
+          <>
+            <Icon icon="mdi:loading" className="size-4 animate-spin mr-2" />
+            Sending…
+          </>
+        ) : (
+          `Donate ${DONATION_AMOUNT} BAN`
+        )}
+      </Button>
+    </div>
   );
 }
-

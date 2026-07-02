@@ -2,7 +2,19 @@ import { WalletManager } from '../utils/wallet';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const bananojs = require('@bananocoin/bananojs');
 import { BananoRPC } from '../utils/rpc';
-import { WalletRequest, Account } from '../types/wallet';
+import { banToRaw, rawToBan } from '@monkeymask/wallet-standard';
+import { handleProtocolRequest, type ProtocolHandlerHost } from './protocolHandlers';
+
+/** A per-origin spending allowance for auto-approved small sends. */
+interface SpendSession {
+  address: string;
+  /** Total allowance in raw. */
+  limitRaw: string;
+  /** Amount already auto-approved in raw. */
+  spentRaw: string;
+  /** Epoch ms when the allowance expires. */
+  expiresAt: number;
+}
 
 // Standardized error codes (matching injected provider)
 const PROVIDER_ERRORS = {
@@ -32,8 +44,8 @@ interface ApprovalResult {
 }
 
 class BackgroundService {
+  private static readonly LOCK_ALARM_NAME = 'monkeymask-autolock';
   private walletManager: WalletManager;
-  private lockTimer: NodeJS.Timeout | null = null;
   private resetLockTimer: (() => Promise<void>) | null = null;
   private rpc: BananoRPC;
   private pendingApprovals: Map<string, any> = new Map();
@@ -42,15 +54,25 @@ class BackgroundService {
   private permissions: Map<string, AccountPermission> = new Map();
   private connectedTabs: Map<number, string> = new Map(); // tabId -> origin
   private accountInfoCache: Map<string, { accountInfo: any; ts: number }> = new Map();
+  private spendSessions: Map<string, SpendSession> = new Map();
+  private static readonly SPEND_SESSIONS_KEY = 'mm_spend_sessions';
+  private static readonly DEFAULT_SESSION_MS = 60 * 60 * 1000; // 1 hour
+  private static readonly MAX_SESSION_MS = 24 * 60 * 60 * 1000; // 24 hours
+  private spendSessionsLoaded = false;
   private static readonly ACCOUNT_INFO_TTL_MS = 5000;
   private lastPendingApprovalCheck: Map<string, number> = new Map(); // origin -> timestamp
   private static readonly PENDING_APPROVAL_RATE_LIMIT_MS = 1000; // 1 second
+  private readonly ready: Promise<void>;
 
   constructor() {
     this.walletManager = WalletManager.getInstance();
     this.rpc = new BananoRPC();
     this.setupMessageListeners();
     this.loadPermissions();
+    void this.loadSpendSessions();
+    // Restore any valid unlocked session left by a previous worker instance.
+    // Message handling awaits this so state reads don't race the restore.
+    this.ready = this.restoreSessionOnStartup();
   }
 
   private setupMessageListeners(): void {
@@ -88,7 +110,6 @@ class BackgroundService {
   private async handleVerifySignedMessage(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
       const { message, signature, publicKey, display = 'utf8', origin } = request;
-      console.log('Background: Verify message request:', { message, signature, publicKey, display, origin });
       
       if (!message || !signature || !publicKey) {
         sendResponse(this.createStandardError(
@@ -102,13 +123,8 @@ class BackgroundService {
       try {
         // Build the same domain-separated message bytes as in signing
         const messageBytes = this.getPrefixedMessageBytes(message, display, origin || 'unknown');
-        console.log('Background: Built prefixed message bytes for verification');
-        console.log('Background: Verification prefix string:', `MonkeyMask Signed Message:\nOrigin: ${origin || 'unknown'}\nMessage: ${message}`);
-        console.log('Background: Verification bytes length:', messageBytes.length);
-        console.log('Background: Verification bytes hex:', Array.from(messageBytes, byte => byte.toString(16).padStart(2, '0')).join(''));
         
         const isValid = await this.walletManager.verifySignedMessage(publicKey, messageBytes, signature, message, origin || 'unknown');
-        console.log('Background: Verification result:', isValid);
         
         sendResponse({ success: true, data: { valid: isValid } });
       } catch (verifyError) {
@@ -351,7 +367,7 @@ class BackgroundService {
       tabs.forEach(tab => {
         if (tab.id && (!targetOrigin || this.connectedTabs.get(tab.id) === targetOrigin)) {
           chrome.tabs.sendMessage(tab.id, {
-            source: 'banano-provider-event-broadcast',
+            source: 'monkeymask-provider-event-broadcast',
             event,
             data
           }).catch(() => {
@@ -364,10 +380,25 @@ class BackgroundService {
 
   private async handleMessage(request: any, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void): Promise<void> {
     try {
+      // Ensure any persisted session is restored before we read wallet state,
+      // otherwise a message that starts the worker could race the restore and
+      // incorrectly report the wallet as locked.
+      await this.ready;
+
+      // Track tab/origin for provider event routing.
+      if (sender.tab?.id && typeof request?.origin === 'string' && request.origin.length > 0) {
+        this.connectedTabs.set(sender.tab.id, request.origin);
+      }
+
       // Reset lock timer on any user activity (except for certain system messages)
-      if (this.resetLockTimer && !['GET_AUTO_LOCK_TIMEOUT', 'SET_AUTO_LOCK_TIMEOUT'].includes(request.type)) {
-        console.log('Background: Resetting timer due to message type:', request.type);
+      const activityKey = request.method ?? request.type;
+      if (this.resetLockTimer && activityKey && !['GET_AUTO_LOCK_TIMEOUT', 'SET_AUTO_LOCK_TIMEOUT'].includes(activityKey)) {
         this.resetLockTimer();
+      }
+
+      if (request.method) {
+        await handleProtocolRequest(this as unknown as ProtocolHandlerHost, request, sendResponse);
+        return;
       }
       
       switch (request.type) {
@@ -420,6 +451,14 @@ class BackgroundService {
           await this.handleSendTransaction(request, sendResponse);
           break;
 
+        case 'TRANSFER_NFT':
+          await this.handleTransferNFT(request, sendResponse);
+          break;
+
+        case 'SWEEP_TRANSACTION':
+          await this.handleSweepTransaction(request, sendResponse);
+          break;
+
         case 'GET_BALANCE':
           await this.handleGetBalance(request, sendResponse);
           break;
@@ -442,6 +481,10 @@ class BackgroundService {
         
         case 'GET_ACCOUNT_HISTORY':
           await this.handleGetAccountHistory(request, sendResponse);
+          break;
+
+        case 'GET_NFTS':
+          await this.handleGetNFTs(request, sendResponse);
           break;
         
         case 'GET_PENDING_APPROVAL':
@@ -527,10 +570,10 @@ class BackgroundService {
       const isUnlocked = this.walletManager.isWalletUnlocked();
       console.log('Background: Wallet unlocked after creation:', isUnlocked);
       
-      // Start auto-lock timer after successful wallet creation
-      if (isUnlocked && this.resetLockTimer) {
-        console.log('Background: Starting auto-lock timer after wallet creation');
-        await this.resetLockTimer();
+      // Persist session and arm auto-lock after successful wallet creation
+      if (isUnlocked) {
+        console.log('Background: Persisting session after wallet creation');
+        await this.persistUnlockedSession();
       }
       
       sendResponse({
@@ -562,10 +605,10 @@ class BackgroundService {
       const isUnlocked = this.walletManager.isWalletUnlocked();
       console.log('Background: Wallet unlocked after import:', isUnlocked);
       
-      // Start auto-lock timer after successful wallet import
-      if (isUnlocked && this.resetLockTimer) {
-        console.log('Background: Starting auto-lock timer after wallet import');
-        await this.resetLockTimer();
+      // Persist session and arm auto-lock after successful wallet import
+      if (isUnlocked) {
+        console.log('Background: Persisting session after wallet import');
+        await this.persistUnlockedSession();
       }
       
       sendResponse({
@@ -594,10 +637,10 @@ class BackgroundService {
       const isUnlocked = this.walletManager.isWalletUnlocked();
       console.log('Background: Wallet unlocked after unlock:', isUnlocked);
       
-      // Start auto-lock timer after successful wallet unlock
-      if (isUnlocked && this.resetLockTimer) {
-        console.log('Background: Starting auto-lock timer after wallet unlock');
-        await this.resetLockTimer();
+      // Persist session and arm auto-lock after successful wallet unlock
+      if (isUnlocked) {
+        console.log('Background: Persisting session after wallet unlock');
+        await this.persistUnlockedSession();
       }
       
       sendResponse({
@@ -620,6 +663,7 @@ class BackgroundService {
 
   private async handleLockWallet(sendResponse: (response: any) => void): Promise<void> {
     this.walletManager.lockWallet();
+    await chrome.alarms.clear(BackgroundService.LOCK_ALARM_NAME);
     sendResponse({ success: true });
   }
 
@@ -1042,15 +1086,10 @@ class BackgroundService {
       
       // Revoke permission for this origin
       if (request.origin) {
-        this.permissions.delete(request.origin);
-        await this.savePermissions();
-        console.log('Background: Revoked permission for origin:', request.origin);
+        await this.revokeOriginPermission(request.origin);
+        console.log('Background: Revoked permissions for origin:', request.origin);
       }
-      
-      // Emit disconnect event to all tabs from this origin
-      this.emitProviderEvent('disconnect', null, request.origin);
-      console.log('Background: Emitted disconnect event for origin:', request.origin);
-      
+
       sendResponse({ success: true });
     } catch (error) {
       console.error('Background: Error disconnecting wallet:', error);
@@ -1174,31 +1213,91 @@ class BackgroundService {
   private async handleSendBlock(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
       console.log('Background: Send block request:', request.block);
-      
-      const { block } = request;
-      if (!block || !block.signature) {
-        sendResponse({ success: false, error: 'Invalid or unsigned block' });
+
+      // Returning a simulated hash is unsafe for production dApps.
+      sendResponse(this.createStandardError(
+        'sendBlock is not implemented yet. Use sendTransaction instead.',
+        PROVIDER_ERRORS.UNSUPPORTED_METHOD.code
+      ));
+    } catch (error) {
+      console.error('Background: Error sending block:', error);
+      sendResponse(this.createStandardError(
+        error instanceof Error ? error.message : 'Failed to send block',
+        PROVIDER_ERRORS.INTERNAL_ERROR.code
+      ));
+    }
+  }
+
+  /**
+   * Transfer an owned NFT from within the extension popup (no dApp approval —
+   * this is a first-party user action). Publishes a `send#asset` block.
+   */
+  private async handleTransferNFT(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      if (!this.walletManager.isWalletUnlocked()) {
+        sendResponse({ success: false, error: 'Wallet is locked' });
+        return;
+      }
+      const { fromAddress, assetRepresentative, toAddress, amount } = request;
+      if (!fromAddress || !assetRepresentative || !toAddress) {
+        sendResponse({
+          success: false,
+          error: 'Missing required fields: fromAddress, assetRepresentative, toAddress',
+        });
         return;
       }
 
-      // For Phase 3, we implement basic block sending via RPC
-      // This would submit the signed block to the Banano network
-      
-      // For now, simulate successful submission
-      const blockHash = 'SIMULATED_' + Date.now().toString(16).toUpperCase();
-      
-      console.log('Background: Block sent successfully with hash:', blockHash);
-      
-      sendResponse({
-        success: true,
-        data: { hash: blockHash }
+      const hash = await this.walletManager.transferNFT(fromAddress, {
+        assetRepresentative,
+        to: toAddress,
+        amount,
       });
-      
+
+      setTimeout(() => {
+        this.updateBalancesAsync().catch((err) => {
+          console.warn('Background: post transfer refresh failed:', err);
+        });
+      }, 0);
+
+      sendResponse({ success: true, data: { hash } });
     } catch (error) {
-      console.error('Background: Error sending block:', error);
+      console.error('Background: Error transferring NFT:', error);
       sendResponse({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to send block'
+        error: error instanceof Error ? error.message : 'Failed to transfer NFT',
+      });
+    }
+  }
+
+  private async handleSweepTransaction(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      if (!this.walletManager.isWalletUnlocked()) {
+        sendResponse({ success: false, error: 'Wallet is locked' });
+        return;
+      }
+      const { fromAddress, toAddress } = request;
+      if (!fromAddress || !toAddress) {
+        sendResponse({ success: false, error: 'Missing required fields: fromAddress, toAddress' });
+        return;
+      }
+
+      const { hash, amount } = await this.walletManager.sweep(fromAddress, toAddress);
+
+      setTimeout(() => {
+        this.updateBalancesAsync().catch((err) => {
+          console.warn('Background: post sweep refresh failed:', err);
+        });
+      }, 0);
+
+      sendResponse({
+        success: true,
+        data: { hash, block: { type: 'sweep', fromAddress, toAddress, amount } },
+      });
+    } catch (error) {
+      console.error('Background: Error sweeping:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to sweep',
       });
     }
   }
@@ -1573,8 +1672,263 @@ class BackgroundService {
     }
   }
 
+  private async handleReverseResolveBNS(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      let { address } = request;
+      const { tld } = request;
+      if (!address) {
+        address = await this.getCurrentAccountAddress();
+      }
+      if (!address) {
+        sendResponse(this.createStandardError(
+          'Address is required',
+          PROVIDER_ERRORS.INVALID_PARAMS.code,
+        ));
+        return;
+      }
+
+      const { bnsResolver } = await import('../utils/bns');
+      const names = await bnsResolver.reverseResolve(address, tld);
+
+      console.log('Background: Reverse resolved', address, 'to', names);
+      sendResponse({ success: true, data: { names } });
+    } catch (error) {
+      console.error('Background: Error reverse resolving BNS:', error);
+      sendResponse(this.createStandardError(
+        error instanceof Error ? error.message : 'Failed to reverse resolve address',
+        PROVIDER_ERRORS.INTERNAL_ERROR.code,
+      ));
+    }
+  }
+
+  // ---- Spending sessions (auto-approve small dApp sends) -------------------
+
+  private async loadSpendSessions(): Promise<void> {
+    if (this.spendSessionsLoaded) return;
+    try {
+      const stored = await chrome.storage.local.get(BackgroundService.SPEND_SESSIONS_KEY);
+      const raw = stored[BackgroundService.SPEND_SESSIONS_KEY] as Record<string, SpendSession> | undefined;
+      if (raw) {
+        for (const [origin, session] of Object.entries(raw)) {
+          this.spendSessions.set(origin, session);
+        }
+      }
+    } catch (error) {
+      console.warn('Background: failed to load spend sessions:', error);
+    }
+    this.spendSessionsLoaded = true;
+  }
+
+  private async persistSpendSessions(): Promise<void> {
+    const obj: Record<string, SpendSession> = {};
+    for (const [origin, session] of this.spendSessions.entries()) obj[origin] = session;
+    try {
+      await chrome.storage.local.set({ [BackgroundService.SPEND_SESSIONS_KEY]: obj });
+    } catch (error) {
+      console.warn('Background: failed to persist spend sessions:', error);
+    }
+  }
+
+  private getActiveSession(origin: string, address?: string): SpendSession | null {
+    const session = this.spendSessions.get(origin);
+    if (!session) return null;
+    if (session.expiresAt <= Date.now()) {
+      this.spendSessions.delete(origin);
+      void this.persistSpendSessions();
+      return null;
+    }
+    if (address && session.address !== address) return null;
+    return session;
+  }
+
+  private sessionInfo(session: SpendSession) {
+    const remainingBig = BigInt(session.limitRaw) - BigInt(session.spentRaw);
+    const remainingRaw = (remainingBig < 0n ? 0n : remainingBig).toString();
+    return {
+      address: session.address,
+      limit: rawToBan(session.limitRaw),
+      spent: rawToBan(session.spentRaw),
+      remaining: rawToBan(remainingRaw),
+      expiresAt: session.expiresAt,
+    };
+  }
+
+  canAutoApproveSend(origin: string, address: string, amountBan: string): boolean {
+    const session = this.getActiveSession(origin, address);
+    if (!session) return false;
+    let amountRaw: bigint;
+    try {
+      amountRaw = BigInt(banToRaw(amountBan));
+    } catch {
+      return false;
+    }
+    if (amountRaw <= 0n) return false;
+    const remaining = BigInt(session.limitRaw) - BigInt(session.spentRaw);
+    return amountRaw <= remaining;
+  }
+
+  recordAutoApprovedSpend(origin: string, address: string, amountBan: string): void {
+    const session = this.getActiveSession(origin, address);
+    if (!session) return;
+    try {
+      const next = BigInt(session.spentRaw) + BigInt(banToRaw(amountBan));
+      session.spentRaw = next.toString();
+      this.spendSessions.set(origin, session);
+      void this.persistSpendSessions();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async handleRequestSpendingSession(
+    request: { limit?: string; durationMs?: number; address?: string },
+    origin: string,
+    sendResponse: (response: any) => void,
+  ): Promise<void> {
+    try {
+      await this.loadSpendSessions();
+      const address = request.address || (await this.getCurrentAccountAddress());
+      if (!address) {
+        sendResponse(this.createStandardError('No account available', PROVIDER_ERRORS.INVALID_PARAMS.code));
+        return;
+      }
+      if (!this.isAccountAuthorizedForOrigin(address, origin)) {
+        sendResponse(this.createStandardError('Unauthorized', PROVIDER_ERRORS.UNAUTHORIZED.code));
+        return;
+      }
+      if (!request.limit) {
+        sendResponse(this.createStandardError('A spending limit is required', PROVIDER_ERRORS.INVALID_PARAMS.code));
+        return;
+      }
+      let limitRaw: string;
+      try {
+        limitRaw = banToRaw(request.limit);
+      } catch {
+        sendResponse(this.createStandardError('Invalid limit amount', PROVIDER_ERRORS.INVALID_PARAMS.code));
+        return;
+      }
+      if (BigInt(limitRaw) <= 0n) {
+        sendResponse(this.createStandardError('Limit must be greater than zero', PROVIDER_ERRORS.INVALID_PARAMS.code));
+        return;
+      }
+      const durationMs = Math.min(
+        Math.max(request.durationMs ?? BackgroundService.DEFAULT_SESSION_MS, 60_000),
+        BackgroundService.MAX_SESSION_MS,
+      );
+
+      const approval = await this.queueApproval('spendingSession', origin, {
+        address,
+        limit: request.limit,
+        durationMs,
+      });
+      if (!approval.approved) {
+        sendResponse(this.createStandardError('User rejected the request', PROVIDER_ERRORS.USER_REJECTED.code));
+        return;
+      }
+
+      const session: SpendSession = {
+        address,
+        limitRaw,
+        spentRaw: '0',
+        expiresAt: Date.now() + durationMs,
+      };
+      this.spendSessions.set(origin, session);
+      await this.persistSpendSessions();
+      this.storeOperationResult(approval.requestId, { success: true, type: 'spendingSession' });
+      sendResponse({ success: true, data: this.sessionInfo(session) });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to grant spending session';
+      const code = message.includes('reject')
+        ? PROVIDER_ERRORS.USER_REJECTED.code
+        : PROVIDER_ERRORS.INTERNAL_ERROR.code;
+      sendResponse(this.createStandardError(message, code));
+    }
+  }
+
+  async handleGetSpendingSession(origin: string, sendResponse: (response: any) => void): Promise<void> {
+    await this.loadSpendSessions();
+    const session = this.getActiveSession(origin);
+    sendResponse({ success: true, data: { session: session ? this.sessionInfo(session) : null } });
+  }
+
+  async handleRevokeSpendingSession(origin: string, sendResponse: (response: any) => void): Promise<void> {
+    await this.loadSpendSessions();
+    this.spendSessions.delete(origin);
+    await this.persistSpendSessions();
+    sendResponse({ success: true, data: { revoked: true } });
+  }
+
+  private async handleGetNFTs(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      let { address } = request;
+      if (!address) {
+        address = await this.getCurrentAccountAddress();
+      }
+      if (!address) {
+        sendResponse({ success: false, error: 'No accounts available' });
+        return;
+      }
+
+      const { fetchAllNFTsForAddress } = await import('../utils/nft');
+      const result = await fetchAllNFTsForAddress(address);
+
+      sendResponse({ success: true, data: result });
+    } catch (error) {
+      console.error('Background: Error fetching NFTs:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch NFTs',
+      });
+    }
+  }
+
   // hexToAccount method removed - no longer needed since bananojs.getAccountHistory() 
   // already resolves account addresses for us
+
+  private async handleGetReceivable(request: any, sendResponse: (response: any) => void): Promise<void> {
+    try {
+      let { address, count = 20 } = request;
+      if (!address) {
+        const currentAddress = await this.getCurrentAccountAddress();
+        if (!currentAddress) {
+          sendResponse({ success: false, error: 'No accounts available' });
+          return;
+        }
+        address = currentAddress;
+      }
+
+      const pendingResult = await this.rpc.getPending(address, count);
+      if (!pendingResult.success) {
+        sendResponse({ success: false, error: 'Failed to fetch receivables' });
+        return;
+      }
+
+      const blocks = (pendingResult.data as { blocks?: unknown })?.blocks;
+      const receivables =
+        blocks && typeof blocks === 'object'
+          ? Object.entries(blocks as Record<string, unknown>).map(([hash, info]) => {
+              const amountRaw =
+                typeof info === 'string'
+                  ? info
+                  : ((info as { amount?: string })?.amount ?? '0');
+              return {
+                hash,
+                amountRaw,
+                amount: BananoRPC.rawToBan(amountRaw),
+                source: typeof info === 'object' ? (info as { source?: string })?.source : undefined,
+              };
+            })
+          : [];
+
+      sendResponse({ success: true, data: { receivables } });
+    } catch (error) {
+      console.error('Background: Error getting receivables:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch receivables',
+      });
+    }
+  }
 
   private async handleGetAccountHistory(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
@@ -2143,116 +2497,168 @@ class BackgroundService {
     }
   }
 
+  async revokeOriginPermissions(origin: string): Promise<void> {
+    await this.revokeOriginPermission(origin);
+  }
+
+  async queueApproval(
+    type: string,
+    origin: string,
+    data: Record<string, unknown>,
+  ): Promise<{ approved: boolean; accounts?: string[]; requestId: string }> {
+    const requestId = `${type}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const approvalRequest = { id: requestId, origin, type, data };
+    this.pendingApprovals.set(requestId, approvalRequest);
+
+    const approvalPromise = new Promise<ApprovalResult>((resolve, reject) => {
+      this.approvalResolvers.set(requestId, { resolve, reject });
+      setTimeout(() => {
+        if (this.approvalResolvers.has(requestId)) {
+          this.approvalResolvers.delete(requestId);
+          this.pendingApprovals.delete(requestId);
+          reject(new Error('User approval timeout'));
+        }
+      }, 15 * 60 * 1000);
+    });
+
+    try {
+      await chrome.action.openPopup();
+    } catch {
+      // Popup may already be open.
+    }
+
+    const result = await approvalPromise;
+    return { ...result, requestId };
+  }
+
+  storeOperationResult(requestId: string, result: Record<string, unknown>): void {
+    this.transactionResults.set(requestId, result);
+  }
+
   private async handleAccountChanged(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
-      console.log('Background: Account changed notification:', request);
-      
-      const { previousAccount, newAccount } = request;
-      
-      if (!previousAccount || !newAccount) {
+      const { newAccount } = request;
+      if (!newAccount) {
         sendResponse({ success: false, error: 'Missing account information' });
         return;
       }
-      
-      console.log('Background: Emitting account change events - from:', previousAccount, 'to:', newAccount);
-      
-      // First, emit disconnect event to all connected sites
-      this.emitProviderEvent('disconnect', null);
-      
-      // Small delay to ensure disconnect is processed, then check authorization per site
-      setTimeout(() => {
-        // Get all unique origins that have any authorized accounts
-        const origins = new Set<string>();
-        this.permissions.forEach((permission) => {
-          origins.add(permission.origin);
-        });
-        
-        // Check each origin to see if the new account is authorized
-        origins.forEach((origin) => {
-          const isNewAccountAuthorized = this.isAccountAuthorizedForOrigin(newAccount, origin);
-          
-          if (isNewAccountAuthorized) {
-            console.log(`Background: New account ${newAccount} is authorized for ${origin}, emitting connect event`);
-            
-            // Get all authorized accounts for this origin
-            const authorizedAccounts = this.getAuthorizedAccountsForOrigin(origin);
-            
-            // Emit connect event to this specific origin since the account is authorized
-            this.emitProviderEvent('connect', {
-              publicKey: newAccount,
-              accounts: authorizedAccounts // Send all approved accounts for this origin
-            }, origin);
-          } else {
-            console.log(`Background: New account ${newAccount} is NOT authorized for ${origin}, keeping disconnected`);
-            
-            // The site remains disconnected (already sent disconnect above)
-            // No need to emit another disconnect event
-          }
-        });
-        
-        console.log('Background: Account change events processed for all sites');
-      }, 100);
-      
+
+      const accountMeta = this.walletManager.getAccounts().find((a) => a.address === newAccount);
+      this.emitProviderEvent('change', {
+        accounts: [
+          {
+            address: newAccount,
+            publicKeyHex: accountMeta?.publicKey ?? '',
+            label: accountMeta?.name,
+          },
+        ],
+      });
+
+      const origins = new Set<string>();
+      this.permissions.forEach((permission) => origins.add(permission.origin));
+      origins.forEach((origin) => {
+        if (this.isAccountAuthorizedForOrigin(newAccount, origin)) {
+          const authorizedAccounts = this.getAuthorizedAccountsForOrigin(origin);
+          this.emitProviderEvent(
+            'connect',
+            { publicKey: newAccount, publicKeyHex: accountMeta?.publicKey, accounts: authorizedAccounts },
+            origin,
+          );
+        }
+      });
+
       sendResponse({ success: true });
-      
     } catch (error) {
-      console.error('Background: Error handling account change:', error);
       sendResponse({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to handle account change'
+        error: error instanceof Error ? error.message : 'Failed to handle account change',
       });
     }
   }
 
+  private async getAutoLockTimeout(): Promise<number> {
+    try {
+      const result = await chrome.storage.local.get(['autoLockTimeout']);
+      return result.autoLockTimeout || (15 * 60 * 1000); // 15 minutes default
+    } catch (error) {
+      console.error('Background: Error retrieving auto-lock timeout, using default:', error);
+      return 15 * 60 * 1000;
+    }
+  }
+
+  /**
+   * Persist the freshly-unlocked session and arm the auto-lock alarm.
+   * Called after create/import/unlock.
+   */
+  private async persistUnlockedSession(): Promise<void> {
+    const timeout = await this.getAutoLockTimeout();
+    const expiresAt = Date.now() + timeout;
+    await this.walletManager.persistSession(expiresAt);
+    await chrome.alarms.clear(BackgroundService.LOCK_ALARM_NAME);
+    chrome.alarms.create(BackgroundService.LOCK_ALARM_NAME, { when: expiresAt });
+    console.log(`Background: Auto-lock armed for ${timeout / 1000 / 60} minutes`);
+  }
+
+  /**
+   * MV3-safe auto-lock. The service worker can be killed at any time, so we:
+   *  - persist the unlocked session (and its deadline) in chrome.storage.session
+   *  - use chrome.alarms (which wake the worker) instead of setTimeout
+   *  - restore the session on startup if the deadline has not passed
+   */
   private setupAutoLock(): void {
-    // Default to 15 minutes like Phantom, but make it configurable
-    const getAutoLockTimeout = async (): Promise<number> => {
-      try {
-        const result = await chrome.storage.local.get(['autoLockTimeout']);
-        const timeout = result.autoLockTimeout || (15 * 60 * 1000);
-        console.log('Background: Retrieved auto-lock timeout from storage:', timeout, 'ms (', timeout / 1000 / 60, 'minutes)');
-        return timeout;
-      } catch (error) {
-        console.error('Background: Error retrieving auto-lock timeout, using default:', error);
-        return 15 * 60 * 1000; // 15 minutes default
-      }
-    };
-
+    // Activity resets extend the deadline and re-arm the alarm.
     this.resetLockTimer = async () => {
-      if (this.lockTimer) {
-        clearTimeout(this.lockTimer);
-        this.lockTimer = null;
-        console.log('Background: Cleared existing lock timer');
+      if (!this.walletManager.isWalletUnlocked()) {
+        await chrome.alarms.clear(BackgroundService.LOCK_ALARM_NAME);
+        return;
       }
-      
-      if (this.walletManager.isWalletUnlocked()) {
-        const timeout = await getAutoLockTimeout();
-        console.log('Background: Setting new lock timer with timeout:', timeout, 'ms (', timeout / 1000 / 60, 'minutes)');
-        
-        this.lockTimer = setTimeout(() => {
-          this.walletManager.lockWallet();
-          console.log('Background: Wallet auto-locked due to inactivity');
-          
-          // Emit disconnect event to all connected sites
-          this.emitProviderEvent('disconnect', null);
-        }, timeout);
-        
-        console.log(`Background: Auto-lock timer set for ${timeout / 1000 / 60} minutes`);
-      } else {
-        console.log('Background: Wallet is locked, not setting auto-lock timer');
-      }
+      const timeout = await this.getAutoLockTimeout();
+      const expiresAt = Date.now() + timeout;
+      await this.walletManager.updateSessionExpiry(expiresAt);
+      await chrome.alarms.clear(BackgroundService.LOCK_ALARM_NAME);
+      chrome.alarms.create(BackgroundService.LOCK_ALARM_NAME, { when: expiresAt });
     };
 
-    // Reset timer when extension popup is opened (user activity)
-    chrome.action.onClicked.addListener(() => {
-      if (this.resetLockTimer) {
-        this.resetLockTimer();
+    chrome.alarms.onAlarm.addListener(async (alarm) => {
+      if (alarm.name !== BackgroundService.LOCK_ALARM_NAME) return;
+
+      // Activity may have extended the deadline after this alarm was scheduled.
+      const expiry = await this.walletManager.getSessionExpiry();
+      if (expiry && Date.now() < expiry) {
+        chrome.alarms.create(BackgroundService.LOCK_ALARM_NAME, { when: expiry });
+        return;
       }
+
+      this.walletManager.lockWallet();
+      console.log('Background: Wallet auto-locked due to inactivity');
+      this.emitProviderEvent('disconnect', null);
     });
 
-    // Initial timer setup
-    if (this.resetLockTimer) {
-      this.resetLockTimer();
+    // Reset timer when the toolbar icon is clicked (user activity).
+    chrome.action.onClicked.addListener(() => {
+      void this.resetLockTimer?.();
+    });
+  }
+
+  /**
+   * Restore any valid unlocked session left behind by a previous worker
+   * instance, and re-arm the alarm for the remaining time.
+   */
+  private async restoreSessionOnStartup(): Promise<void> {
+    try {
+      const restored = await this.walletManager.restoreSession();
+      if (!restored) return;
+
+      const expiry = await this.walletManager.getSessionExpiry();
+      if (expiry && Date.now() < expiry) {
+        await chrome.alarms.clear(BackgroundService.LOCK_ALARM_NAME);
+        chrome.alarms.create(BackgroundService.LOCK_ALARM_NAME, { when: expiry });
+        console.log('Background: Restored session, auto-lock re-armed');
+      } else {
+        this.walletManager.lockWallet();
+      }
+    } catch (error) {
+      console.error('Background: Failed to restore session on startup:', error);
     }
   }
 }

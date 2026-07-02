@@ -1,18 +1,24 @@
 {
   "manifest_version": 3,
   "name": "MonkeyMask - Banano Wallet",
-  "version": "0.1.2",
-  "description": "Browser extension wallet for Banano cryptocurrency",
+  "version": "0.2.0",
+  "description": "Banano browser wallet with Wallet Standard and Sign In With Banano",
   "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": [
-    "storage",
-    "activeTab"
-  ],
+  "permissions": ["storage", "activeTab", "alarms"],
   "host_permissions": [
     "https://*.banano.cc/*",
-    "https://*.bananorpc.com/*"
+    "https://*.bananorpc.com/*",
+    "https://kaliumapi.appditto.com/*",
+    "https://*.dev-ptera.com/*",
+    "https://cwispy.app/*",
+    "https://ipfs.io/*",
+    "https://*.convex.site/*",
+    "https://*.convex.cloud/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -28,6 +34,9 @@
     "default_popup": "popup.html",
     "default_title": "MonkeyMask",
     "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
     }
   },
@@ -36,5 +45,8 @@
       "resources": ["injected.js"],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "externally_connectable": {
+    "matches": ["<all_urls>"]
+  }
 }

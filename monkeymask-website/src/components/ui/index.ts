@@ -7,5 +7,6 @@ export * from './Separator';
 export * from './Badge';
 export * from './Alert';
 export * from './Textarea';
+export * from './StatusBox';
 
 

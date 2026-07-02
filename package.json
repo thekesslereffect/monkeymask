@@ -1,0 +1,21 @@
+{
+  "name": "monkeymask-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "extension",
+    "monkeymask-website"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "build:packages": "npm run build -w @monkeymask/wallet-standard && npm run build -w @monkeymask/react",
+    "build:extension": "npm run build -w monkeymask",
+    "build:website": "npm run build -w monkeymask-dapp-template",
+    "dev:extension": "npm run dev -w monkeymask",
+    "dev:website": "npm run dev -w monkeymask-dapp-template",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

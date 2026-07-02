@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Header, ContentContainer, Footer, Separator, PageName, Card, TransactionSkeleton } from './ui';
-import { Icon } from '@iconify/react';
-import { useNavigation } from '../hooks/useRouter';
+import { Header, ContentContainer, Footer, Separator, PageName, Card, TransactionSkeleton, EmptyState } from './ui';
 import { useAccounts } from '../hooks/useAccounts';
+import { TransactionRow } from './TransactionRow';
 
 interface Transaction {
   hash: string;
@@ -18,17 +17,12 @@ interface GroupedTransactions {
 }
 
 export const HistoryScreen: React.FC = () => {
-  const navigation = useNavigation();
   const { accounts, currentAccount } = useAccounts();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [nextPageHead, setNextPageHead] = useState<string | null>(null);
-
-  const handleViewOnCreeper = (hash: string) => {
-    window.open(`https://creeper.banano.cc/hash/${hash}`, '_blank');
-  };
 
   const fetchTransactions = async (head?: string | null, append: boolean = false) => {
     if (!accounts || accounts.length === 0) return;
@@ -124,11 +118,6 @@ export const HistoryScreen: React.FC = () => {
     return groups;
   };
 
-  const formatTransactionTime = (timestamp: string): string => {
-    const date = new Date(parseInt(timestamp) * 1000);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   const groupedTransactions = groupTransactionsByTime(allTransactions);
 
   if (loading) {
@@ -162,63 +151,18 @@ export const HistoryScreen: React.FC = () => {
       <ContentContainer>
         <PageName name="History" back={true} />
         {Object.keys(groupedTransactions).length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center py-8">
-              <Icon icon="lucide:clock" className="text-4xl text-tertiary mb-4 mx-auto" />
-              <div className="text-tertiary">
-                <div className="text-lg mb-2">No transaction history</div>
-                <div className="text-sm">Your transactions will appear here</div>
-              </div>
-            </div>
-          </div>
+          <EmptyState
+            icon="lucide:clock"
+            title="No transaction history"
+            description="Your transactions will appear here"
+          />
         ) : (
           <div className="w-full space-y-4">
             {Object.entries(groupedTransactions).map(([timeGroup, transactions]) => (
               <Card key={timeGroup} label={timeGroup} className="w-full">
                 {transactions.map((transaction, i) => (
                   <div key={transaction.hash}>
-                    <button 
-                      className="flex justify-between items-center w-full hover:bg-tertiary/10 cursor-pointer transition-colors rounded-lg p-2 text-tertiary"
-                      onClick={() => handleViewOnCreeper(transaction.hash)}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon 
-                          icon={
-                            transaction.type === 'send' ? "lucide:arrow-up-right" : 
-                            transaction.type === 'receive' ? "lucide:arrow-down-left" :
-                            transaction.type === 'open' ? "lucide:arrow-down-left" :
-                            transaction.type === 'change' ? "lucide:settings" :
-                            "lucide:circle"
-                          } 
-                          className={
-                            transaction.type === 'send' ? "text-destructive" : 
-                            transaction.type === 'receive' || transaction.type === 'open' ? "text-primary" :
-                            transaction.type === 'change' ? "text-tertiary" :
-                            "text-tertiary"
-                          }
-                        />
-                        <div className="flex flex-col items-start">
-                          <span className="text-sm">
-                            {transaction.type === 'send' ? "Sent" : 
-                             transaction.type === 'receive' ? "Received" : 
-                             transaction.type === 'open' ? "Opened" :
-                             transaction.type === 'change' ? "Changed Rep" :
-                             transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
-                          </span>
-                          <span className="text-xs">
-                            {transaction.account.slice(0, 10)}...{transaction.account.slice(-6)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-sm">
-                          {parseFloat(transaction.amount).toFixed(2)} BAN
-                        </span>
-                        <span className="text-xs">
-                          {formatTransactionTime(transaction.timestamp)}
-                        </span>
-                      </div>
-                    </button>
+                    <TransactionRow transaction={transaction} timestampFormat="time" />
                     {i !== transactions.length - 1 && (
                       <Separator className="w-full my-2" />
                     )}

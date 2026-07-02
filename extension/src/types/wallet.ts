@@ -18,6 +18,7 @@ export interface StoredWallet {
   encryptedSeed: string;
   salt: string;
   isInitialized: boolean;
+  keystoreVersion?: number;
 }
 
 export interface BananoBlock {

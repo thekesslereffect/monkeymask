@@ -1,0 +1,349 @@
+// Banano NFT fetching + normalization.
+//
+// Banano NFTs follow the "73-meta-tokens" / banano-metanode metaprotocol: an NFT
+// is identified by an asset representative (a ban_ address) and its metadata JSON
+// lives on IPFS. Community caching nodes (e.g. banano-nft-node) expose a REST
+// endpoint that lists the NFTs currently owned by an account. bananojs does not
+// implement any of this, so we talk to the caching API directly and resolve the
+// IPFS metadata ourselves, normalizing everything into a stable shape for the UI.
+
+export interface MonkeyNFT {
+  /** Stable unique id (asset representative when available). */
+  id: string;
+  name: string;
+  description?: string;
+  /** HTTP(S) URL for the artwork (IPFS URIs are rewritten to a gateway). */
+  image?: string;
+  collection?: string;
+  supplyBlockHash?: string;
+  assetRepresentative?: string;
+  /** IPFS CID of the metadata JSON, when known. */
+  metadataCid?: string;
+  /** Max editions: 0 = unlimited, 1 = one-of-a-kind, >1 = limited run. */
+  maxSupply?: number;
+  /** Editions minted so far in this collection (issuer view). */
+  mintedCount?: number;
+  /** How many editions of this collection this account still holds. */
+  heldCount?: number;
+  /** Human label for the supply model. */
+  supplyType?: 'unique' | 'limited' | 'unlimited';
+}
+
+export interface NFTFetchResult {
+  nfts: MonkeyNFT[];
+  /** Present when the upstream API could not be reached or returned an error. */
+  error?: string;
+}
+
+import {
+  accountToPublicKeyHex,
+  isSupplyRepresentative,
+  isValidMetadataRepresentative,
+  maxSupplyFromRepresentative,
+  metadataCidFromRepresentative,
+  representativeMatchesAsset,
+} from '@monkeymask/wallet-standard';
+
+const bananojs = require('@bananocoin/bananojs');
+
+// Configurable so we can point at a self-hosted mirror without a code change.
+const NFT_API_BASE = 'https://cwispy.app/nft_api';
+const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
+const REQUEST_TIMEOUT_MS = 8000;
+
+// Optional MonkeyMask Convex NFT index (injected at build time). When set, it
+// replaces the flaky community indexer for NFTs received from others.
+const CONVEX_URL = (process.env.MONKEYMASK_CONVEX_URL || '').replace(/\/$/, '');
+
+async function fetchJson(url: string, timeoutMs = REQUEST_TIMEOUT_MS): Promise<unknown> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Convert an ipfs:// URI or bare CID into an HTTP gateway URL. */
+export function ipfsToHttp(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('ipfs://')) return `${IPFS_GATEWAY}${trimmed.slice('ipfs://'.length)}`;
+  // Bare CID (v0 "Qm..." or v1 "bafy...").
+  if (/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|bafy[0-9a-z]+)(\/.*)?$/.test(trimmed)) {
+    return `${IPFS_GATEWAY}${trimmed}`;
+  }
+  return trimmed;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
+function pickString(record: Record<string, unknown> | null, ...keys: string[]): string | undefined {
+  if (!record) return undefined;
+  for (const key of keys) {
+    const val = record[key];
+    if (typeof val === 'string' && val.length > 0) return val;
+  }
+  return undefined;
+}
+
+/** Pull the list of NFT records out of whatever shape the API returned. */
+function extractList(payload: unknown): Record<string, unknown>[] {
+  if (Array.isArray(payload)) return payload.map(asRecord).filter((r): r is Record<string, unknown> => r !== null);
+  const record = asRecord(payload);
+  if (!record) return [];
+  for (const key of ['nfts', 'assets', 'data', 'results']) {
+    const val = record[key];
+    if (Array.isArray(val)) {
+      return val.map(asRecord).filter((r): r is Record<string, unknown> => r !== null);
+    }
+  }
+  return [];
+}
+
+async function normalizeItem(item: Record<string, unknown>, index: number): Promise<MonkeyNFT> {
+  const assetRepresentative = pickString(item, 'asset_representative', 'mint_representative', 'nft', 'representative');
+  const supplyBlockHash = pickString(item, 'supply_block_hash', 'supply_block', 'supplyBlockHash');
+  const id = assetRepresentative || pickString(item, 'id', 'hash') || `nft-${index}`;
+
+  // Metadata may be embedded, or referenced by an IPFS CID we must resolve.
+  let metadata = asRecord(item.metadata);
+  let metadataCid = pickString(item, 'ipfs_cid', 'metadata_ipfs', 'metadata_cid');
+  if (!metadata) {
+    const cid = metadataCid ?? pickString(item, 'metadata_representative');
+    const metaUrl = ipfsToHttp(cid);
+    if (metaUrl) {
+      metadataCid = cid;
+      try {
+        metadata = asRecord(await fetchJson(metaUrl));
+      } catch {
+        metadata = null;
+      }
+    }
+  }
+
+  const name =
+    pickString(metadata, 'name', 'title') ||
+    pickString(item, 'name', 'title') ||
+    (assetRepresentative ? `NFT ${assetRepresentative.slice(4, 10)}` : `NFT #${index + 1}`);
+
+  const image = ipfsToHttp(
+    pickString(metadata, 'image', 'image_url', 'imageUrl', 'animation_url') || pickString(item, 'image'),
+  );
+
+  const description = pickString(metadata, 'description') || pickString(item, 'description');
+  const collection = pickString(metadata, 'collection') || pickString(item, 'collection', 'issuer');
+
+  return { id, name, description, image, collection, supplyBlockHash, assetRepresentative, metadataCid };
+}
+
+/**
+ * Fetch and normalize the NFTs owned by a Banano address. Never throws — upstream
+ * failures are returned as `{ nfts: [], error }` so the UI can degrade gracefully.
+ */
+export async function fetchNFTsForAddress(address: string): Promise<NFTFetchResult> {
+  if (!address) return { nfts: [], error: 'No address provided' };
+  try {
+    const payload = await fetchJson(`${NFT_API_BASE}/owner/${address}/nfts`);
+    const list = extractList(payload);
+    const nfts = await Promise.all(list.map((item, index) => normalizeItem(item, index)));
+    return { nfts };
+  } catch (error) {
+    const message =
+      error instanceof Error && error.name === 'AbortError'
+        ? 'NFT service timed out'
+        : error instanceof Error
+          ? error.message
+          : 'Failed to load NFTs';
+    return { nfts: [], error: message };
+  }
+}
+
+interface RawHistoryEntry {
+  hash: string;
+  height: string;
+  subtype?: string;
+  representative?: string;
+  link?: string;
+}
+
+/** One edition (mint block) belonging to a collection. */
+interface EditionBlock {
+  hash: string;
+  held: boolean;
+}
+
+/**
+ * Enumerate every edition of a collection on the issuer's chain.
+ *
+ * The collection is a `change#supply` block; every later block on the same
+ * chain that reuses the metadata representative (subtype `send` or `change`) is
+ * another edition. An edition is still *held* by the issuer if it was minted
+ * in-place (`change#mint`) or sent to self (`send#mint` back to this account)
+ * and was not later transferred away (a `send#asset` for that mint hash).
+ */
+function collectEditions(
+  history: RawHistoryEntry[],
+  supplyHeight: number,
+  metadataRep: string,
+  maxSupply: number,
+  ownerPublicKey: string,
+): EditionBlock[] {
+  const editions: EditionBlock[] = [];
+  for (const b of history) {
+    if (Number(b.height) <= supplyHeight) continue;
+    if (b.subtype !== 'send' && b.subtype !== 'change') continue;
+    if (b.representative !== metadataRep) continue;
+
+    const heldByOwner =
+      b.subtype === 'change' || (b.link ?? '').toUpperCase() === ownerPublicKey;
+    const transferredAway = history.some(
+      (t) =>
+        t.subtype === 'send' &&
+        !!t.representative &&
+        representativeMatchesAsset(t.representative, b.hash),
+    );
+    editions.push({ hash: b.hash, held: heldByOwner && !transferredAway });
+
+    // The metaprotocol stops minting once the supply is exhausted.
+    if (maxSupply > 0 && editions.length >= maxSupply) break;
+  }
+  return editions;
+}
+
+/**
+ * List collections minted by an account by crawling only that account's own
+ * history — no third-party indexer. Finds each `change#supply` block, reads the
+ * following `#mint` block for the metadata CID, then enumerates every edition to
+ * report the supply model and how many copies the account still holds. Returns
+ * one card per collection (deduped by metadata CID).
+ */
+export async function fetchMintedNFTsForAddress(address: string): Promise<MonkeyNFT[]> {
+  let history: RawHistoryEntry[];
+  try {
+    const result = await bananojs.getAccountHistory(address, -1, undefined, true);
+    history = Array.isArray(result?.history) ? (result.history as RawHistoryEntry[]) : [];
+  } catch {
+    return [];
+  }
+  history.sort((a, b) => Number(a.height) - Number(b.height));
+
+  let ownerPublicKey: string;
+  try {
+    ownerPublicKey = accountToPublicKeyHex(address);
+  } catch {
+    return [];
+  }
+
+  const byHeight = new Map<number, RawHistoryEntry>();
+  for (const entry of history) byHeight.set(Number(entry.height), entry);
+
+  const nfts: MonkeyNFT[] = [];
+  const seenCids = new Set<string>();
+  for (const entry of history) {
+    if (entry.subtype !== 'change') continue;
+    if (!entry.representative || !isSupplyRepresentative(entry.representative)) continue;
+
+    const supplyHeight = Number(entry.height);
+    const mint = byHeight.get(supplyHeight + 1);
+    if (!mint || !mint.representative) continue;
+    if (!isValidMetadataRepresentative(mint.representative)) continue;
+
+    let cid: string;
+    try {
+      cid = metadataCidFromRepresentative(mint.representative);
+    } catch {
+      continue;
+    }
+    if (seenCids.has(cid)) continue;
+    seenCids.add(cid);
+
+    const maxSupply = maxSupplyFromRepresentative(entry.representative);
+    const editions = collectEditions(
+      history,
+      supplyHeight,
+      mint.representative,
+      maxSupply,
+      ownerPublicKey,
+    );
+    if (editions.length === 0) continue;
+
+    const heldCount = editions.filter((e) => e.held).length;
+    // Ownership gallery: skip collections where every edition was transferred
+    // away. You minted them, but you no longer hold any copy.
+    if (heldCount === 0) continue;
+    // Prefer a held edition as the actionable asset (transfer targets it).
+    const primary = editions.find((e) => e.held) ?? editions[0];
+    const supplyType: MonkeyNFT['supplyType'] =
+      maxSupply === 1 ? 'unique' : maxSupply === 0 ? 'unlimited' : 'limited';
+
+    let metadata: Record<string, unknown> | null = null;
+    const metaUrl = ipfsToHttp(cid);
+    if (metaUrl) {
+      try {
+        metadata = asRecord(await fetchJson(metaUrl));
+      } catch {
+        metadata = null;
+      }
+    }
+
+    nfts.push({
+      id: primary.hash,
+      name: pickString(metadata, 'name', 'title') || `NFT ${primary.hash.slice(0, 6)}`,
+      description: pickString(metadata, 'description'),
+      image: ipfsToHttp(pickString(metadata, 'image', 'image_url', 'imageUrl', 'animation_url')),
+      collection: 'Minted by you',
+      supplyBlockHash: entry.hash,
+      assetRepresentative: primary.hash,
+      metadataCid: cid,
+      maxSupply,
+      mintedCount: editions.length,
+      heldCount,
+      supplyType,
+    });
+  }
+  return nfts;
+}
+
+/** Fetch owned NFTs from the MonkeyMask Convex index. Never throws. */
+async function fetchConvexNFTs(address: string): Promise<NFTFetchResult> {
+  if (!CONVEX_URL) return { nfts: [], error: 'Convex index not configured' };
+  try {
+    const payload = (await fetchJson(`${CONVEX_URL}/nfts?address=${address}`)) as {
+      nfts?: MonkeyNFT[];
+      error?: string;
+    };
+    return { nfts: Array.isArray(payload.nfts) ? payload.nfts : [], error: payload.error };
+  } catch (error) {
+    return { nfts: [], error: error instanceof Error ? error.message : 'Convex index unavailable' };
+  }
+}
+
+/**
+ * Merge reliable self-indexed mints with an "owned" list. Prefers the MonkeyMask
+ * Convex index when configured, falling back to the community indexer otherwise.
+ * De-duplicates by asset representative.
+ */
+export async function fetchAllNFTsForAddress(address: string): Promise<NFTFetchResult> {
+  if (!address) return { nfts: [], error: 'No address provided' };
+  const [minted, owned] = await Promise.all([
+    fetchMintedNFTsForAddress(address),
+    CONVEX_URL ? fetchConvexNFTs(address) : fetchNFTsForAddress(address),
+  ]);
+
+  const byAsset = new Map<string, MonkeyNFT>();
+  for (const nft of minted) byAsset.set(nft.assetRepresentative ?? nft.id, nft);
+  for (const nft of owned.nfts) {
+    const key = nft.assetRepresentative ?? nft.id;
+    if (!byAsset.has(key)) byAsset.set(key, nft);
+  }
+
+  const nfts = Array.from(byAsset.values());
+  return { nfts, error: nfts.length === 0 ? owned.error : undefined };
+}

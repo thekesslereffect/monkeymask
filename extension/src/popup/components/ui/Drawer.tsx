@@ -6,6 +6,7 @@ import { useDrawer } from '../../hooks/useDrawer';
 import { formatBalance } from '../../../utils/format';
 import { AccountSkeleton } from './Skeleton';
 import { Avatar } from './Avatar';
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 
 interface DrawerProps {
   className?: string;
@@ -19,14 +20,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   const navigation = useNavigation();
   const { accounts, currentAccountIndex, currentAccount, loading, createNewAccount, switchAccount, removeAccount } = useAccounts();
   const { isOpen, setIsOpen } = useDrawer();
-
-  const copyAddress = async (address: string) => {
-    try {
-      await navigator.clipboard.writeText(address);
-    } catch (error) {
-      console.error('Failed to copy address:', error);
-    }
-  };
+  const { copy: copyAddress } = useCopyToClipboard();
 
   const formatAddress = (address: string, ban: boolean = true) => {
     return `${ban ? 'ban_' : ''}${address.slice(4, 8)}...${address.slice(-4)}`;

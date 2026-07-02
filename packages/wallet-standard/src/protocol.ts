@@ -1,0 +1,100 @@
+import { PROVIDER_ERRORS } from './errors.js';
+
+/** Transport-agnostic protocol envelope (browser postMessage, future mobile deep-link). */
+export const PROTOCOL_SOURCE_REQUEST = 'monkeymask-provider' as const;
+export const PROTOCOL_SOURCE_RESPONSE = 'monkeymask-provider-response' as const;
+export const PROTOCOL_SOURCE_EVENT = 'monkeymask-provider-event' as const;
+export const PROTOCOL_INIT_EVENT = 'monkeymask#initialized' as const;
+
+export const WALLET_STANDARD_REGISTER_EVENT = 'wallet-standard:register-wallet' as const;
+export const WALLET_STANDARD_APP_READY_EVENT = 'wallet-standard:app-ready' as const;
+
+export type ProtocolMethod =
+  | 'standard:connect'
+  | 'standard:disconnect'
+  | 'banano:signMessage'
+  | 'banano:signIn'
+  | 'banano:signTransaction'
+  | 'banano:signAndSendTransaction'
+  | 'banano:getAccountInfo'
+  | 'banano:getReceivable'
+  | 'banano:getAccountHistory'
+  | 'banano:resolveBNS'
+  | 'banano:reverseResolveBNS'
+  | 'banano:requestSpendingSession'
+  | 'banano:getSpendingSession'
+  | 'banano:revokeSpendingSession';
+
+export interface ProtocolRequest {
+  readonly source: typeof PROTOCOL_SOURCE_REQUEST;
+  readonly id: number;
+  readonly method: ProtocolMethod;
+  readonly params?: Record<string, unknown>;
+}
+
+export interface ProtocolSuccessResponse<T = unknown> {
+  readonly success: true;
+  readonly data: T;
+}
+
+export interface ProtocolErrorResponse {
+  readonly success: false;
+  readonly error: string;
+  readonly code?: number;
+}
+
+export type ProtocolResponse<T = unknown> = ProtocolSuccessResponse<T> | ProtocolErrorResponse;
+
+export interface ProtocolEventMessage {
+  readonly source: typeof PROTOCOL_SOURCE_EVENT;
+  readonly event: 'connect' | 'disconnect' | 'change';
+  readonly data?: unknown;
+}
+
+export interface LegacyProtocolRequest {
+  readonly source: typeof PROTOCOL_SOURCE_REQUEST;
+  readonly id: number;
+  readonly type: string;
+  readonly origin?: string;
+  readonly [key: string]: unknown;
+}
+
+export function createProtocolSuccess<T>(data: T): ProtocolSuccessResponse<T> {
+  return { success: true, data };
+}
+
+export function createProtocolError(
+  error: string,
+  code: number = PROVIDER_ERRORS.INTERNAL_ERROR.code,
+): ProtocolErrorResponse {
+  return { success: false, error, code };
+}
+
+export function getProtocolTimeoutMs(method: ProtocolMethod): number {
+  switch (method) {
+    case 'standard:connect':
+      return 5 * 60 * 1000;
+    case 'banano:signMessage':
+    case 'banano:signIn':
+    case 'banano:signTransaction':
+    case 'banano:signAndSendTransaction':
+    case 'banano:requestSpendingSession':
+      return 15 * 60 * 1000;
+    case 'banano:reverseResolveBNS':
+      // Reverse resolution crawls several accounts; give it extra headroom.
+      return 60 * 1000;
+    default:
+      return 30 * 1000;
+  }
+}
+
+/** Transport interface for browser extension or future mobile deep-link. */
+export interface MonkeyMaskTransport {
+  sendRequest<T = unknown>(
+    method: ProtocolMethod,
+    params?: Record<string, unknown>,
+  ): Promise<T>;
+  onEvent(
+    handler: (event: ProtocolEventMessage['event'], data?: unknown) => void,
+  ): () => void;
+}

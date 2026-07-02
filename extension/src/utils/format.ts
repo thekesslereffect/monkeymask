@@ -30,4 +30,28 @@ export const formatBalance = (value: string | number): string => {
   return decimalPart ? `${formattedInteger}.${decimalPart}` : formattedInteger;
 };
 
+/**
+ * Truncate a long value (address, hash, key) keeping a prefix and suffix.
+ * Returns the original value untouched when it's shorter than the visible chars.
+ */
+export const truncateMiddle = (
+  value: string | null | undefined,
+  prefix = 10,
+  suffix = 6,
+): string => {
+  if (!value) return 'Unknown';
+  if (value.length <= prefix + suffix + 3) return value;
+  return `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
+};
+
+const CREEPER_BASE = 'https://creeper.banano.cc';
+
+export const getCreeperHashUrl = (hash: string): string => `${CREEPER_BASE}/hash/${hash}`;
+export const getCreeperAccountUrl = (address: string): string => `${CREEPER_BASE}/account/${address}`;
+
+/** Open a block hash on the Banano block explorer in a new tab. */
+export const openCreeperHash = (hash: string): void => {
+  window.open(getCreeperHashUrl(hash), '_blank', 'noopener,noreferrer');
+};
+
 

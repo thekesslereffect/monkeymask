@@ -140,7 +140,7 @@ export default function ExploreSection() {
     <div className="flex flex-col w-full max-w-7xl mx-auto px-4">
       {/* Tab Navigation */}
       <div className="flex justify-center mb-12">
-        <div className="inline-flex p-2 bg-[var(--panel)] rounded-xl border border-[var(--border)]">
+        <div className="inline-flex p-2 rounded-xl border border-[var(--border)]">
           <button
             onClick={() => setActiveTab('features')}
             className={`px-6 py-3 rounded-md font-medium transition-all duration-200 ${

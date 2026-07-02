@@ -1,7 +1,8 @@
 import React from 'react';
 import { Header, ContentContainer, Footer, PageName, Card, Button, Alert } from './ui';
 import { Icon } from '@iconify/react';
-import { formatBalance } from '../../utils/format';
+import { formatBalance, truncateMiddle, openCreeperHash } from '../../utils/format';
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 
 interface TransactionResult {
   success: boolean;
@@ -20,35 +21,19 @@ interface TransactionConfirmationScreenProps {
   onClose: () => void;
 }
 
-
-// Format address for display
-const formatAddress = (address: string): string => {
-  if (address.length <= 20) return address;
-  return `${address.substring(0, 12)}...${address.substring(address.length - 8)}`;
-};
-
-// Format transaction hash for display
-const formatHash = (hash: string): string => {
-  if (hash.length <= 20) return hash;
-  return `${hash.substring(0, 12)}...${hash.substring(hash.length - 8)}`;
-};
-
 export const TransactionConfirmationScreen: React.FC<TransactionConfirmationScreenProps> = ({
   result,
   onClose
 }) => {
   console.log('TransactionConfirmationScreen: Rendering with result:', result);
+  const { copy, copied } = useCopyToClipboard();
+
   const handleViewOnCreeper = () => {
-    if (result.hash) {
-      window.open(`https://creeper.banano.cc/hash/${result.hash}`, '_blank');
-    }
+    if (result.hash) openCreeperHash(result.hash);
   };
 
   const handleCopyHash = () => {
-    if (result.hash) {
-      navigator.clipboard.writeText(result.hash);
-      // You could add a toast notification here
-    }
+    if (result.hash) copy(result.hash);
   };
 
   return (
@@ -71,11 +56,13 @@ export const TransactionConfirmationScreen: React.FC<TransactionConfirmationScre
             <>
               {/* Success Alert */}
               <Alert variant="success" className="w-full">
-                <Icon icon="lucide:check-circle" className="text-lg" />
-                <div>
-                  <div className="font-semibold mb-1">Transaction Completed</div>
-                  <div className="text-sm">
-                    Your Banano transaction has been successfully processed and added to the blockchain.
+                <div className="flex items-start gap-2">
+                  <Icon icon="lucide:check-circle" className="text-lg shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-semibold mb-1">Transaction Completed</div>
+                    <div className="text-sm">
+                      Your Banano transaction has been successfully processed and added to the blockchain.
+                    </div>
                   </div>
                 </div>
               </Alert>
@@ -87,14 +74,14 @@ export const TransactionConfirmationScreen: React.FC<TransactionConfirmationScre
                     <div className="flex justify-between items-center py-2 border-b border-tertiary/20">
                       <span className="text-sm text-tertiary">From</span>
                       <span className="text-sm font-mono text-tertiary">
-                        {formatAddress(result.block.fromAddress)}
+                        {truncateMiddle(result.block.fromAddress, 12, 8)}
                       </span>
                     </div>
                     
                     <div className="flex justify-between items-center py-2 border-b border-tertiary/20">
                       <span className="text-sm text-tertiary">To</span>
                       <span className="text-sm font-mono text-tertiary">
-                        {formatAddress(result.block.toAddress)}
+                        {truncateMiddle(result.block.toAddress, 12, 8)}
                       </span>
                     </div>
                     
@@ -115,13 +102,13 @@ export const TransactionConfirmationScreen: React.FC<TransactionConfirmationScre
                     <div className="bg-tertiary/10 rounded-lg p-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-mono text-tertiary break-all">
-                          {formatHash(result.hash)}
+                          {truncateMiddle(result.hash, 12, 8)}
                         </span>
                         <button
                           onClick={handleCopyHash}
                           className="ml-2 text-primary hover:text-primary/80 transition-colors"
                         >
-                          <Icon icon="lucide:copy" className="text-sm" />
+                          <Icon icon={copied ? 'lucide:check' : 'lucide:copy'} className="text-sm" />
                         </button>
                       </div>
                     </div>
@@ -141,12 +128,14 @@ export const TransactionConfirmationScreen: React.FC<TransactionConfirmationScre
           ) : (
             <>
               {/* Error Alert */}
-              <Alert variant="warning" className="w-full">
-                <Icon icon="lucide:x-circle" className="text-lg" />
-                <div>
-                  <div className="font-semibold mb-1">Transaction Failed</div>
-                  <div className="text-sm">
-                    {result.error || 'An unknown error occurred while processing your transaction.'}
+              <Alert variant="destructive" className="w-full">
+                <div className="flex items-start gap-2">
+                  <Icon icon="lucide:x-circle" className="text-lg shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-semibold mb-1">Transaction Failed</div>
+                    <div className="text-sm">
+                      {result.error || 'An unknown error occurred while processing your transaction.'}
+                    </div>
                   </div>
                 </div>
               </Alert>

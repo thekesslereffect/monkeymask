@@ -1,506 +1,399 @@
-// Injected script that provides the window.banano API for dApps
-// This will be used in Phase 2 for dApp integration
+import type { Wallet, WalletAccount } from '@wallet-standard/base';
+import {
+  BananoSignAndSendTransaction,
+  BananoSignIn,
+  BananoSignMessage,
+  BananoSignTransaction,
+  BANANO_MAINNET,
+  BANANO_CHAINS,
+  type BananoSignInInput,
+  type BananoSignInOutput,
+  type BananoSignMessageInput,
+  type BananoSignMessageOutput,
+  type BananoSignTransactionInput,
+  type BananoSignAndSendTransactionInput,
+  type BananoSignAndSendTransactionOutput,
+  createBananoWalletAccount,
+  decodeBase64,
+  encodeBase64,
+  hexToBytes,
+  PROTOCOL_INIT_EVENT,
+  PROTOCOL_SOURCE_EVENT,
+  PROTOCOL_SOURCE_REQUEST,
+  PROTOCOL_SOURCE_RESPONSE,
+  WALLET_STANDARD_APP_READY_EVENT,
+  WALLET_STANDARD_REGISTER_EVENT,
+  type ProtocolMethod,
+  getProtocolTimeoutMs,
+  PROVIDER_ERRORS,
+  createProviderError,
+} from '@monkeymask/wallet-standard';
+import {
+  StandardConnect,
+  StandardDisconnect,
+  StandardEvents,
+  type StandardConnectFeature,
+  type StandardDisconnectFeature,
+  type StandardEventsFeature,
+} from '@wallet-standard/features';
 
-// Standardized error codes (following EIP-1193 and Phantom patterns)
-export const PROVIDER_ERRORS = {
-  USER_REJECTED: { code: 4001, message: 'User rejected the request' },
-  UNAUTHORIZED: { code: 4100, message: 'Unauthorized - not connected to MonkeyMask' },
-  UNSUPPORTED_METHOD: { code: 4200, message: 'Unsupported method' },
-  DISCONNECTED: { code: 4900, message: 'Provider is disconnected' },
-  CHAIN_DISCONNECTED: { code: 4901, message: 'Chain is disconnected' },
-  INVALID_PARAMS: { code: -32602, message: 'Invalid method parameters' },
-  INTERNAL_ERROR: { code: -32603, message: 'Internal error' }
-} as const;
+const MONKEYMASK_ICON =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iNjQiIGN5PSI2NCIgcj0iNjQiIGZpbGw9IiNGRkQ3MDAiLz48dGV4dCB4PSI2NCIgeT0iNzgiIGZvbnQtc2l6ZT0iNjQiIHRleHRLYW5jaG9yPSJtaWRkbGUiPjwvdGV4dD48L3N2Zz4=';
 
-export interface ProviderError extends Error {
-  code: number;
-  data?: unknown;
+type WalletRegisterCallback = (api: { register: (...wallets: Wallet[]) => () => void }) => void;
+
+function registerWallet(wallet: Wallet): void {
+  const callback: WalletRegisterCallback = (api) => {
+    api.register(wallet);
+  };
+  window.dispatchEvent(
+    new CustomEvent(WALLET_STANDARD_REGISTER_EVENT, { detail: callback }),
+  );
 }
 
-export interface ConnectOptions {
-  onlyIfTrusted?: boolean;
+function listenForWalletStandardAppReady(wallet: Wallet): void {
+  window.addEventListener(WALLET_STANDARD_APP_READY_EVENT, (event) => {
+    const detail = (event as CustomEvent<{ register: (w: Wallet) => () => void }>).detail;
+    detail.register(wallet);
+  });
 }
 
-export interface BananoProvider {
-  // Core connection methods (Phantom-style)
-  connect(options?: ConnectOptions): Promise<{ publicKey: string }>;
-  disconnect(): Promise<void>;
-  
-  // Account methods
-  getAccounts(): Promise<string[]>;
-  getBalance(address?: string): Promise<string>;
-  getAccountInfo(address?: string): Promise<any>;
-  
-  // Transaction methods
-  signBlock(block: any): Promise<any>;
-  signMessage(message: Uint8Array | string, display?: 'utf8' | 'hex'): Promise<{ signature: Uint8Array; publicKey: string }>;
-  sendBlock(block: any): Promise<string>;
-  sendTransaction(fromAddress: string, toAddress: string, amount: string): Promise<{ hash: string; block: any }>;
-  
-  // Utility methods
-  resolveBNS(bnsName: string): Promise<string>;
-  
-  // State properties
-  isConnected: boolean;
-  publicKey: string | null;
-  
-  // Event system (Phantom-style)
-  on(event: string, handler: (...args: any[]) => void): void;
-  off(event: string, handler: (...args: any[]) => void): void;
-  removeAllListeners(): void;
-  
-  // Provider metadata
-  isMonkeyMask: boolean;
-  isBanano: boolean;
-}
-
-class BananoProviderImpl implements BananoProvider {
-  private _isConnected = false;
-  private _publicKey: string | null = null;
-  private connectedAccounts: string[] = [];
+class ProtocolBridge {
   private requestId = 0;
-  private pendingRequests = new Map<number, { resolve: Function; reject: Function }>();
-  private eventListeners = new Map<string, Set<Function>>();
-  
-  // Provider metadata
-  public readonly isMonkeyMask = true;
-  public readonly isBanano = true;
+  private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
 
   constructor() {
-    this.setupMessageListener();
-    this.setupProviderEventListener();
-    this.attemptSilentReconnection();
+    window.addEventListener('message', (event) => {
+      if (
+        event.source !== window ||
+        event.origin !== window.location.origin ||
+        !event.data ||
+        event.data.source !== PROTOCOL_SOURCE_RESPONSE
+      ) {
+        return;
+      }
+      const { id, response } = event.data;
+      const pending = this.pending.get(id);
+      if (!pending) return;
+      this.pending.delete(id);
+      if (response.success) {
+        pending.resolve(response.data);
+      } else {
+        pending.reject(createProviderError(response.error, response.code));
+      }
+    });
   }
 
-  // State properties
+  async request<T>(method: ProtocolMethod, params: Record<string, unknown> = {}): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const id = ++this.requestId;
+      this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
+      window.postMessage(
+        { source: PROTOCOL_SOURCE_REQUEST, id, method, params },
+        window.location.origin,
+      );
+      setTimeout(() => {
+        if (!this.pending.has(id)) return;
+        this.pending.delete(id);
+        reject(createProviderError('Request timeout', PROVIDER_ERRORS.INTERNAL_ERROR.code));
+      }, getProtocolTimeoutMs(method));
+    });
+  }
+}
+
+class MonkeyMaskWallet implements Wallet {
+  readonly version = '1.0.0' as const;
+  readonly name = 'MonkeyMask';
+  readonly icon = MONKEYMASK_ICON as Wallet['icon'];
+  readonly chains = BANANO_CHAINS;
+  accounts: WalletAccount[] = [];
+
+  private bridge = new ProtocolBridge();
+  private eventListeners = new Map<string, Set<(data?: unknown) => void>>();
+
+  readonly features: Wallet['features'] = {
+    [StandardConnect]: {
+      version: '1.0.0',
+      connect: async ({ silent } = {}) => {
+        const result = await this.bridge.request<{ accounts: WalletAccount[] }>('standard:connect', {
+          silent,
+        });
+        this.accounts = result.accounts;
+        this.emitConnect();
+        return { accounts: this.accounts };
+      },
+    } satisfies StandardConnectFeature[typeof StandardConnect],
+    [StandardDisconnect]: {
+      version: '1.0.0',
+      disconnect: async () => {
+        await this.bridge.request('standard:disconnect');
+        this.accounts = [];
+        this.emitDisconnect();
+      },
+    } satisfies StandardDisconnectFeature[typeof StandardDisconnect],
+    [StandardEvents]: {
+      version: '1.0.0',
+      on: (event, listener) => {
+        if (!this.eventListeners.has(event)) {
+          this.eventListeners.set(event, new Set());
+        }
+        this.eventListeners.get(event)!.add(listener as (data?: unknown) => void);
+        return () => this.eventListeners.get(event)?.delete(listener as (data?: unknown) => void);
+      },
+    } satisfies StandardEventsFeature[typeof StandardEvents],
+    [BananoSignMessage]: {
+      version: '1.0.0',
+      signMessage: async (...inputs: readonly BananoSignMessageInput[]) => {
+        const outputs: BananoSignMessageOutput[] = [];
+        for (const input of inputs) {
+          outputs.push(await this.bridge.request<BananoSignMessageOutput>('banano:signMessage', {
+            address: input.account.address,
+            message: encodeBase64(input.message),
+          }));
+        }
+        return outputs;
+      },
+    },
+    [BananoSignIn]: {
+      version: '1.0.0',
+      signIn: async (...inputs: readonly BananoSignInInput[]) => {
+        const outputs: BananoSignInOutput[] = [];
+        for (const input of inputs) {
+          const output = await this.bridge.request<{
+            account: WalletAccount & { publicKey: string };
+            signedMessage: string;
+            signature: string;
+          }>('banano:signIn', { input });
+          outputs.push({
+            account: {
+              ...output.account,
+              publicKey: decodeBase64(output.account.publicKey as unknown as string),
+            },
+            signedMessage: decodeBase64(output.signedMessage),
+            signature: decodeBase64(output.signature),
+            signatureType: 'ed25519',
+          });
+        }
+        return outputs;
+      },
+    },
+    [BananoSignTransaction]: {
+      version: '1.0.0',
+      signTransaction: async (...inputs: readonly BananoSignTransactionInput[]) => {
+        const outputs = [];
+        for (const input of inputs) {
+          outputs.push(
+            await this.bridge.request<{ signedBlock: string }>('banano:signTransaction', {
+              address: input.account.address,
+              chain: input.chain,
+              transaction: input.transaction,
+            }),
+          );
+        }
+        return outputs;
+      },
+    },
+    [BananoSignAndSendTransaction]: {
+      version: '1.0.0',
+      signAndSendTransaction: async (...inputs: readonly BananoSignAndSendTransactionInput[]) => {
+        const outputs = [];
+        for (const input of inputs) {
+          outputs.push(
+            await this.bridge.request<BananoSignAndSendTransactionOutput>('banano:signAndSendTransaction', {
+              address: input.account.address,
+              chain: input.chain,
+              transaction: input.transaction,
+            }),
+          );
+        }
+        return outputs;
+      },
+    },
+  };
+
+  constructor() {
+    this.setupEventRelay();
+    this.attemptSilentConnect();
+    listenForWalletStandardAppReady(this);
+    registerWallet(this);
+  }
+
+  private setupEventRelay(): void {
+    window.addEventListener('message', (event) => {
+      if (
+        event.source !== window ||
+        event.origin !== window.location.origin ||
+        event.data?.source !== PROTOCOL_SOURCE_EVENT
+      ) {
+        return;
+      }
+      const { event: eventName, data } = event.data;
+      if (eventName === 'connect' && data) {
+        const connectData = data as { publicKey: string; publicKeyHex?: string; label?: string };
+        this.accounts = [
+          createBananoWalletAccount(
+            connectData.publicKey,
+            connectData.publicKeyHex
+              ? hexToBytes(connectData.publicKeyHex)
+              : new Uint8Array(32),
+            undefined,
+            connectData.label,
+          ),
+        ];
+        this.emitConnect();
+        return;
+      }
+      if (eventName === 'disconnect') {
+        this.accounts = [];
+        this.emitDisconnect();
+        return;
+      }
+      if (eventName === 'change' && data) {
+        const changeData = data as {
+          accounts: Array<{ address: string; publicKeyHex: string; label?: string }>;
+        };
+        this.accounts = changeData.accounts.map((acc) =>
+          createBananoWalletAccount(acc.address, hexToBytes(acc.publicKeyHex), undefined, acc.label),
+        );
+        this.eventListeners.get('change')?.forEach((listener) => listener({ accounts: this.accounts }));
+      }
+    });
+  }
+
+  private emitConnect(): void {
+    const account = this.accounts[0];
+    if (!account) return;
+    this.eventListeners.get('connect')?.forEach((listener) => listener({ accounts: this.accounts }));
+    legacyProvider.syncFromWallet(account.address);
+  }
+
+  private emitDisconnect(): void {
+    this.eventListeners.get('disconnect')?.forEach((listener) => listener());
+    // Wallet Standard consumers track accounts via the `change` event, so also
+    // notify them that there are no more connected accounts (e.g. auto-lock).
+    this.eventListeners.get('change')?.forEach((listener) => listener({ accounts: this.accounts }));
+    legacyProvider.clear();
+  }
+
+  private async attemptSilentConnect(): Promise<void> {
+    try {
+      await new Promise((r) => setTimeout(r, 500));
+      const result = await this.bridge.request<{ accounts: WalletAccount[] }>('standard:connect', {
+        silent: true,
+      });
+      if (result.accounts.length) {
+        this.accounts = result.accounts;
+        this.emitConnect();
+      }
+    } catch {
+      // Expected when not yet authorized.
+    }
+  }
+}
+
+class LegacyBananoProvider {
+  private bridge = new ProtocolBridge();
+  readonly isMonkeyMask = true;
+  readonly isBanano = true;
+  private _publicKey: string | null = null;
+
   get isConnected(): boolean {
-    return this._isConnected;
+    return !!this._publicKey;
   }
 
   get publicKey(): string | null {
     return this._publicKey;
   }
 
-  // Event system methods (Phantom-style)
-  on(event: string, handler: (...args: any[]) => void): void {
-    if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, new Set());
-    }
-    this.eventListeners.get(event)!.add(handler);
+  syncFromWallet(address: string): void {
+    this._publicKey = address;
   }
 
-  off(event: string, handler: (...args: any[]) => void): void {
-    const handlers = this.eventListeners.get(event);
-    if (handlers) {
-      handlers.delete(handler);
-      if (handlers.size === 0) {
-        this.eventListeners.delete(event);
+  clear(): void {
+    this._publicKey = null;
+  }
+
+  async request(args: { method: string; params?: Record<string, unknown> }): Promise<unknown> {
+    const { method, params = {} } = args;
+    switch (method) {
+      case 'connect':
+        return this.bridge.request('standard:connect', params);
+      case 'disconnect':
+        await this.bridge.request('standard:disconnect');
+        this.clear();
+        return null;
+      case 'getAccounts': {
+        const result = await this.bridge.request<{ accounts: WalletAccount[] }>('standard:connect', {
+          silent: true,
+        });
+        return result.accounts.map((a) => a.address);
       }
-    }
-  }
-
-  removeAllListeners(): void {
-    this.eventListeners.clear();
-  }
-
-  private emit(event: string, ...args: any[]): void {
-    const handlers = this.eventListeners.get(event);
-    if (handlers) {
-      handlers.forEach(handler => {
-        try {
-          handler(...args);
-        } catch (error) {
-          console.error('BananoProvider: Error in event handler:', error);
-        }
-      });
-    }
-  }
-
-  private async attemptSilentReconnection(): Promise<void> {
-    try {
-      console.log('BananoProvider: Attempting silent reconnection...');
-      
-      // Wait a bit for the page to fully load
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Check if we're already connected to this origin
-      const result = await this.sendMessage('CHECK_CONNECTION');
-      
-      if (result.isConnected) {
-        console.log('BananoProvider: Silent reconnection successful:', result.publicKey);
-        
-        this._isConnected = true;
-        this._publicKey = result.publicKey;
-        this.connectedAccounts = result.accounts || [result.publicKey];
-        
-        // Emit connect event to notify dApps
-        this.emit('connect', { publicKey: result.publicKey });
-      } else {
-        console.log('BananoProvider: No existing connection found for this origin');
+      case 'getAccountInfo':
+        return this.bridge.request('banano:getAccountInfo', params);
+      case 'getReceivable':
+        return this.bridge.request('banano:getReceivable', params);
+      case 'getAccountHistory':
+        return this.bridge.request('banano:getAccountHistory', params);
+      case 'resolveBNS': {
+        const result = await this.bridge.request<{ address: string }>('banano:resolveBNS', params);
+        return result.address;
       }
-      
-    } catch (error) {
-      // Silent failure is expected if not previously authorized or wallet is locked
-      console.log('BananoProvider: Silent reconnection failed:', error instanceof Error ? error.message : 'Unknown error');
-    }
-  }
-
-  private setupMessageListener(): void {
-    window.addEventListener('message', (event) => {
-      if (event.source !== window || !event.data) {
-        return;
-      }
-
-      if (event.data.source === 'banano-provider-response') {
-        const { id, response } = event.data;
-        const pendingRequest = this.pendingRequests.get(id);
-        
-        if (pendingRequest) {
-          this.pendingRequests.delete(id);
-          
-          if (response.success) {
-            pendingRequest.resolve(response.data);
-          } else {
-            const error = this.createProviderError(response.error, response.code);
-            pendingRequest.reject(error);
-          }
-        }
-      }
-    });
-  }
-
-  private setupProviderEventListener(): void {
-    window.addEventListener('message', (event) => {
-      if (event.source !== window || !event.data) {
-        return;
-      }
-
-      // Listen for provider events from background
-      if (event.data.source === 'banano-provider-event') {
-        const { event: eventName, data } = event.data;
-        
-        switch (eventName) {
-          case 'connect':
-            this._isConnected = true;
-            this._publicKey = data.publicKey;
-            this.connectedAccounts = data.accounts || [];
-            this.emit('connect', data);
-            break;
-            
-          case 'disconnect':
-            this._isConnected = false;
-            this._publicKey = null;
-            this.connectedAccounts = [];
-            this.emit('disconnect');
-            break;
-            
-          case 'accountChanged':
-            this._publicKey = data.publicKey;
-            this.connectedAccounts = data.accounts || [];
-            this.emit('accountChanged', data.publicKey);
-            break;
-        }
-      }
-    });
-  }
-
-  private createProviderError(message: string, code?: number): ProviderError {
-    const error = new Error(message) as ProviderError;
-    error.code = code || PROVIDER_ERRORS.INTERNAL_ERROR.code;
-    return error;
-  }
-
-  private async sendMessage(type: string, params: any = {}): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const id = ++this.requestId;
-      
-      this.pendingRequests.set(id, { resolve, reject });
-      
-      window.postMessage({
-        source: 'banano-provider',
-        id,
-        type,
-        ...params
-      }, '*');
-      
-      // Dynamic timeout based on request type
-      let timeoutMs = 30000; // Default 30 seconds
-      
-      // Longer timeout for transaction/signing operations that may require user approval
-      if (type === 'SEND_TRANSACTION' || type === 'SIGN_MESSAGE' || type === 'SIGN_BLOCK' || type === 'SEND_BLOCK') {
-        timeoutMs = 15 * 60 * 1000; // 15 minutes for approval operations
-      } else if (type === 'CONNECT_WALLET') {
-        timeoutMs = 5 * 60 * 1000; // 5 minutes for connection
-      }
-      
-      setTimeout(() => {
-        if (this.pendingRequests.has(id)) {
-          this.pendingRequests.delete(id);
-          const error = this.createProviderError('Request timeout', PROVIDER_ERRORS.INTERNAL_ERROR.code);
-          reject(error);
-        }
-      }, timeoutMs);
-    });
-  }
-
-  async connect(options?: ConnectOptions): Promise<{ publicKey: string }> {
-    try {
-      console.log('BananoProvider: Connecting with options:', options);
-      
-      const result = await this.sendMessage('CONNECT_WALLET', { options });
-      
-      this._isConnected = true;
-      this._publicKey = result.publicKey || result.address; // Support both formats
-      this.connectedAccounts = result.accounts || [this._publicKey];
-      
-      if (!this._publicKey) {
-        throw this.createProviderError(
-          'No public key received from wallet',
-          PROVIDER_ERRORS.INTERNAL_ERROR.code
+      case 'reverseResolveBNS': {
+        const result = await this.bridge.request<{ names: string[] }>(
+          'banano:reverseResolveBNS',
+          params,
         );
+        return result.names;
       }
-      
-      console.log('BananoProvider: Connected with publicKey:', this._publicKey);
-      
-      // Emit connect event
-      this.emit('connect', { publicKey: this._publicKey });
-      
-      return { publicKey: this._publicKey };
-    } catch (error) {
-      console.error('BananoProvider: Connect failed:', error);
-      
-      if (error instanceof Error && (error as ProviderError).code) {
-        throw error;
+      case 'requestSpendingSession':
+        return this.bridge.request('banano:requestSpendingSession', {
+          address: this._publicKey,
+          ...params,
+        });
+      case 'getSpendingSession':
+        return this.bridge.request('banano:getSpendingSession', params);
+      case 'revokeSpendingSession':
+        return this.bridge.request('banano:revokeSpendingSession', params);
+      case 'signMessage': {
+        const message = params.message as string;
+        const bytes = new TextEncoder().encode(message);
+        const output = await this.bridge.request<BananoSignMessageOutput>('banano:signMessage', {
+          address: this._publicKey,
+          message: encodeBase64(bytes),
+        });
+        return { signature: encodeBase64(output.signature), publicKey: this._publicKey };
       }
-      
-      throw this.createProviderError(
-        'Failed to connect to MonkeyMask',
-        PROVIDER_ERRORS.INTERNAL_ERROR.code
-      );
+      case 'signIn':
+        return this.bridge.request('banano:signIn', params);
+      case 'signAndSendTransaction':
+        return this.bridge.request('banano:signAndSendTransaction', {
+          address: this._publicKey,
+          chain: BANANO_MAINNET,
+          transaction: params.transaction,
+        });
+      default:
+        throw createProviderError(
+          `${PROVIDER_ERRORS.UNSUPPORTED_METHOD.message}: ${method}`,
+          PROVIDER_ERRORS.UNSUPPORTED_METHOD.code,
+        );
     }
   }
 
-  async disconnect(): Promise<void> {
-    try {
-      await this.sendMessage('DISCONNECT_WALLET');
-      this._isConnected = false;
-      this._publicKey = null;
-      this.connectedAccounts = [];
-      
-      // Emit disconnect event
-      this.emit('disconnect');
-      
-      console.log('BananoProvider: Disconnected');
-    } catch (error) {
-      console.error('BananoProvider: Disconnect failed:', error);
-      // Don't throw error for disconnect - always clean up state
-      this._isConnected = false;
-      this._publicKey = null;
-      this.connectedAccounts = [];
-      this.emit('disconnect');
-    }
-  }
-
-  async getAccounts(): Promise<string[]> {
-    if (!this._isConnected) {
-      throw this.createProviderError(
-        'Not connected to MonkeyMask. Call connect() first.',
-        PROVIDER_ERRORS.UNAUTHORIZED.code
-      );
-    }
-    
-    console.log('BananoProvider: Returning accounts:', this.connectedAccounts);
-    return [...this.connectedAccounts]; // Return a copy
-  }
-
-  async signMessage(message: Uint8Array | string, display: 'utf8' | 'hex' = 'utf8'): Promise<{ signature: Uint8Array; publicKey: string }> {
-    if (!this._isConnected) {
-      throw this.createProviderError(
-        'Not connected to MonkeyMask',
-        PROVIDER_ERRORS.UNAUTHORIZED.code
-      );
-    }
-    
-    if (!this._publicKey) {
-      throw this.createProviderError(
-        'No public key available',
-        PROVIDER_ERRORS.INTERNAL_ERROR.code
-      );
-    }
-    
-    try {
-      console.log('BananoProvider: Signing message with display:', display);
-      
-      // Convert message to appropriate format
-      let messageToSign: string;
-      if (message instanceof Uint8Array) {
-        messageToSign = Array.from(message).map(b => b.toString(16).padStart(2, '0')).join('');
-      } else {
-        messageToSign = message;
-      }
-      
-      const result = await this.sendMessage('SIGN_MESSAGE', {
-        message: messageToSign,
-        display,
-        publicKey: this._publicKey
-      });
-      
-      // Convert signature back to Uint8Array
-      const signature = new Uint8Array(result.signature.match(/.{2}/g).map((byte: string) => parseInt(byte, 16)));
-      
-      return {
-        signature,
-        publicKey: this._publicKey
-      };
-    } catch (error) {
-      console.error('BananoProvider: Sign message failed:', error);
-      
-      if (error instanceof Error && (error as ProviderError).code) {
-        throw error;
-      }
-      
-      throw this.createProviderError(
-        'Failed to sign message',
-        PROVIDER_ERRORS.INTERNAL_ERROR.code
-      );
-    }
-  }
-
-  async verifySignedMessage(message: string, signature: string, publicKey: string, display: 'utf8' | 'hex' = 'utf8'): Promise<boolean> {
-    const result = await this.sendMessage('VERIFY_SIGNED_MESSAGE', {
-      message,
-      signature,
-      publicKey,
-      display,
-      origin: window.location.origin
-    });
-    return !!result.valid;
-  }
-
-  async signBlock(block: any): Promise<any> {
-    if (!this._isConnected) {
-      throw this.createProviderError(
-        'Not connected to MonkeyMask',
-        PROVIDER_ERRORS.UNAUTHORIZED.code
-      );
-    }
-    
-    return this.sendMessage('SIGN_BLOCK', { block });
-  }
-
-  async sendBlock(block: any): Promise<string> {
-    if (!this._isConnected) {
-      throw this.createProviderError(
-        'Not connected to MonkeyMask',
-        PROVIDER_ERRORS.UNAUTHORIZED.code
-      );
-    }
-    
-    const result = await this.sendMessage('SEND_BLOCK', { block });
-    return result.hash;
-  }
-
-  async sendTransaction(fromAddress: string, toAddress: string, amount: string): Promise<{ hash: string; block: any }> {
-    if (!this._isConnected) {
-      throw this.createProviderError(
-        'Not connected to MonkeyMask',
-        PROVIDER_ERRORS.UNAUTHORIZED.code
-      );
-    }
-    
-    console.log('BananoProvider: Sending transaction:', fromAddress, '->', toAddress, amount, 'BAN');
-    
-    const result = await this.sendMessage('SEND_TRANSACTION', {
-      fromAddress,
-      toAddress,
-      amount
-    });
-    
-    return {
-      hash: result.hash,
-      block: result.block
-    };
-  }
-
-  async resolveBNS(bnsName: string): Promise<string> {
-    console.log('BananoProvider: Resolving BNS name:', bnsName);
-    
-    const result = await this.sendMessage('RESOLVE_BNS', {
-      bnsName
-    });
-    
-    return result.address;
-  }
-
-  async getBalance(address?: string): Promise<string> {
-    if (!this._isConnected) {
-      throw this.createProviderError(
-        'Not connected to MonkeyMask',
-        PROVIDER_ERRORS.UNAUTHORIZED.code
-      );
-    }
-    
-    // Use first connected account if no address specified
-    const targetAddress = address || this.connectedAccounts[0];
-    if (!targetAddress) {
-      throw this.createProviderError(
-        'No address available',
-        PROVIDER_ERRORS.INTERNAL_ERROR.code
-      );
-    }
-    
-    console.log('BananoProvider: Getting balance (via account info) for:', targetAddress);
-    const result = await this.sendMessage('GET_ACCOUNT_INFO', {
-      address: targetAddress
-    });
-    return result.accountInfo?.balance || '0';
-  }
-
-  async getAccountInfo(address?: string): Promise<any> {
-    if (!this._isConnected) {
-      throw this.createProviderError(
-        'Not connected to MonkeyMask',
-        PROVIDER_ERRORS.UNAUTHORIZED.code
-      );
-    }
-    
-    // Use first connected account if no address specified
-    const targetAddress = address || this.connectedAccounts[0];
-    if (!targetAddress) {
-      throw this.createProviderError(
-        'No address available',
-        PROVIDER_ERRORS.INTERNAL_ERROR.code
-      );
-    }
-    
-    console.log('BananoProvider: Getting account info for:', targetAddress);
-    
-    const result = await this.sendMessage('GET_ACCOUNT_INFO', {
-      address: targetAddress
-    });
-    
-    return result.accountInfo;
-  }
+  on(): void {}
+  off(): void {}
+  removeAllListeners(): void {}
 }
 
-// TypeScript declarations for window.banano
-interface Window {
-  banano?: BananoProvider;
-}
+const legacyProvider = new LegacyBananoProvider();
+const wallet = new MonkeyMaskWallet();
 
-// Only inject if not already present
-if (!(window as any).banano) {
-  const provider = new BananoProviderImpl();
-  
-  // Make provider available globally
+if (!(window as Window & { banano?: LegacyBananoProvider }).banano) {
   Object.defineProperty(window, 'banano', {
-    value: provider,
+    value: legacyProvider,
     writable: false,
-    configurable: false
+    configurable: false,
   });
-
-  // Dispatch event to notify dApps that MonkeyMask is available
-  window.dispatchEvent(new CustomEvent('banano#initialized', {
-    detail: { provider }
-  }));
+  window.dispatchEvent(new CustomEvent(PROTOCOL_INIT_EVENT, { detail: { wallet, provider: legacyProvider } }));
 }
+
+export {};

@@ -1,169 +1,70 @@
 # MonkeyMask 🐒
 
-![MonkeyMask](monkeymask.png)
+Banano browser wallet implementing the **Wallet Standard** on the `banano:` chain namespace, with **Sign In With Banano (SIWB)** and a reusable adapter package.
 
-**A secure, modern browser extension wallet for Banano cryptocurrency**
-
-MonkeyMask brings the power of Banano to your browser with a user-friendly interface and developer-friendly API. Built with security, usability, and developer experience in mind.
-
-## 🌟 Features
-
-- **🔐 Secure Wallet Management**: HD wallet generation, encrypted local storage, and configurable auto-lock
-- **🌐 dApp Integration**: Modern API following Solana wallet adapter and Phantom wallet patterns
-- **🔓 Smart Locking**: Stay connected to dApps even when locked - unlock automatically for transactions
-- **🎯 User-Friendly**: Intuitive popup interface with transaction approval flows
-- **🛠️ Developer Ready**: Complete dApp template and comprehensive documentation
-- **🏷️ BNS Support**: Built-in Banano Name System resolution (username.ban addresses)
-
-## 📁 Project Structure
+## Monorepo Structure
 
 ```
 monkeymask/
-├── extension/          # Browser extension (Chrome/Edge/Firefox)
-├── monkeymask-nextjs-starter/      # Next.js dApp template for developers
-└── README.md          # This file
+├── packages/
+│   ├── wallet-standard/   # @monkeymask/wallet-standard — types, SIWB, protocol
+│   └── react/             # @monkeymask/react — provider + hooks
+├── extension/             # Chrome MV3 wallet
+└── monkeymask-website/    # Next.js demo + docs
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-### Extension Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/thekesslereffect/monkeymask.git
-   cd monkeymask/extension
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Build the extension**
-   ```bash
-   npm run build
-   ```
-
-4. **Load in browser**
-   - Open Chrome/Edge and go to `chrome://extensions/`
-   - Enable "Developer mode"
-   - Click "Load unpacked" and select the `extension/dist` folder
-   - MonkeyMask will appear in your extensions toolbar
-
-### dApp Template Usage
-
-1. **Navigate to template**
-   ```bash
-   cd monkeymask-nextjs-starter
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open in browser**
-   - Visit `http://localhost:3000`
-   - Connect your MonkeyMask extension
-   - Explore the API examples and documentation
-
-## 🔧 Development
-
-### Extension Development
 ```bash
-cd extension
-npm run dev    # Development build with watch mode
-npm run build  # Production build
-npm test       # Run tests (if available)
+npm install
+npm run build:packages
+npm run dev:extension   # build/watch extension
+npm run dev:website     # demo site on :3000
 ```
 
-### dApp Template Development
-```bash
-git clone https://github.com/thekesslereffect/monkeymask-nextjs-starter.git
-cd monkeymask-nextjs-starter
-npm i
-npm run dev
-```
+## Architecture
 
-## 📚 Documentation
+- **Extension** registers a Wallet Standard wallet + `window.banano` legacy provider
+- **Features**: `standard:connect`, `banano:signMessage`, `banano:signIn`, `banano:signTransaction`, `banano:signAndSendTransaction`
+- **SIWB**: server issues nonce → wallet signs ABNF message → `/api/auth/verify` validates via `verifySignIn`. Nonce/session storage is **durable via Convex** when configured, else an in-memory fallback
+- **Transactions**: structured Banano block intents (`send`, `change`, `receive`, `mint`, `mintEdition`, `transfer`, `sweep`), not opaque Solana-style payloads. `send` and `transfer` each take a single target or an array, so one primitive covers a payment and an airdrop; `signAndSendTransaction` returns `{ hash, hashes, results? }` (`results` itemizes each recipient of an array send/transfer)
+- **NFTs (read)**: reads come from the **Convex crawler index** when configured (a 24/7 job that crawls issuers, decodes `change#supply` → `#mint` pairs, traces the full mint → transfer → burn chain of custody, and caches IPFS metadata). Both the website and extension merge in a **self-indexed "minted by you"** source (crawls only the account's own history — no third party, and excludes assets you've transferred away) for instant local mints. Without Convex, the gallery falls back to the community indexer for NFTs received from others
+- **NFTs (mint)**: the website pins art + metadata to IPFS (`POST /api/ipfs`) and the wallet publishes a `change#supply` + `send#mint` pair; the mint block hash is the asset representative. Requires `PINATA_JWT` set on the website server for pinning. Mints accept an optional `fees` array (platform mint price + protocol fee) sent only after a successful mint, with an up-front balance check for mint + all fees
+- **NFTs (editions)**: mint a collection with `maxSupply > 1` (0 = unlimited) to allow multiple copies. `useMintEdition` (or the "Mint copy" button in the NFT detail view) publishes an additional `send#mint` reusing the collection's `metadata_representative` — each edition gets its own asset representative. The wallet verifies you issued the collection and rejects the mint once the edition limit is reached (matching the banano-nft-crawler counting rules)
+- **NFTs (transfer)**: the wallet transfers an owned NFT with a `send#asset` block — a send whose `representative` is the asset representative — via `useTransferNFT` (website) or the popup NFT view (extension); the crawler follows it to move ownership. Passing a `transfers` array moves several NFTs in one approval (pending pocketed once, then chained `send#asset` blocks, representative restored)
+- **Send / airdrop**: `useSend` handles one recipient or many (multi-send / airdrop) in a single approval. Multi-sends run through a **block-lattice-aware executor**: one `account_info` read, in-memory frontier/balance tracking, and proof-of-work pre-computed for the next block while the current one broadcasts (no per-block round-trip, no frontier race). Best-effort — a failed recipient is skipped, not fatal — with an up-front total-balance check and per-recipient `results`
+- **Receive & history**: `useReceivable` lists an account's pending blocks and `useReceive` claims them (`{ blockHash }` for one, or nothing for all — one receive/open block per claim). `useAccountHistory` reads recent confirmed transactions. Queries default to the current account or accept an address (`banano:getReceivable` / `banano:getAccountHistory`)
+- **Sweep (send max)**: `useSweep` / the popup Send screen's "Max (sweep)" button empties an account into one recipient — claims pending first, then sends the full confirmed balance in raw so no dust remains
+- **Payment URIs & QR**: pure `buildBananoUri` / `parseBananoUri` / `isBananoUri` / `banToRaw` / `rawToBan` helpers (re-exported from `@monkeymask/react`) build and parse `ban:` URIs (Nano/BIP21 flavour) for scannable payment codes. Pasting a `ban:` URI into the extension's Send screen auto-fills recipient + amount
+- **Spending sessions**: a dApp can request a per-origin allowance (`useSpendingSession` → `request`/`get`/`revoke`, backed by `banano:requestSpendingSession` etc.) so small single-recipient `send`s auto-approve without a popup until the limit or expiry is reached; each auto-approved send is debited from the remaining balance, and anything larger or any other op still prompts
+- **BNS**: `resolveBNS` turns a `.ban` name into an address (recipients in `send`/`mint` accept names directly). `useReverseBNS` / `banano:reverseResolveBNS` does the reverse (address → name) following the canonical banani-bns approach — scan the address for 4224-raw resolver blocks, decode each candidate domain, then forward-resolve to confirm. Best-effort and ledger-crawling, so slower; defaults to the connected account
+- **Backend (Convex)**: `monkeymask-website/convex/` — durable SIWB store, NFT index (`assets`/`ownership`/`metadataCache`), and a cron that re-crawls registered accounts. Fully optional; the app runs without it
 
-- **Extension**: See `extension/README.md` for detailed setup and architecture
+## Packages
 
-## 🏗️ Architecture
+| Package | Purpose |
+|---------|---------|
+| `@monkeymask/wallet-standard` | Chain IDs, feature types, SIWB build/verify, protocol envelope |
+| `@monkeymask/react` | `MonkeyMaskProvider`, `useSignIn`, `useSignAndSendTransaction`, `useSend`, `useReceive`, `useReceivable`, `useAccountHistory`, `useReverseBNS`, `useSweep`, `useSpendingSession`, `useMintNFT`, `useMintEdition`, `useTransferNFT`, `buildBananoUri`/`parseBananoUri`, etc. |
 
-### Extension Components
-- **Background Script**: Core wallet logic, RPC communication, approval flows
-- **Popup UI**: React-based interface for wallet management and transaction approval
-- **Content Script**: Injects provider API into web pages for dApp communication
-- **Wallet Manager**: Encrypted storage, HD wallet generation, transaction signing
+## Environment
 
-### dApp Integration
-- **Provider API**: `window.banano` object with methods for connection, transactions, and signing
-- **Event System**: Real-time updates for connection state, account changes, and disconnections
-- **Smart Timeouts**: 15-minute timeouts for approval operations, 30 seconds for account queries
-- **BNS Resolution**: Automatic conversion of .ban/.banano names to addresses
+Website (`monkeymask-website`):
 
-## 🔐 Security Features
+| Variable | Purpose |
+|----------|---------|
+| `PINATA_JWT` | IPFS pinning JWT used by `POST /api/ipfs` to pin NFT art + metadata (v0 CIDs). Without it, minting returns HTTP 501. |
+| `NFT_API_BASE` (optional) | Override the community NFT indexer used by the read-only gallery fallback. |
+| `NEXT_PUBLIC_CONVEX_URL` / `NEXT_PUBLIC_CONVEX_SITE_URL` (optional) | Convex deployment + HTTP-actions URLs. Written by `npx convex dev`. Enables durable SIWB + the crawler-backed NFT index. |
 
-- **Encrypted Storage**: All private keys encrypted with user password using AES-256
-- **HD Wallet**: BIP-39 mnemonic generation with BIP-44 derivation paths
-- **Permission System**: Per-origin permissions with easy revocation
-- **Auto-Lock**: Configurable inactivity timeout (default 15 minutes)
-- **Approval Flows**: Explicit user approval for all sensitive operations
-- **Secure Communication**: Isolated content script with message passing
+Convex deployment env (set with `npx convex env set …`, both optional): `BANANO_RPC_URL`, `IPFS_GATEWAY`.
 
-## 🎯 Smart Wallet Behavior
+To enable the backend: `cd monkeymask-website && npx convex dev` (provisions a deployment and starts the crawler cron). Point the **extension** at the same index by building it with `MONKEYMASK_CONVEX_URL=https://your-deployment.convex.site` (falls back to self-crawl + community indexer when unset).
 
-MonkeyMask features intelligent locking behavior that balances security with user experience:
+## Security
 
-**✅ Always Available (even when locked):**
-- Connection to dApps
-- Balance queries
-- Account information
-- BNS resolution
+- WebCrypto AES-GCM keystore (PBKDF2 600k iterations)
+- Per-origin permissions with approval UI
+- Banano-native `BananoUtil.signMessage` / `verifyMessage` for SIWB
 
-**🔓 Requires Unlock:**
-- Transaction sending
-- Message signing
-- Block signing
-- Private key operations
-
-When a locked wallet needs to perform a transaction, MonkeyMask automatically opens the unlock interface, then proceeds to the approval screen - no manual reconnection needed.
-
-## 🌐 Browser Support
-
-- ✅ Chrome/Chromium 88+
-- ✅ Microsoft Edge 88+
-- ✅ Firefox 78+ (with manifest v2 compatibility)
-- ✅ Brave Browser
-- ✅ Opera
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Test thoroughly with both extension and dApp template
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Banano Community** for the amazing cryptocurrency and ecosystem
-- **Solana Wallet Adapter** for the clean wallet integration patterns
-- **Phantom Wallet** for the excellent UX and API design inspiration
-- **Solana Ecosystem** for pioneering user-friendly wallet standards
-
----
-
-**Ready to build with Banano? Start with the dApp template and join the MonkeyMask ecosystem! 🐒💛**
+See [monkeymask-website/src/app/docs/page.tsx](monkeymask-website/src/app/docs/page.tsx) for integration details.

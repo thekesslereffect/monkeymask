@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isBananoUri, parseBananoUri } from '@monkeymask/wallet-standard';
 import { bnsResolver } from '../../utils/bns';
 import { ContentContainer, Header, Input, Button, Alert, Footer } from './ui';
 import { Icon } from '@iconify/react';
@@ -27,9 +28,25 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
   const [success, setSuccess] = useState('');
   const [resolvedAddress, setResolvedAddress] = useState('');
   const [isResolving, setIsResolving] = useState(false);
+  const [isMax, setIsMax] = useState(false);
 
   // Handle address input changes and BNS resolution
   const handleAddressChange = async (value: string) => {
+    // Paste of a `ban:` payment URI → prefill recipient + amount.
+    if (isBananoUri(value)) {
+      const parsed = parseBananoUri(value);
+      if (parsed) {
+        setToAddress(parsed.address);
+        setResolvedAddress('');
+        setError('');
+        if (parsed.amount) {
+          setAmount(parsed.amount);
+          setIsMax(false);
+        }
+        return;
+      }
+    }
+
     setToAddress(value);
     setResolvedAddress('');
     setError('');
@@ -70,7 +87,7 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
       return;
     }
 
-    if (!amount || parseFloat(amount) <= 0) {
+    if (!isMax && (!amount || parseFloat(amount) <= 0)) {
       setError('Please enter a valid amount');
       return;
     }
@@ -78,7 +95,7 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
     const numAmount = parseFloat(amount);
     const currentBalance = parseFloat(account.balance);
 
-    if (numAmount > currentBalance) {
+    if (!isMax && numAmount > currentBalance) {
       setError('Insufficient balance');
       return;
     }
@@ -87,13 +104,20 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
 
     try {
       console.log('SendScreen: Sending transaction...');
-      
-      const response = await chrome.runtime.sendMessage({
-        type: 'SEND_TRANSACTION',
-        fromAddress: account.address,
-        toAddress: finalAddress,
-        amount: amount
-      });
+
+      // "Max" sweeps the whole account in raw so no dust is left behind.
+      const response = isMax
+        ? await chrome.runtime.sendMessage({
+            type: 'SWEEP_TRANSACTION',
+            fromAddress: account.address,
+            toAddress: finalAddress,
+          })
+        : await chrome.runtime.sendMessage({
+            type: 'SEND_TRANSACTION',
+            fromAddress: account.address,
+            toAddress: finalAddress,
+            amount: amount,
+          });
 
       if (response.success) {
         console.log('SendScreen: Transaction sent successfully!');
@@ -102,6 +126,7 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
         // Clear form
         setToAddress('');
         setAmount('');
+        setIsMax(false);
         
         // Pass the full result to the parent component
         onSendComplete({
@@ -184,20 +209,40 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
 
           {/* Amount */}
           <div className="w-full">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm text-tertiary">Amount</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAmount(account.balance);
+                  setIsMax(true);
+                }}
+                className="text-xs font-semibold text-accent hover:underline"
+              >
+                Max (sweep)
+              </button>
+            </div>
             <Input
-              label="Amount"
               variant="secondary"
               size="lg"
               type="number"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setIsMax(false);
+              }}
               placeholder="69.00"
               step="0.0001"
               min="0.0001"
               max={account.balance}
-              required
+              required={!isMax}
               className="text-center no-spinner"
             />
+            {isMax && (
+              <div className="text-xs text-tertiary mt-1 text-center">
+                Sweeping entire balance (claims pending first).
+              </div>
+            )}
           </div>
 
           {error && (

@@ -1,39 +1,17 @@
 'use client';
 
 import React, { ReactNode } from 'react';
-import { MonkeyMaskProvider } from './MonkeyMaskProvider';
+import { MonkeyMaskProvider } from '@monkeymask/react';
 
 interface ProvidersProps {
   children: ReactNode;
 }
 
-/**
- * Combined providers wrapper for the MonkeyMask dApp template.
- * This wraps all necessary providers for wallet functionality.
- * 
- * Usage:
- * ```tsx
- * import { Providers } from '@/providers';
- * 
- * export default function RootLayout({ children }: { children: ReactNode }) {
- *   return (
- *     <html lang="en">
- *       <body>
- *         <Providers>
- *           {children}
- *         </Providers>
- *       </body>
- *     </html>
- *   );
- * }
- * ```
- */
 export function Providers({ children }: ProvidersProps) {
   return (
     <MonkeyMaskProvider
       config={{
         autoConnect: true,
-        // Keep callbacks silent to reduce console noise on reload
         onConnect: () => {},
         onDisconnect: () => {},
         onError: () => {},
@@ -44,6 +22,39 @@ export function Providers({ children }: ProvidersProps) {
   );
 }
 
-// Re-export everything developers need
-export { useMonkeyMask } from './MonkeyMaskProvider';
-export type { MonkeyMaskContextType } from './MonkeyMaskProvider';
+export {
+  useMonkeyMask,
+  useWallet,
+  useConnect,
+  useAccounts,
+  useSignIn,
+  useSignMessage,
+  useSignTransaction,
+  useSignAndSendTransaction,
+  useSend,
+  useReceive,
+  useReceivable,
+  useSweep,
+  useAccountHistory,
+  useReverseBNS,
+  useSpendingSession,
+  useMintNFT,
+  useMintEdition,
+  useTransferNFT,
+  buildBananoUri,
+  parseBananoUri,
+  isBananoUri,
+  banToRaw,
+  rawToBan,
+} from '@monkeymask/react';
+
+export type {
+  MonkeyMaskContextValue,
+  MonkeyMaskProviderConfig,
+  SendParams,
+  MintNFTParams,
+  MintEditionParams,
+  TransferNFTParams,
+  BananoPaymentRequest,
+  SpendingSessionInfo,
+} from '@monkeymask/react';

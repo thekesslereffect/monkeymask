@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import QRCode from 'qrcode';
 import { Header, Card, Button, ContentContainer, Footer } from './ui';
-import { useNavigation } from '../hooks/useRouter';
 import { PageName } from './ui/PageName';
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
+import { truncateMiddle } from '../../utils/format';
 
 interface Account {
   address: string;
@@ -18,10 +19,8 @@ interface QRScreenProps {
 }
 
 export const QRScreen: React.FC<QRScreenProps> = ({ account }) => {
-  const navigation = useNavigation();
+  const { copy, copied } = useCopyToClipboard();
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
-  const [copySuccess, setCopySuccess] = useState(false);
-  const [copyError, setCopyError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,23 +46,6 @@ export const QRScreen: React.FC<QRScreenProps> = ({ account }) => {
     }
   };
 
-  const formatAddress = (address: string): string => {
-    return `${address.slice(0, 8)}...${address.slice(-8)}`;
-  };
-
-  const copyAddress = async () => {
-    try {
-      await navigator.clipboard.writeText(account.address);
-      setCopySuccess(true);
-      setCopyError('');
-      setTimeout(() => setCopySuccess(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy address:', error);
-      setCopyError('Failed to copy address to clipboard');
-      setTimeout(() => setCopyError(''), 3000);
-    }
-  };
-
   return (
     <div className="h-full flex flex-col bg-background text-foreground">
       <Header active={true}/>
@@ -83,17 +65,17 @@ export const QRScreen: React.FC<QRScreenProps> = ({ account }) => {
                   </div>
                 </Card>
                 <div className="text-center text-lg font-mono text-foreground break-all">
-                  {formatAddress(account.address)}
+                  {truncateMiddle(account.address, 8, 8)}
                 </div>
               {/* Copy Button */}
               <Button
                 variant="primary"
                 size="lg"
-                onClick={copyAddress}
+                onClick={() => copy(account.address)}
               >
                 <div className="flex items-center justify-center gap-2">
                   <Icon icon="lucide:copy" className="text-2xl" />
-                  {copySuccess ? 'Copied!' : 'Copy to Clipboard'}
+                  {copied ? 'Copied!' : 'Copy to Clipboard'}
                 </div>
               </Button>
       </ContentContainer>
