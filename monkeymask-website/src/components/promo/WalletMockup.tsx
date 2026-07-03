@@ -18,8 +18,16 @@ const TEXT = '#f2f2f2';
 const SUB = '#8a8a8a';
 const FAINT = '#5c5c5c';
 const BANANO = '#FBDD11';
+const BANANO_GREEN = '#4CBF4B';
 
-export type WalletScreen = 'dashboard' | 'send' | 'nft' | 'approval' | 'receive' | 'multisend';
+export type WalletScreen =
+  | 'dashboard'
+  | 'send'
+  | 'nft'
+  | 'approval'
+  | 'receive'
+  | 'multisend'
+  | 'spending-session';
 
 function Chrome({ children, footer = 'dashboard' }: { children: React.ReactNode; footer?: WalletScreen | 'none' }) {
   return (
@@ -170,7 +178,7 @@ function Send() {
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold" style={{ color: TEXT }}>
-            chef.ban
+            cosmic.ban
           </span>
           <span className="rounded-md px-2 py-0.5 text-[10px] font-bold" style={{ background: POP, color: BANANO }}>
             BNS
@@ -218,16 +226,11 @@ function Send() {
   );
 }
 
-function nftGradient(i: number) {
-  const grads = [
-    'linear-gradient(135deg,#FBDD11,#f59e0b)',
-    'linear-gradient(135deg,#8b5cf6,#ec4899)',
-    'linear-gradient(135deg,#22d3ee,#3b82f6)',
-    'linear-gradient(135deg,#34d399,#10b981)',
-    'linear-gradient(135deg,#f472b6,#fb7185)',
-    'linear-gradient(135deg,#a3e635,#22c55e)',
-  ];
-  return grads[i % grads.length];
+/** Solid Banano yellow / green tiles only — no black-in-gradient mud. */
+function nftTile(i: number): { background: string; faceFill: string } {
+  return i % 2 === 0
+    ? { background: BANANO, faceFill: '#111' }
+    : { background: BANANO_GREEN, faceFill: '#fff' };
 }
 
 function Nft() {
@@ -240,24 +243,27 @@ function Nft() {
         </span>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="overflow-hidden rounded-2xl" style={{ background: CARD }}>
-            <div
-              className="flex aspect-square items-center justify-center"
-              style={{ background: nftGradient(i) }}
-            >
-              <MonkeyLogo className="size-10" faceFill="rgba(0,0,0,0.85)" />
-            </div>
-            <div className="px-3 py-2">
-              <div className="text-xs font-bold" style={{ color: TEXT }}>
-                Monk #{100 + i}
+        {Array.from({ length: 6 }).map((_, i) => {
+          const tile = nftTile(i);
+          return (
+            <div key={i} className="overflow-hidden rounded-2xl" style={{ background: CARD }}>
+              <div
+                className="flex aspect-square items-center justify-center"
+                style={{ background: tile.background }}
+              >
+                <MonkeyLogo className="size-10" faceFill={tile.faceFill} />
               </div>
-              <div className="text-[10px]" style={{ color: FAINT }}>
-                Genesis Apes
+              <div className="px-3 py-2">
+                <div className="text-xs font-bold" style={{ color: TEXT }}>
+                  Monk #{100 + i}
+                </div>
+                <div className="text-[10px]" style={{ color: FAINT }}>
+                  Genesis Apes
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -334,7 +340,7 @@ function Receive() {
 
 function MultiSend() {
   const rows = [
-    { name: 'chef.ban', amt: '250' },
+    { name: 'cosmic.ban', amt: '250' },
     { name: 'art.ban', amt: '250' },
     { name: 'ban_3monkey…z9qm', amt: '250' },
     { name: 'ban_1kessler…p2ld', amt: '250' },
@@ -399,6 +405,66 @@ function MultiSend() {
   );
 }
 
+function SpendingSession() {
+  const rows = [
+    { label: 'Limit', value: '5 BAN' },
+    { label: 'Duration', value: '30 minutes' },
+    { label: 'Applies to', value: 'Single sends under limit' },
+  ];
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex flex-1 flex-col gap-5">
+        <div className="text-center">
+          <div className="text-lg font-bold" style={{ color: TEXT }}>
+            Spending allowance
+          </div>
+          <div className="mt-1 text-sm" style={{ color: SUB }}>
+            game.ban requests auto-approve
+          </div>
+        </div>
+
+        <div className="rounded-2xl p-4" style={{ background: CARD }}>
+          {rows.map((row, i) => (
+            <div key={row.label}>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-xs font-semibold" style={{ color: FAINT }}>
+                  {row.label}
+                </span>
+                <span className="text-sm font-bold" style={{ color: TEXT }}>
+                  {row.value}
+                </span>
+              </div>
+              {i < rows.length - 1 && <div style={{ borderTop: `1px solid ${POP}` }} />}
+            </div>
+          ))}
+        </div>
+
+        <div
+          className="rounded-xl px-3 py-2.5 text-center text-[11px] leading-snug"
+          style={{ background: POP, color: SUB }}
+        >
+          Revoke anytime from Connected Sites. Larger sends still prompt.
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <div
+          className="flex flex-1 items-center justify-center rounded-xl py-3 text-sm font-bold"
+          style={{ background: CARD, color: SUB }}
+        >
+          Deny
+        </div>
+        <div
+          className="flex flex-1 items-center justify-center rounded-xl py-3 text-sm font-bold"
+          style={{ background: TEXT, color: BG }}
+        >
+          Approve
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WalletMockup({
   screen = 'dashboard',
   className = '',
@@ -407,7 +473,11 @@ export function WalletMockup({
   className?: string;
 }) {
   const footer: WalletScreen | 'none' =
-    screen === 'approval' || screen === 'receive' ? 'none' : screen === 'nft' ? 'nft' : 'dashboard';
+    screen === 'approval' || screen === 'receive' || screen === 'spending-session'
+      ? 'none'
+      : screen === 'nft'
+        ? 'nft'
+        : 'dashboard';
   return (
     <div className={className}>
       <Chrome footer={footer}>
@@ -416,6 +486,7 @@ export function WalletMockup({
         {screen === 'multisend' && <MultiSend />}
         {screen === 'nft' && <Nft />}
         {screen === 'approval' && <Approval />}
+        {screen === 'spending-session' && <SpendingSession />}
         {screen === 'receive' && <Receive />}
       </Chrome>
     </div>

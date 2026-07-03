@@ -5,6 +5,7 @@ import { WalletMockup } from './WalletMockup';
 import { BrowserFrame } from './BrowserFrame';
 
 const BANANO = '#FBDD11';
+const BANANO_GREEN = '#4CBF4B';
 
 /* ----------------------------- shared bits ------------------------------ */
 
@@ -20,10 +21,22 @@ function Dots({ color = 'rgba(0,0,0,0.06)' }: { color?: string }) {
   );
 }
 
-function Pill({ icon, children }: { icon: string; children: React.ReactNode }) {
+function Pill({
+  icon,
+  children,
+  tone = 'yellow',
+}: {
+  icon: string;
+  children: React.ReactNode;
+  tone?: 'yellow' | 'green';
+}) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-lg font-bold text-foreground shadow-sm">
-      <Icon icon={icon} className="size-5" style={{ color: '#d9a800' }} />
+      <Icon
+        icon={icon}
+        className="size-5"
+        style={{ color: tone === 'green' ? BANANO_GREEN : '#d9a800' }}
+      />
       {children}
     </div>
   );
@@ -89,7 +102,9 @@ export function HeroShot() {
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Pill icon="lucide:zap">Instant &amp; feeless</Pill>
-            <Pill icon="lucide:shield-check">Self-custody</Pill>
+            <Pill icon="lucide:shield-check" tone="green">
+              Self-custody
+            </Pill>
             <Pill icon="lucide:image">NFTs &amp; BNS</Pill>
           </div>
           <div className="mt-10">
@@ -150,16 +165,18 @@ export function DeveloperShot() {
   return (
     <div className="relative flex h-[900px] w-[1600px] items-center overflow-hidden bg-[#111112] font-figtree">
       <Dots color="rgba(255,255,255,0.06)" />
-      <div
-        className="pointer-events-none absolute -left-40 bottom-[-200px] size-[600px] rounded-full opacity-30 blur-[120px]"
-        style={{ background: BANANO }}
-      />
       <div className="relative z-10 flex w-full items-center gap-16 px-24">
         <div className="w-[760px] shrink-0">
           <Wordmark light />
           <h2 className="mt-8 font-nunito text-6xl font-extrabold leading-[1.05] tracking-tight text-white">
             Wallet Standard +<br />
-            React hooks
+            <span className="relative whitespace-nowrap">
+              React hooks
+              <span
+                className="absolute -bottom-2 left-0 h-3 w-full rounded-full"
+                style={{ background: BANANO }}
+              />
+            </span>
           </h2>
           <p className="mt-6 max-w-xl text-2xl font-medium text-white/60">
             Drop-in <code className="rounded bg-white/10 px-2 py-0.5 text-white">@monkeymask/react</code>.
@@ -193,7 +210,7 @@ export function DeveloperShot() {
                 <span style={{ color: '#569cd6' }}>await</span>
                 <span style={{ color: '#dcdcaa' }}> send</span>
                 <span style={{ color: '#d4d4d4' }}>({'{'} to: </span>
-                <span style={{ color: '#ce9178' }}>&apos;chef.ban&apos;</span>
+                <span style={{ color: '#ce9178' }}>&apos;cosmic.ban&apos;</span>
                 <span style={{ color: '#d4d4d4' }}>, amount: </span>
                 <span style={{ color: '#ce9178' }}>&apos;250&apos;</span>
                 <span style={{ color: '#d4d4d4' }}> {'}'})</span>
@@ -215,21 +232,21 @@ export function DeveloperShot() {
 /** 1200×1200 - square NFT post. */
 export function NftSquareShot() {
   return (
-    <div className="relative flex h-[1200px] w-[1200px] flex-col items-center overflow-hidden bg-[#0f0f10] font-figtree">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-70"
-        style={{
-          background:
-            'radial-gradient(circle at 20% 15%, rgba(139,92,246,0.35), transparent 45%), radial-gradient(circle at 85% 80%, rgba(236,72,153,0.35), transparent 45%)',
-        }}
-      />
+    <div className="relative flex h-[1200px] w-[1200px] flex-col items-center overflow-hidden bg-[#111112] font-figtree">
+      <Dots color="rgba(255,255,255,0.06)" />
       <div className="relative z-10 mt-24 px-16 text-center">
-        <h2 className="font-nunito text-7xl font-extrabold leading-tight tracking-tight text-white">
+        <span
+          className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold text-white"
+          style={{ background: BANANO_GREEN }}
+        >
+          On-chain collectibles
+        </span>
+        <h2 className="mt-6 font-nunito text-7xl font-extrabold leading-tight tracking-tight text-white">
           Mint, hold &amp; trade
           <br />
           Banano NFTs
         </h2>
-        <p className="mt-6 text-3xl font-bold text-white/60">On-chain. In your wallet.</p>
+        <p className="mt-6 text-3xl font-bold text-white/60">In your wallet. Fully yours.</p>
       </div>
       <div className="relative z-10 mt-16 rotate-[-3deg] rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.7)]">
         <WalletMockup screen="nft" />
@@ -246,6 +263,10 @@ export function InBrowserShot() {
   return (
     <div className="relative flex h-[900px] w-[1600px] items-center justify-center overflow-hidden bg-[#f6f6f7] font-figtree">
       <Dots />
+      <div
+        className="pointer-events-none absolute -left-32 top-[-120px] size-[560px] rounded-full opacity-45 blur-[120px]"
+        style={{ background: BANANO }}
+      />
       <div className="relative z-10 w-[1360px]">
         <BrowserFrame url="monkey.market" className="w-full">
           <div className="relative h-[560px] bg-white p-16">
@@ -284,7 +305,7 @@ export function BentoShot() {
     { icon: 'lucide:zap', title: 'Instant & feeless', desc: 'Sub-second confirmations. Never pay gas.' },
     { icon: 'lucide:shield-check', title: 'Self-custody', desc: 'Keys encrypted locally. Your coins, always.' },
     { icon: 'lucide:image', title: 'NFTs built-in', desc: 'Mint, hold, transfer & burn on-chain.' },
-    { icon: 'lucide:at-sign', title: '.ban names', desc: 'Send to chef.ban, no long addresses.' },
+    { icon: 'lucide:at-sign', title: '.ban names', desc: 'Send to cosmic.ban, no long addresses.' },
     { icon: 'lucide:fingerprint', title: 'Sign in with Banano', desc: 'Passwordless login for any dApp.' },
     { icon: 'lucide:code', title: 'Open & typed', desc: 'Wallet Standard + React hooks.' },
   ];
@@ -305,21 +326,26 @@ export function BentoShot() {
         <ChromeBadge />
       </div>
       <div className="relative z-10 mt-12 grid grid-cols-3 gap-6">
-        {feats.map((f) => (
-          <div
-            key={f.title}
-            className="rounded-3xl border border-black/10 bg-white p-8 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.25)]"
-          >
+        {feats.map((f, i) => {
+          const green = i % 2 === 1;
+          return (
             <div
-              className="flex size-14 items-center justify-center rounded-2xl"
-              style={{ background: BANANO }}
+              key={f.title}
+              className="rounded-3xl border border-black/10 bg-white p-8 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.25)]"
             >
-              <Icon icon={f.icon} className="size-7 text-black" />
+              <div
+                className={`flex size-14 items-center justify-center rounded-2xl ${
+                  green ? 'text-white' : 'text-black'
+                }`}
+                style={{ background: green ? BANANO_GREEN : BANANO }}
+              >
+                <Icon icon={f.icon} className="size-7" />
+              </div>
+              <div className="mt-5 text-2xl font-extrabold text-foreground">{f.title}</div>
+              <div className="mt-2 text-lg font-medium text-muted-foreground">{f.desc}</div>
             </div>
-            <div className="mt-5 text-2xl font-extrabold text-foreground">{f.title}</div>
-            <div className="mt-2 text-lg font-medium text-muted-foreground">{f.desc}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -330,17 +356,20 @@ export function XBannerShot() {
   return (
     <div className="relative flex h-[500px] w-[1500px] items-center overflow-hidden bg-[#111112] font-figtree">
       <Dots color="rgba(255,255,255,0.06)" />
-      <div
-        className="pointer-events-none absolute -right-24 top-1/2 size-[520px] -translate-y-1/2 rounded-full opacity-30 blur-[110px]"
-        style={{ background: BANANO }}
-      />
       <div className="relative z-10 flex w-full items-center justify-between px-20">
         <div className="max-w-2xl pb-4">
           <Wordmark light />
           <h2 className="mt-5 font-nunito text-5xl font-extrabold leading-tight tracking-tight text-white">
-            A Banano wallet for the modern Web
+            A Banano wallet for the{' '}
+            <span className="relative whitespace-nowrap">
+              modern Web
+              <span
+                className="absolute -bottom-1 left-0 h-2.5 w-full rounded-full"
+                style={{ background: BANANO }}
+              />
+            </span>
           </h2>
-          <p className="mt-3 text-xl font-semibold text-white/50">
+          <p className="mt-4 text-xl font-semibold text-white/50">
             Instant · feeless · self-custody · NFTs · SIWB
           </p>
         </div>
@@ -359,7 +388,9 @@ export function StoryShot() {
   return (
     <div
       className="relative flex h-[1920px] w-[1080px] flex-col items-center overflow-hidden font-figtree"
-      style={{ background: `linear-gradient(180deg, #ffffff 0%, #fff9dd 55%, ${BANANO} 100%)` }}
+      style={{
+        background: `linear-gradient(180deg, #ffffff 0%, #fff9dd 40%, ${BANANO} 72%, ${BANANO_GREEN} 100%)`,
+      }}
     >
       <Dots color="rgba(0,0,0,0.06)" />
       <div className="relative z-10 mt-28 flex flex-col items-center px-16 text-center">
@@ -395,10 +426,6 @@ export function StatsShot() {
   return (
     <div className="relative flex h-[1200px] w-[1200px] flex-col justify-center overflow-hidden bg-[#111112] px-20 font-figtree">
       <Dots color="rgba(255,255,255,0.06)" />
-      <div
-        className="pointer-events-none absolute left-1/2 top-[-200px] size-[560px] -translate-x-1/2 rounded-full opacity-25 blur-[120px]"
-        style={{ background: BANANO }}
-      />
       <div className="relative z-10">
         <Wordmark light />
         <h2 className="mt-8 font-nunito text-6xl font-extrabold leading-tight tracking-tight text-white">
@@ -407,11 +434,11 @@ export function StatsShot() {
           gets out of the way.
         </h2>
         <div className="mt-16 space-y-10">
-          {stats.map((s) => (
+          {stats.map((s, i) => (
             <div key={s.label} className="flex items-baseline gap-6 border-b border-white/10 pb-8">
               <span
                 className="font-nunito text-8xl font-extrabold leading-none"
-                style={{ color: BANANO }}
+                style={{ color: i % 2 === 1 ? BANANO_GREEN : BANANO }}
               >
                 {s.big}
               </span>
@@ -429,6 +456,10 @@ export function OpenSourceShot() {
   return (
     <div className="relative flex h-[900px] w-[1600px] items-center overflow-hidden bg-white font-figtree">
       <Dots />
+      <div
+        className="pointer-events-none absolute -right-32 top-1/2 size-[520px] -translate-y-1/2 rounded-full opacity-45 blur-[120px]"
+        style={{ background: BANANO }}
+      />
       <div className="relative z-10 flex w-full items-center gap-16 px-24">
         <div className="w-[720px] shrink-0">
           <Wordmark />
@@ -443,7 +474,9 @@ export function OpenSourceShot() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Pill icon="lucide:package">npm published</Pill>
-            <Pill icon="lucide:code">React hooks</Pill>
+            <Pill icon="lucide:code" tone="green">
+              React hooks
+            </Pill>
             <Pill icon="lucide:zap">No backend required</Pill>
           </div>
         </div>
@@ -482,22 +515,22 @@ export function AirdropSquareShot() {
   return (
     <div
       className="relative flex h-[1200px] w-[1200px] flex-col items-center overflow-hidden font-figtree"
-      style={{ background: 'linear-gradient(160deg, #10b981 0%, #059669 60%, #047857 100%)' }}
+      style={{ background: BANANO_GREEN }}
     >
-      <Dots color="rgba(255,255,255,0.1)" />
+      <Dots color="rgba(0,0,0,0.1)" />
       <div className="relative z-10 mt-24 px-16 text-center">
-        <h2 className="font-nunito text-7xl font-extrabold leading-tight tracking-tight text-white">
+        <h2 className="font-nunito text-7xl font-extrabold leading-tight tracking-tight text-black">
           Airdrop to 1,000
           <br />
           wallets in one tap.
         </h2>
-        <p className="mt-6 text-3xl font-bold text-white/70">One approval. One block-lattice sweep.</p>
+        <p className="mt-6 text-3xl font-bold text-black/70">One approval. One block-lattice sweep.</p>
       </div>
-      <div className="relative z-10 mt-14 rotate-[3deg] rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.5)]">
+      <div className="relative z-10 mt-14 rotate-[3deg] rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.45)]">
         <WalletMockup screen="multisend" />
       </div>
       <div className="absolute bottom-12 z-10">
-        <Wordmark light />
+        <Wordmark />
       </div>
     </div>
   );
@@ -595,6 +628,308 @@ export function BrandWordmarkDark() {
         <MonkeyLogo className="size-[118px]" faceFill="#000" />
       </div>
       <span className="text-[104px] font-extrabold tracking-tight">MonKeyMask</span>
+    </div>
+  );
+}
+
+/* ------------------------ feature-specific promos ----------------------- */
+
+function nftThumb(i: number): { background: string; faceFill: string } {
+  return i % 2 === 0
+    ? { background: BANANO, faceFill: '#111' }
+    : { background: BANANO_GREEN, faceFill: '#fff' };
+}
+
+/** Access-granted panel shown inside a gated dApp. */
+function GateUnlockedPanel({ compact = false }: { compact?: boolean }) {
+  const checks = [
+    'Signed in with Banano',
+    'Holds Genesis Apes',
+    'Issuer verified on-chain',
+  ];
+  return (
+    <div className={`font-figtree ${compact ? 'p-8' : 'p-10'}`}>
+      <div className="flex items-center justify-between gap-4">
+        <div
+          className="flex size-14 items-center justify-center rounded-2xl text-white"
+          style={{ background: BANANO_GREEN }}
+        >
+          <Icon icon="lucide:lock-open" className="size-7" />
+        </div>
+        <span
+          className="rounded-full px-3 py-1 text-xs font-bold text-white"
+          style={{ background: BANANO_GREEN }}
+        >
+          Access granted
+        </span>
+      </div>
+
+      <h3
+        className={`mt-5 font-nunito font-extrabold tracking-tight text-foreground ${
+          compact ? 'text-3xl' : 'text-4xl'
+        }`}
+      >
+        Genesis Apes Vault
+      </h3>
+      <p className={`mt-2 text-muted-foreground ${compact ? 'text-base' : 'text-lg'}`}>
+        Wallet proved ownership. Welcome in.
+      </p>
+
+      <div className={`mt-6 space-y-2.5 ${compact ? 'text-sm' : 'text-base'}`}>
+        {checks.map((label) => (
+          <div
+            key={label}
+            className="flex items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 font-semibold text-foreground"
+          >
+            <span
+              className="flex size-6 shrink-0 items-center justify-center rounded-full text-white"
+              style={{ background: BANANO_GREEN }}
+            >
+              <Icon icon="lucide:check" className="size-3.5 stroke-[3]" />
+            </span>
+            {label}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 flex items-center gap-3">
+        {[0, 1, 2].map((i) => {
+          const tile = nftThumb(i);
+          return (
+            <div
+              key={i}
+              className="flex size-14 items-center justify-center rounded-xl"
+              style={{ background: tile.background }}
+            >
+              <MonkeyLogo className="size-7" faceFill={tile.faceFill} />
+            </div>
+          );
+        })}
+        <div className="ml-1 text-sm font-bold text-muted-foreground">3 held</div>
+      </div>
+
+      <div
+        className={`mt-6 flex items-center justify-center rounded-2xl py-4 text-lg font-extrabold text-black ${
+          compact ? '' : 'text-xl'
+        }`}
+        style={{ background: BANANO }}
+      >
+        Enter the vault
+      </div>
+    </div>
+  );
+}
+
+/** 1200×1200 - spending sessions square. */
+export function SpendingSessionSquareShot() {
+  return (
+    <div
+      className="relative flex h-[1200px] w-[1200px] flex-col items-center overflow-hidden font-figtree"
+      style={{ background: `linear-gradient(160deg, ${BANANO} 0%, #f7c600 55%, #f0b400 100%)` }}
+    >
+      <Dots color="rgba(0,0,0,0.08)" />
+      <div className="relative z-10 mt-24 px-16 text-center">
+        <h2 className="font-nunito text-7xl font-extrabold leading-tight tracking-tight text-black">
+          Small sends.
+          <br />
+          Zero popups.
+        </h2>
+        <p className="mt-6 text-3xl font-bold text-black/70">
+          Grant a spending allowance once. Micro-payments sail through.
+        </p>
+      </div>
+      <div className="relative z-10 mt-14 rotate-[4deg] rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.45)]">
+        <WalletMockup screen="spending-session" />
+      </div>
+      <div className="absolute bottom-12 z-10">
+        <Wordmark />
+      </div>
+    </div>
+  );
+}
+
+/** 1600×900 - spending sessions + hook snippet. */
+export function SpendingSessionWideShot() {
+  return (
+    <div className="relative flex h-[900px] w-[1600px] items-center overflow-hidden bg-white font-figtree">
+      <Dots />
+      <div
+        className="pointer-events-none absolute -left-32 top-1/2 size-[520px] -translate-y-1/2 rounded-full opacity-45 blur-[120px]"
+        style={{ background: BANANO }}
+      />
+      <div className="relative z-10 flex w-full items-center gap-14 px-24">
+        <div className="w-[760px] shrink-0">
+          <Wordmark />
+          <h2 className="mt-8 font-nunito text-6xl font-extrabold leading-[1.05] tracking-tight text-foreground">
+            Spending sessions
+          </h2>
+          <p className="mt-6 max-w-xl text-2xl font-medium text-muted-foreground">
+            Opt-in per-site allowances for tiny sends. User approves once, revokes anytime.
+          </p>
+
+          <div className="mt-10 overflow-hidden rounded-2xl border border-black/10 bg-[#1b1b1d] shadow-2xl">
+            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+              <span className="size-3 rounded-full bg-[#ff5f57]" />
+              <span className="size-3 rounded-full bg-[#febc2e]" />
+              <span className="size-3 rounded-full bg-[#28c840]" />
+              <span className="ml-2 text-sm text-white/40">game.tsx</span>
+            </div>
+            <pre className="overflow-hidden px-6 py-5 font-mono text-lg leading-relaxed">
+              <code>
+                <span style={{ color: '#c586c0' }}>const</span>
+                <span style={{ color: '#d4d4d4' }}> session = </span>
+                <span style={{ color: '#dcdcaa' }}>useSpendingSession</span>
+                <span style={{ color: '#d4d4d4' }}>()</span>
+                {'\n'}
+                <span style={{ color: '#569cd6' }}>await</span>
+                <span style={{ color: '#dcdcaa' }}> session.request</span>
+                <span style={{ color: '#d4d4d4' }}>({'{'}{' '}</span>
+                <span style={{ color: '#9cdcfe' }}>limit</span>
+                <span style={{ color: '#d4d4d4' }}>: </span>
+                <span style={{ color: '#ce9178' }}>&apos;5&apos;</span>
+                <span style={{ color: '#d4d4d4' }}>, </span>
+                <span style={{ color: '#9cdcfe' }}>durationMs</span>
+                <span style={{ color: '#d4d4d4' }}>: </span>
+                <span style={{ color: '#b5cea8' }}>30</span>
+                <span style={{ color: '#d4d4d4' }}> * </span>
+                <span style={{ color: '#b5cea8' }}>60_000</span>
+                <span style={{ color: '#d4d4d4' }}> {'}'})</span>
+                {'\n\n'}
+                <span style={{ color: '#569cd6' }}>await</span>
+                <span style={{ color: '#dcdcaa' }}> send</span>
+                <span style={{ color: '#d4d4d4' }}>({'{'} to: </span>
+                <span style={{ color: '#ce9178' }}>&apos;game.ban&apos;</span>
+                <span style={{ color: '#d4d4d4' }}>, amount: </span>
+                <span style={{ color: '#ce9178' }}>&apos;0.01&apos;</span>
+                <span style={{ color: '#d4d4d4' }}> {'}'})</span>
+                {'\n'}
+                <span style={{ color: '#6a9955' }}>{'// auto-approved, no popup'}</span>
+              </code>
+            </pre>
+          </div>
+        </div>
+
+        <div className="relative flex-1">
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 rotate-[5deg] rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.5)]">
+            <WalletMockup screen="spending-session" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 1600×900 - NFT gating split: solid Banano panel + unlocked dApp. */
+export function NftGatingShot() {
+  const steps = [
+    { n: '1', label: 'Sign in with Banano' },
+    { n: '2', label: 'Prove NFT ownership' },
+    { n: '3', label: 'Unlock members-only access' },
+  ];
+  return (
+    <div className="relative flex h-[900px] w-[1600px] overflow-hidden font-figtree">
+      {/* Solid Banano panel — never faded on black */}
+      <div
+        className="relative flex w-[620px] shrink-0 flex-col justify-between px-14 py-16"
+        style={{ background: BANANO }}
+      >
+        <Dots color="rgba(0,0,0,0.08)" />
+        <div className="relative z-10">
+          <Wordmark />
+          <h2 className="mt-10 font-nunito text-6xl font-extrabold leading-[1.05] tracking-tight text-black">
+            Hold the NFT.
+            <br />
+            Unlock the app.
+          </h2>
+          <p className="mt-6 text-2xl font-semibold text-black/70">
+            Token-gate any dApp with Sign In With Banano and on-chain collection checks.
+          </p>
+        </div>
+        <div className="relative z-10 space-y-4">
+          {steps.map((s) => (
+            <div key={s.n} className="flex items-center gap-4">
+              <span
+                className="flex size-11 items-center justify-center rounded-full text-lg font-extrabold text-white"
+                style={{ background: BANANO_GREEN }}
+              >
+                {s.n}
+              </span>
+              <span className="text-xl font-bold text-black">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Unlocked app + wallet approval */}
+      <div className="relative flex flex-1 items-center justify-center bg-white px-12">
+        <Dots />
+        <div className="relative z-10 w-full max-w-[720px]">
+          <BrowserFrame url="vault.game.ban" className="w-full">
+            <div className="bg-[#fafafa]">
+              <GateUnlockedPanel />
+            </div>
+          </BrowserFrame>
+          <div className="absolute -right-16 top-20 rotate-[5deg] scale-[0.7] rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.5)]">
+            <WalletMockup screen="approval" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 1200×1200 - NFT gating square on solid Banano yellow. */
+export function NftGatingSquareShot() {
+  return (
+    <div
+      className="relative flex h-[1200px] w-[1200px] flex-col items-center overflow-hidden font-figtree"
+      style={{ background: BANANO }}
+    >
+      <Dots color="rgba(0,0,0,0.08)" />
+      <div className="relative z-10 mt-20 px-14 text-center">
+        <h2 className="font-nunito text-7xl font-extrabold leading-tight tracking-tight text-black">
+          Hold it.
+          <br />
+          Unlock it.
+        </h2>
+        <p className="mt-6 text-3xl font-bold text-black/70">
+          SIWB + on-chain NFT checks. No trust-the-client shortcuts.
+        </p>
+      </div>
+      <div className="relative z-10 mt-12 w-[920px] overflow-hidden rounded-3xl bg-white shadow-[0_50px_90px_-25px_rgba(0,0,0,0.35)]">
+        <GateUnlockedPanel compact />
+      </div>
+      <div className="absolute bottom-12 z-10">
+        <Wordmark />
+      </div>
+    </div>
+  );
+}
+
+/** 1200×1200 - BNS names spotlight. */
+export function BnsSquareShot() {
+  return (
+    <div
+      className="relative flex h-[1200px] w-[1200px] flex-col items-center overflow-hidden font-figtree"
+      style={{ background: `linear-gradient(160deg, ${BANANO} 0%, #f7c600 55%, #f0b400 100%)` }}
+    >
+      <Dots color="rgba(0,0,0,0.08)" />
+      <div className="relative z-10 mt-24 px-16 text-center">
+        <h2 className="font-nunito text-7xl font-extrabold leading-tight tracking-tight text-black">
+          Send to
+          <br />
+          cosmic.ban
+        </h2>
+        <p className="mt-6 text-3xl font-bold text-black/70">
+          .ban names in sends, mints and transfers. No copy-paste addresses.
+        </p>
+      </div>
+      <div className="relative z-10 mt-14 rotate-[-2deg] rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.45)]">
+        <WalletMockup screen="send" />
+      </div>
+      <div className="absolute bottom-12 z-10">
+        <Wordmark />
+      </div>
     </div>
   );
 }
