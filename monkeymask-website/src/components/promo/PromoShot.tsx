@@ -2,8 +2,11 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@iconify/react';
+import { copyImageToClipboard } from './copyImageToClipboard';
 
-type ShotState = 'idle' | 'working' | 'copied' | 'downloaded' | 'error';
+type ShotState = 'idle' | 'working' | 'copied' | 'shared' | 'downloaded' | 'error';
+
+const EXPORT_SCALE = 2;
 
 /**
  * A fixed-size promotional "shot" that renders at exact export dimensions and
@@ -25,7 +28,7 @@ export function PromoShot({
   children: React.ReactNode;
   className?: string;
 }) {
-  const shotRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [state, setState] = useState<ShotState>('idle');
@@ -40,22 +43,19 @@ export function PromoShot({
     return () => ro.disconnect();
   }, [width]);
 
-  const render = useCallback(async () => {
-    const node = shotRef.current;
+  const render = useCallback(async (): Promise<Blob | null> => {
+    const node = exportRef.current;
     if (!node) return null;
 
-    // Let layout settle so html-to-image reads unscaled computed styles.
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-
     const { toBlob } = await import('html-to-image');
-    // Capture shotRef only — it never has a preview scale transform. Scaling lives
-    // on a parent wrapper so box-shadows and rotations export at design size.
+    // Capture the off-screen node at full design size — never inside a scaled
+    // or overflow-hidden preview tree, so shadows and rotations export correctly.
     return toBlob(node, {
-      pixelRatio: 2,
+      pixelRatio: 1,
       width,
       height,
+      canvasWidth: width * EXPORT_SCALE,
+      canvasHeight: height * EXPORT_SCALE,
       cacheBust: true,
       backgroundColor: undefined,
     });
@@ -78,18 +78,20 @@ export function PromoShot({
     setTimeout(() => setState('idle'), 2000);
   }, [render, filename]);
 
-  const copy = useCallback(async () => {
-    try {
-      setState('working');
-      const blob = await render();
-      if (!blob) throw new Error('no blob');
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      setState('copied');
-    } catch {
-      setState('error');
-    }
-    setTimeout(() => setState('idle'), 2000);
-  }, [render]);
+  const copy = useCallback(() => {
+    setState('working');
+    const blobPromise = render();
+
+    copyImageToClipboard(blobPromise, filename)
+      .then((result) => setState(result))
+      .catch(() => setState('error'))
+      .finally(() => {
+        setTimeout(() => setState('idle'), 2000);
+      });
+  }, [render, filename]);
+
+  const copyLabel =
+    state === 'copied' ? 'Copied' : state === 'shared' ? 'Shared' : 'Copy';
 
   return (
     <div className={`min-w-0 max-w-full ${className}`}>
@@ -107,10 +109,14 @@ export function PromoShot({
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
           >
             <Icon
-              icon={state === 'copied' ? 'lucide:check' : 'lucide:clipboard'}
+              icon={
+                state === 'copied' || state === 'shared'
+                  ? 'lucide:check'
+                  : 'lucide:clipboard'
+              }
               className="size-4"
             />
-            {state === 'copied' ? 'Copied' : 'Copy'}
+            {copyLabel}
           </button>
           <button
             type="button"
@@ -132,7 +138,7 @@ export function PromoShot({
         </div>
       </div>
 
-      {/* Preview scale is on a wrapper; shotRef stays at export size for capture */}
+      {/* On-screen preview — scaled to fit */}
       <div ref={wrapRef} className="w-full max-w-full overflow-hidden rounded-2xl">
         <div
           className="overflow-hidden"
@@ -146,10 +152,19 @@ export function PromoShot({
               transformOrigin: 'top left',
             }}
           >
-            <div ref={shotRef} style={{ width, height }}>
-              {children}
-            </div>
+            <div style={{ width, height }}>{children}</div>
           </div>
+        </div>
+      </div>
+
+      {/* Off-screen export target — full size, no transform, overflow visible */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed overflow-visible"
+        style={{ left: -(width + 200), top: 0, width, height, zIndex: -1 }}
+      >
+        <div ref={exportRef} style={{ width, height, overflow: 'visible' }}>
+          {children}
         </div>
       </div>
     </div>
