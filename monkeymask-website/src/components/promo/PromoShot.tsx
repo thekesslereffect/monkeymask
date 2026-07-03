@@ -92,15 +92,15 @@ export function PromoShot({
   }, [render]);
 
   return (
-    <div className={className}>
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+    <div className={`min-w-0 max-w-full ${className}`}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-semibold text-muted-foreground">
           <span>{label}</span>
           <span className="text-xs text-muted">
             {width}×{height}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={copy}
@@ -132,9 +132,12 @@ export function PromoShot({
         </div>
       </div>
 
-      {/* Responsive scaler: reserves the scaled height, renders shot at 1:1 */}
-      <div ref={wrapRef} className="w-full overflow-hidden rounded-2xl">
-        <div style={{ height: height * scale }}>
+      {/* Responsive scaler: reserves scaled layout box; shot renders at export size */}
+      <div ref={wrapRef} className="w-full max-w-full overflow-hidden rounded-2xl">
+        <div
+          className="overflow-hidden"
+          style={{ width: width * scale, height: height * scale, maxWidth: '100%' }}
+        >
           <div
             ref={shotRef}
             style={{
