@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm ci --include=optional",
+  "buildCommand": "npm run build:packages && npm run build -w monkeymask-dapp-template",
+  "outputDirectory": "monkeymask-website/.next"
+}
