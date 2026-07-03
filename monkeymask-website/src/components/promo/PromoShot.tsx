@@ -44,12 +44,20 @@ export function PromoShot({
     const node = shotRef.current;
     if (!node) return null;
     const { toBlob } = await import('html-to-image');
+    // Preview uses CSS transform: scale() to fit the page. html-to-image would
+    // bake that scale into the canvas (content top-left, empty right/bottom).
+    // Force 1:1 on the clone so the export matches the design dimensions.
     return toBlob(node, {
       pixelRatio: 2,
       width,
       height,
       cacheBust: true,
       backgroundColor: undefined,
+      style: {
+        transform: 'none',
+        width: `${width}px`,
+        height: `${height}px`,
+      },
     });
   }, [width, height]);
 
