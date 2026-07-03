@@ -1,5 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "cd .. && npm ci --include=optional",
+  "installCommand": "cd .. && npm ci --include=optional -w @monkeymask/wallet-standard -w @monkeymask/react -w monkeymask-dapp-template",
   "buildCommand": "cd .. && npm run build:packages && npm run build -w monkeymask-dapp-template"
 }
