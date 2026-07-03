@@ -18,6 +18,7 @@ monkeymask/
 ```bash
 npm install
 npm run build:packages
+npm run build:extension   # requires full install (not Vercel's workspace-only ci)
 npm run dev:extension   # build/watch extension
 npm run dev:website     # demo site on :3000
 ```
@@ -57,7 +58,7 @@ Website (`monkeymask-website`):
 |----------|---------|
 | `PINATA_JWT` | IPFS pinning JWT used by `POST /api/ipfs` to pin NFT art + metadata (v0 CIDs). Without it, minting returns HTTP 501. |
 | `BANANO_RPC_URL` / `IPFS_GATEWAY` (optional) | RPC node + IPFS gateway used by the crawler-free NFT scan behind `GET /api/nfts`. |
-| `NEXT_PUBLIC_CONVEX_URL` / `NEXT_PUBLIC_CONVEX_SITE_URL` (optional) | Convex deployment + HTTP-actions URLs. Written by `npx convex dev`. Enables durable SIWB and the Explore directory. |
+| `NEXT_PUBLIC_CONVEX_URL` / `NEXT_PUBLIC_CONVEX_SITE_URL` (optional) | Convex deployment + HTTP-actions URLs. Written by `npx convex dev`. Enables durable SIWB and the Explore directory. **Production:** run `cd monkeymask-website && npm run convex:deploy`, then set both vars on Vercel to the **prod** URLs (`*.convex.cloud` / `*.convex.site`). In this monorepo, run `npm install` from the repo root first so the Convex CLI can resolve `convex/server`. |
 
 NFT ownership is read directly from each account's own ledger chain (a bounded set of batched `account_history` + `blocks_info` RPC calls), so NFTs minted on **any** site show up for the minter and every recipient with no crawler, index, or backend required. A developer can build a full mint/display/transfer/burn dApp alongside MonkeyMask with zero backend. Convex is optional and only powers durable SIWB + the Explore directory: `cd monkeymask-website && npx convex dev` provisions a deployment, and building the **extension** with `MONKEYMASK_CONVEX_URL=https://your-deployment.convex.site` points its Explore tab at the same catalog.
 

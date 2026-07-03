@@ -22,6 +22,7 @@
     "lint:fix": "eslint --fix",
     "type-check": "tsc --noEmit",
     "convex": "convex dev",
+    "convex:deploy": "convex deploy",
     "clean": "rm -rf .next out dist"
   },
   "dependencies": {

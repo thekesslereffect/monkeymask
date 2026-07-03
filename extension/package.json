@@ -3,9 +3,9 @@
   "version": "0.1.2",
   "description": "Browser extension wallet for Banano cryptocurrency",
   "scripts": {
-    "dev": "webpack --mode development --watch",
-    "build": "webpack --mode production",
-    "clean": "rimraf dist"
+    "dev": "npx webpack --mode development --watch",
+    "build": "npx webpack --mode production",
+    "clean": "npx rimraf dist"
   },
   "dependencies": {
     "@bananocoin/bananojs": "^2.8.6",

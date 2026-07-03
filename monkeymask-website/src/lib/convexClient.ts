@@ -22,6 +22,22 @@ export function convexEnabled(): boolean {
   return Boolean(SITE_URL);
 }
 
+async function parseConvexResponse<T>(path: string, res: Response): Promise<T> {
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Convex ${path} HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`);
+  }
+  const text = await res.text();
+  if (!text.trim()) {
+    throw new Error(`Convex ${path} returned empty body`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Convex ${path} returned invalid JSON`);
+  }
+}
+
 /** POST JSON to a Convex HTTP action. Returns parsed JSON or throws. */
 export async function convexPost<T = unknown>(path: string, body: unknown): Promise<T> {
   if (!SITE_URL) throw new Error('Convex not configured');
@@ -30,8 +46,7 @@ export async function convexPost<T = unknown>(path: string, body: unknown): Prom
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Convex ${path} HTTP ${res.status}`);
-  return (await res.json()) as T;
+  return parseConvexResponse<T>(path, res);
 }
 
 /**
@@ -44,6 +59,5 @@ export async function convexPost<T = unknown>(path: string, body: unknown): Prom
 export async function convexGet<T = unknown>(path: string): Promise<T> {
   if (!SITE_URL) throw new Error('Convex not configured');
   const res = await fetch(`${SITE_URL}${path}`, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Convex ${path} HTTP ${res.status}`);
-  return (await res.json()) as T;
+  return parseConvexResponse<T>(path, res);
 }
