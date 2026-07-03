@@ -40,14 +40,6 @@ export function ConnectButton({ className = '' }: ConnectButtonProps) {
     );
   }
 
-  if (error) {
-    return (
-      <Button onClick={clearError} className={className} variant="secondary" size="md">
-        Dismiss error
-      </Button>
-    );
-  }
-
   if (connected && publicKey) {
     return (
       <Button
@@ -63,7 +55,17 @@ export function ConnectButton({ className = '' }: ConnectButtonProps) {
   }
 
   return (
-    <Button onClick={() => void connect()} className={className} variant="default" size="md" disabled={connecting}>
+    <Button
+      onClick={() => {
+        clearError();
+        void connect();
+      }}
+      className={className}
+      variant="default"
+      size="md"
+      disabled={connecting}
+      title={error ?? undefined}
+    >
       {connecting ? 'Connecting...' : 'Connect Wallet'}
     </Button>
   );

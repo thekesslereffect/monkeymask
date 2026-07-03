@@ -844,6 +844,11 @@ export class WalletManager {
     return this.isUnlocked;
   }
 
+  /** True when the in-memory seed is available (required for receive / send). */
+  hasSeed(): boolean {
+    return Boolean(this.currentSeed);
+  }
+
   /**
    * Sign a Banano block with the account's private key
    */
@@ -1994,52 +1999,57 @@ export class WalletManager {
 
   async autoReceivePending(accountAddress: string, pendingAmount?: string): Promise<string[]> {
     if (!this.isUnlocked) {
-      throw new Error('Wallet is locked');
+      return [];
+    }
+    if (!this.currentSeed) {
+      console.debug(
+        'WalletManager: Skipping auto-receive — seed not in memory (unlock may have failed to decrypt seed)',
+      );
+      return [];
     }
 
     try {
       console.log('WalletManager: Auto-receiving pending for', accountAddress, 'amount:', pendingAmount);
-      
-      // Find the account
-      const account = this.accounts.find(acc => acc.address === accountAddress);
+
+      const account = this.accounts.find((acc) => acc.address === accountAddress);
       if (!account) {
-        throw new Error('Account not found');
+        return [];
       }
 
-      // Get the account's seed and index
+      // Confirm receivable blocks exist before calling bananojs (avoids RPC 400s when
+      // balance.pending is stale or the node has no matching pending entries).
+      const pendingResult = await this.rpc.getPending(accountAddress, 1);
+      const blocks = pendingResult.success
+        ? (pendingResult.data as { blocks?: Record<string, unknown> | null })?.blocks
+        : null;
+      if (!blocks || typeof blocks !== 'object' || Array.isArray(blocks) || !Object.keys(blocks).length) {
+        console.debug('WalletManager: No receivable blocks to auto-claim for', accountAddress);
+        return [];
+      }
+
       const accountIndex = this.accounts.indexOf(account);
-      
-      // Use bananojs to receive pending deposits
-      console.log('WalletManager: Calling receiveBananoDepositsForSeed for account index:', accountIndex);
-      
-      // Determine representative for receive (required by bananojs DepositUtil)
+
       let representative = 'ban_1ka1ium4pfue3uxtntqkkksy3c3s5xy3q3xr8usayqp2yz3h2msc8jqm7yxs';
       try {
         const info = await this.rpc.getAccountInfo(accountAddress);
-        if (info.success && (info.data as any)?.representative) {
-          representative = (info.data as any).representative;
+        if (info.success && (info.data as { representative?: string })?.representative) {
+          representative = (info.data as { representative: string }).representative;
         }
-      } catch {}
+      } catch {
+        /* fall back to default representative */
+      }
 
       const receivedHashes = await bananojs.receiveBananoDepositsForSeed(
-        this.currentSeed!,
+        this.currentSeed,
         accountIndex,
-        representative
+        representative,
       );
-      
-      console.log('WalletManager: Received deposits result:', receivedHashes);
-      
-      // DepositUtil returns a summary object; the new receive block hashes live
-      // in `receiveBlocks`.
+
       const hashArray = extractReceiveBlockHashes(receivedHashes);
-      
-      console.log('WalletManager: Auto-received', hashArray.length, 'pending transactions');
+      console.log('WalletManager: Auto-received', hashArray.length, 'pending block(s)');
       return hashArray;
-      
     } catch (error) {
-      console.error('WalletManager: Error auto-receiving pending:', error);
-      // If real receive fails, don't throw - just return empty array
-      console.warn('WalletManager: Real receive failed, returning empty array');
+      console.warn('WalletManager: Auto-receive skipped:', error);
       return [];
     }
   }

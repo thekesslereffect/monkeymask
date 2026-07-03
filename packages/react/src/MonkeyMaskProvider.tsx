@@ -100,7 +100,9 @@ export function MonkeyMaskProvider({
         const pk = result.accounts[0]?.address;
         if (pk) config.onConnect?.(pk);
       } catch (e) {
-        handleError(e instanceof Error ? e.message : 'Connect failed');
+        if (!options?.silent) {
+          handleError(e instanceof Error ? e.message : 'Connect failed');
+        }
         throw e;
       } finally {
         setConnecting(false);

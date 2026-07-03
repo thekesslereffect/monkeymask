@@ -828,14 +828,15 @@ class BackgroundService {
         console.warn('Background: Failed to get pre-balance for pending check:', error);
       }
 
-      // Try to auto-receive any pending transactions on current account
-      if (pendingAmount !== '0') {
-        try {
-          console.log('Background: Auto-receiving pending for current account:', currentAddress, 'amount:', pendingAmount);
-          await this.walletManager.autoReceivePending(currentAddress, pendingAmount);
-        } catch (error) {
-          console.warn('Background: Failed to auto-receive pending for current account:', error);
-        }
+      // Try to auto-receive any pending transactions on current account (needs seed)
+      if (pendingAmount !== '0' && this.walletManager.hasSeed()) {
+        console.log(
+          'Background: Auto-receiving pending for current account:',
+          currentAddress,
+          'amount:',
+          pendingAmount,
+        );
+        await this.walletManager.autoReceivePending(currentAddress, pendingAmount);
       }
       
       // Now fetch balances for ALL accounts
@@ -2259,7 +2260,7 @@ class BackgroundService {
 
       const blocks = (pendingResult.data as { blocks?: unknown })?.blocks;
       const receivables =
-        blocks && typeof blocks === 'object'
+        blocks != null && typeof blocks === 'object' && !Array.isArray(blocks)
           ? Object.entries(blocks as Record<string, unknown>).map(([hash, info]) => {
               const amountRaw =
                 typeof info === 'string'

@@ -34,6 +34,12 @@ function getTitle(type: ApprovalType, txType?: string): string {
   ) {
     return 'Change Representative';
   }
+  if (
+    txType === 'receive' &&
+    (type === 'signAndSendTransaction' || type === 'signTransaction' || type === 'sendTransaction')
+  ) {
+    return 'Claim Pending';
+  }
   switch (type) {
     case 'connect':
       return 'Connection Request';
@@ -62,6 +68,12 @@ function getProcessingMessage(type: ApprovalType, txType?: string): string {
   ) {
     return 'Updating representative…';
   }
+  if (
+    txType === 'receive' &&
+    (type === 'signAndSendTransaction' || type === 'sendTransaction')
+  ) {
+    return 'Claiming pending funds…';
+  }
   switch (type) {
     case 'signMessage':
     case 'signBlock':
@@ -84,6 +96,12 @@ function getApproveLabel(type: ApprovalType, txType?: string): string {
     (type === 'signAndSendTransaction' || type === 'signTransaction' || type === 'sendTransaction')
   ) {
     return 'Change Representative';
+  }
+  if (
+    txType === 'receive' &&
+    (type === 'signAndSendTransaction' || type === 'signTransaction' || type === 'sendTransaction')
+  ) {
+    return 'Claim Pending';
   }
   switch (type) {
     case 'signIn':
@@ -232,6 +250,7 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
       ? 'change'
       : previewTx.type || 'send';
   const isRepChange = previewTxType === 'change';
+  const isReceiveClaim = previewTxType === 'receive';
 
   const handleReject = () => onReject(request.id);
 
@@ -541,6 +560,7 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
         ? 'change'
         : tx.type || 'send';
     const isRepChangeTx = txType === 'change';
+    const isReceiveTx = txType === 'receive';
 
     if (isRepChangeTx) {
       return (
@@ -562,6 +582,33 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
             <Icon icon="lucide:vote" className="shrink-0 text-lg text-tertiary" />
             <div className="text-sm text-secondary-foreground">
               Representatives vote on network blocks only—they cannot spend your funds.
+            </div>
+          </Alert>
+        </>
+      );
+    }
+
+    if (isReceiveTx) {
+      return (
+        <>
+          <SiteHeader
+            domain={domain}
+            origin={request.origin}
+            description="Claim incoming BAN that is waiting in pending. Nothing is sent from your wallet."
+          />
+
+          <Card label="Claim Pending" className="w-full">
+            <DetailRow label="Account">{truncate(fromAddress)}</DetailRow>
+            <DetailRow label="Scope" border={false}>
+              {tx.blockHash ? truncate(tx.blockHash) : 'All pending receivables'}
+            </DetailRow>
+          </Card>
+
+          <Alert variant="default" className="w-full flex items-start gap-2 text-foreground">
+            <Icon icon="lucide:download" className="shrink-0 text-lg text-tertiary" />
+            <div className="text-sm text-secondary-foreground">
+              Receive is a wallet maintenance action—it publishes open/receive blocks to move
+              pending funds into your balance. No BAN leaves your account.
             </div>
           </Alert>
         </>
@@ -770,7 +817,9 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
           <div className="text-sm text-tertiary mt-2">
             {isRepChange
               ? 'Signing a change block—your balance is not affected.'
-              : 'This may take a few seconds while your wallet signs and broadcasts.'}
+              : isReceiveClaim
+                ? 'Publishing receive blocks—funds move from pending into your balance.'
+                : 'This may take a few seconds while your wallet signs and broadcasts.'}
           </div>
         </div>
       )}
@@ -807,6 +856,8 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
               'Burn NFT'
             ) : isRepChange ? (
               'Change Representative'
+            ) : isReceiveClaim ? (
+              'Claim Pending'
             ) : (
               getApproveLabel(request.type, previewTxType)
             )}
