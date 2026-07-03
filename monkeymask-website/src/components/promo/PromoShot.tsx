@@ -3,10 +3,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { copyImageToClipboard } from './copyImageToClipboard';
+import { renderPromoShot } from './renderPromoShot';
 
 type ShotState = 'idle' | 'working' | 'copied' | 'shared' | 'downloaded' | 'error';
-
-const EXPORT_SCALE = 2;
 
 /**
  * A fixed-size promotional "shot" that renders at exact export dimensions and
@@ -46,19 +45,7 @@ export function PromoShot({
   const render = useCallback(async (): Promise<Blob | null> => {
     const node = exportRef.current;
     if (!node) return null;
-
-    const { toBlob } = await import('html-to-image');
-    // Capture the off-screen node at full design size — never inside a scaled
-    // or overflow-hidden preview tree, so shadows and rotations export correctly.
-    return toBlob(node, {
-      pixelRatio: 1,
-      width,
-      height,
-      canvasWidth: width * EXPORT_SCALE,
-      canvasHeight: height * EXPORT_SCALE,
-      cacheBust: true,
-      backgroundColor: undefined,
-    });
+    return renderPromoShot(node, width, height);
   }, [width, height]);
 
   const download = useCallback(async () => {

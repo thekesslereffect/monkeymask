@@ -146,11 +146,15 @@ export function SendSquareShot() {
         <p className="mt-6 text-3xl font-bold text-black/70">Zero fees. Instant. Yours.</p>
       </div>
       <div className="relative z-10 mt-14 flex items-end justify-center gap-8">
-        <div className="mb-10 rotate-[-6deg] rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.4)]">
-          <WalletMockup screen="dashboard" />
+        <div className="mb-10 rotate-[-6deg]">
+          <div className="rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.4)]">
+            <WalletMockup screen="dashboard" />
+          </div>
         </div>
-        <div className="rotate-[5deg] rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.45)]">
-          <WalletMockup screen="send" />
+        <div className="rotate-[5deg]">
+          <div className="rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.45)]">
+            <WalletMockup screen="send" />
+          </div>
         </div>
       </div>
       <div className="absolute bottom-12 z-10">
@@ -220,8 +224,10 @@ export function DeveloperShot() {
         </div>
 
         <div className="relative flex-1">
-          <div className="absolute right-8 top-1/2 -translate-y-1/2 rotate-[4deg] rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.6)]">
-            <WalletMockup screen="approval" />
+          <div className="absolute right-8 top-1/2 -translate-y-1/2 rotate-[4deg]">
+            <div className="rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.6)]">
+              <WalletMockup screen="approval" />
+            </div>
           </div>
         </div>
       </div>
@@ -248,8 +254,10 @@ export function NftSquareShot() {
         </h2>
         <p className="mt-6 text-3xl font-bold text-white/60">In your wallet. Fully yours.</p>
       </div>
-      <div className="relative z-10 mt-16 rotate-[-3deg] rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.7)]">
-        <WalletMockup screen="nft" />
+      <div className="relative z-10 mt-16 rotate-[-3deg]">
+        <div className="rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.7)]">
+          <WalletMockup screen="nft" />
+        </div>
       </div>
       <div className="absolute bottom-12 z-10">
         <Wordmark light />
@@ -289,8 +297,10 @@ export function InBrowserShot() {
             </div>
 
             {/* extension popup dropping from the toolbar */}
-            <div className="absolute -right-2 -top-2 rotate-[2deg] scale-90 rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.5)]">
-              <WalletMockup screen="approval" />
+            <div className="absolute -right-2 -top-2 rotate-[2deg] scale-90">
+              <div className="rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.5)]">
+                <WalletMockup screen="approval" />
+              </div>
             </div>
           </div>
         </BrowserFrame>
@@ -374,8 +384,10 @@ export function XBannerShot() {
           </p>
         </div>
         <div className="relative mr-6 shrink-0">
-          <div className="rotate-[6deg] scale-[0.72] rounded-[26px] shadow-[0_40px_80px_-25px_rgba(0,0,0,0.7)]">
-            <WalletMockup screen="dashboard" />
+          <div className="rotate-[6deg] scale-[0.72]">
+            <div className="rounded-[26px] shadow-[0_40px_80px_-25px_rgba(0,0,0,0.7)]">
+              <WalletMockup screen="dashboard" />
+            </div>
           </div>
         </div>
       </div>
@@ -406,8 +418,10 @@ export function StoryShot() {
           Zero fees. Instant. 100% yours.
         </p>
       </div>
-      <div className="relative z-10 mt-20 rotate-[-3deg] rounded-[26px] shadow-[0_70px_120px_-30px_rgba(0,0,0,0.4)]">
-        <WalletMockup screen="dashboard" />
+      <div className="relative z-10 mt-20 rotate-[-3deg]">
+        <div className="rounded-[26px] shadow-[0_70px_120px_-30px_rgba(0,0,0,0.4)]">
+          <WalletMockup screen="dashboard" />
+        </div>
       </div>
       <div className="absolute bottom-24 z-10">
         <ChromeBadge />
@@ -526,8 +540,10 @@ export function AirdropSquareShot() {
         </h2>
         <p className="mt-6 text-3xl font-bold text-black/70">One approval. One block-lattice sweep.</p>
       </div>
-      <div className="relative z-10 mt-14 rotate-[3deg] rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.45)]">
-        <WalletMockup screen="multisend" />
+      <div className="relative z-10 mt-14 rotate-[3deg]">
+        <div className="rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.45)]">
+          <WalletMockup screen="multisend" />
+        </div>
       </div>
       <div className="absolute bottom-12 z-10">
         <Wordmark />
@@ -553,14 +569,18 @@ export function FeatureTrioShot() {
         </h2>
       </div>
       <div className="relative z-10 mt-14 flex items-center justify-center gap-8">
-        <div className="rotate-[-6deg] rounded-[26px] shadow-[0_45px_80px_-25px_rgba(0,0,0,0.4)]">
-          <WalletMockup screen="receive" />
+        <div className="rotate-[-6deg]">
+          <div className="rounded-[26px] shadow-[0_45px_80px_-25px_rgba(0,0,0,0.4)]">
+            <WalletMockup screen="receive" />
+          </div>
         </div>
         <div className="z-10 -mx-4 rounded-[26px] shadow-[0_55px_95px_-25px_rgba(0,0,0,0.5)]">
           <WalletMockup screen="dashboard" />
         </div>
-        <div className="rotate-[6deg] rounded-[26px] shadow-[0_45px_80px_-25px_rgba(0,0,0,0.4)]">
-          <WalletMockup screen="send" />
+        <div className="rotate-[6deg]">
+          <div className="rounded-[26px] shadow-[0_45px_80px_-25px_rgba(0,0,0,0.4)]">
+            <WalletMockup screen="send" />
+          </div>
         </div>
       </div>
     </div>
@@ -738,8 +758,10 @@ export function SpendingSessionSquareShot() {
           Grant a spending allowance once. Micro-payments sail through.
         </p>
       </div>
-      <div className="relative z-10 mt-14 rotate-[4deg] rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.45)]">
-        <WalletMockup screen="spending-session" />
+      <div className="relative z-10 mt-14 rotate-[4deg]">
+        <div className="rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.45)]">
+          <WalletMockup screen="spending-session" />
+        </div>
       </div>
       <div className="absolute bottom-12 z-10">
         <Wordmark />
@@ -810,8 +832,10 @@ export function SpendingSessionWideShot() {
         </div>
 
         <div className="relative flex-1">
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 rotate-[5deg] rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.5)]">
-            <WalletMockup screen="spending-session" />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 rotate-[5deg]">
+            <div className="rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.5)]">
+              <WalletMockup screen="spending-session" />
+            </div>
           </div>
         </div>
       </div>
@@ -869,8 +893,10 @@ export function NftGatingShot() {
               <GateUnlockedPanel />
             </div>
           </BrowserFrame>
-          <div className="absolute -right-16 top-20 rotate-[5deg] scale-[0.7] rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.5)]">
-            <WalletMockup screen="approval" />
+          <div className="absolute -right-16 top-20 rotate-[5deg] scale-[0.7]">
+            <div className="rounded-[26px] shadow-[0_50px_90px_-25px_rgba(0,0,0,0.5)]">
+              <WalletMockup screen="approval" />
+            </div>
           </div>
         </div>
       </div>
@@ -924,8 +950,10 @@ export function BnsSquareShot() {
           .ban names in sends, mints and transfers. No copy-paste addresses.
         </p>
       </div>
-      <div className="relative z-10 mt-14 rotate-[-2deg] rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.45)]">
-        <WalletMockup screen="send" />
+      <div className="relative z-10 mt-14 rotate-[-2deg]">
+        <div className="rounded-[26px] shadow-[0_60px_100px_-25px_rgba(0,0,0,0.45)]">
+          <WalletMockup screen="send" />
+        </div>
       </div>
       <div className="absolute bottom-12 z-10">
         <Wordmark />
