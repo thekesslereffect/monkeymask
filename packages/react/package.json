@@ -1,6 +1,6 @@
 {
   "name": "@monkeymask/react",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "React hooks and provider for MonkeyMask Banano wallet",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +12,25 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thekesslereffect/monkeymask.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/thekesslereffect/monkeymask/tree/main/packages/react#readme",
+  "bugs": {
+    "url": "https://github.com/thekesslereffect/monkeymask/issues"
+  },
+  "keywords": [
+    "banano",
+    "wallet",
+    "react",
+    "hooks",
+    "monkeymask",
+    "wallet-standard"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --external react --external react-dom",
