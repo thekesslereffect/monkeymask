@@ -895,64 +895,15 @@ export class WalletManager {
   }
 
   /**
-   * Send Banano using bananojs
+   * Send Banano using the same pipelined publish engine as batch/airdrop sends.
    */
   async sendBanano(fromAddress: string, toAddress: string, amount: string): Promise<string> {
-    if (!this.isUnlocked) {
-      throw new Error('Wallet is locked');
+    const { hashes, results } = await this.batchSend(fromAddress, [{ to: toAddress, amount }]);
+    const hash = hashes[0];
+    if (!hash) {
+      throw new Error(results[0]?.error || 'Send failed');
     }
-
-    if (!this.currentSeed) {
-      throw new Error('Seed not available for sending');
-    }
-
-    const account = this.accounts.find(acc => acc.address === fromAddress);
-    if (!account) {
-      throw new Error('Account not found in wallet');
-    }
-
-    try {
-      const resolvedTo = await this.resolveRecipientAddress(toAddress);
-      console.log('WalletManager: Sending', amount, 'BAN from', fromAddress, 'to', resolvedTo);
-      
-      // Get the account index for seed derivation
-      const accountIndex = this.accounts.indexOf(account);
-      
-      // Use bananojs to send the withdrawal
-      const result = await bananojs.sendBananoWithdrawalFromSeed(
-        this.currentSeed,
-        accountIndex,
-        resolvedTo,
-        amount,
-      );
-      
-      console.log('WalletManager: Send result:', result);
-
-      const transactionHash =
-        typeof result === 'string'
-          ? result
-          : typeof result?.hash === 'string'
-            ? result.hash
-            : null;
-      if (!transactionHash) {
-        throw new Error('Invalid send result: missing transaction hash');
-      }
-      
-      // Update the account balance locally (subtract sent amount)
-      const currentBalance = parseFloat(account.balance) || 0;
-      const sentAmount = parseFloat(amount) || 0;
-      const newBalance = Math.max(0, currentBalance - sentAmount);
-      account.balance = newBalance.toString();
-      
-      console.log('WalletManager: Updated local balance from', currentBalance, 'to', newBalance);
-      
-      // Return the transaction hash
-      return transactionHash;
-      
-    } catch (error) {
-      console.error('WalletManager: Error sending Banano:', error);
-      throw error;
-    }
+    return hash;
   }
 
   /**
