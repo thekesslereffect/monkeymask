@@ -22,18 +22,25 @@ export const Card: React.FC<CardProps> = ({
   onClick,
   hintOnClick
 }) => {
-  const baseClasses = 'bg-card p-2 rounded-xl';
+  const baseClasses = 'bg-card p-2 rounded-xl text-foreground';
   const hoverClasses = hover ? 'hover:shadow-md transition-shadow cursor-pointer' : '';
   const clickableClasses = onClick ? 'cursor-pointer' : '';
   
-  const classes = `${baseClasses} ${hoverClasses} ${clickableClasses} ${className}`;
-  
+  const isFlexGrow = className.includes('flex-1');
+  const minHeightClass = className.match(/\bmin-h-[^\s]+/)?.[0] ?? '';
+  const outerClasses = `w-full flex flex-col ${
+    isFlexGrow ? `flex-1 ${minHeightClass || 'min-h-0'}` : minHeightClass
+  }`;
+  const innerClasses = `${baseClasses} ${hoverClasses} ${clickableClasses} ${
+    isFlexGrow ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : ''
+  } ${className}`;
+
   return (
-    <div className="w-full flex flex-col">
+    <div className={outerClasses}>
     {(label || hintText) && (
         <Label label={label} hintText={hintText} hintTooltip={hintTooltip} hintOnClick={hintOnClick}/>
       )}
-    <div className={classes} onClick={onClick}>
+    <div className={innerClasses} onClick={onClick}>
         {children}
     </div>
     </div>

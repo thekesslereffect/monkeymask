@@ -60,8 +60,11 @@ export function SpotlightLayout() {
             title={active.title}
             icon={active.icon}
             className="min-h-[480px] border rounded-xl"
+            bodyClassName={active.id === 'rep-explorer' ? 'flex min-h-0 flex-1 flex-col' : ''}
           >
-            <p className="mb-4 text-sm text-[var(--text-secondary)]">{active.blurb}</p>
+            {active.id !== 'rep-explorer' && (
+              <p className="mb-4 text-sm text-[var(--text-secondary)]">{active.blurb}</p>
+            )}
             {active.render()}
           </DemoCard>
         </div>

@@ -11,6 +11,8 @@ import { WalletConnectionDemo } from './WalletConnectionDemo';
 import { SendTransactionDemo } from './SendTransactionDemo';
 import { MessageSigningDemo } from './MessageSigningDemo';
 import { BnsDemo } from './BnsDemo';
+import { NftGateDemo } from './NftGateDemo';
+import { RepExplorerDemo } from './RepExplorerDemo';
 
 export interface DemoDef {
   id: string;
@@ -65,6 +67,13 @@ export const DEMOS: DemoDef[] = [
     render: () => <BnsDemo />,
   },
   {
+    id: 'nft-mint',
+    title: 'Mint an NFT',
+    icon: 'lucide:sparkles',
+    blurb: 'Pin art to IPFS and mint a 73-meta-tokens NFT end to end.',
+    render: () => <MintNftForm />,
+  },
+  {
     id: 'nft-gallery',
     title: 'NFT Collection',
     icon: 'mdi:image-multiple',
@@ -72,11 +81,18 @@ export const DEMOS: DemoDef[] = [
     render: () => <NftGallery />,
   },
   {
-    id: 'nft-mint',
-    title: 'Mint an NFT',
-    icon: 'lucide:sparkles',
-    blurb: 'Pin art to IPFS and mint a 73-meta-tokens NFT end to end.',
-    render: () => <MintNftForm />,
+    id: 'rep-explorer',
+    title: 'Representative Explorer',
+    icon: 'mdi:vote',
+    blurb: 'Browse voting weight by representative and delegate to decentralize ORV.',
+    render: () => <RepExplorerDemo />,
+  },
+  {
+    id: 'nft-gate',
+    title: 'NFT Gating',
+    icon: 'mdi:lock-open-variant-outline',
+    blurb: 'Unlock content by proving you hold an NFT from a verified issuer (SIWB + on-chain check).',
+    render: () => <NftGateDemo />,
   },
   {
     id: 'airdrop',

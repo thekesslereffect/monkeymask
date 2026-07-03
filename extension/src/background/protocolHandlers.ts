@@ -550,11 +550,19 @@ async function handleProtocolSignAndSend(
         toAddress: transaction.to,
         amount: transaction.amount ?? '0',
       };
-    } else {
+    } else if (transaction.type === 'change') {
       confirmationBlock = {
-        type: transaction.type,
+        type: 'change',
         fromAddress: address,
         toAddress: transaction.representative,
+        amount: '0',
+      };
+    } else {
+      const fallback = transaction as { type: string; representative?: string };
+      confirmationBlock = {
+        type: fallback.type,
+        fromAddress: address,
+        toAddress: fallback.representative ?? '',
         amount: '0',
       };
     }

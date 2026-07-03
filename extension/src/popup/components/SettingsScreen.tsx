@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Header, ContentContainer, Footer, PageName, Card, Alert } from './ui';
 import { Icon } from '@iconify/react';
+import { useNavigation } from '../hooks/useRouter';
 
 export const SettingsScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [autoLockTimeout, setAutoLockTimeout] = useState<number>(15); // minutes
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -168,6 +170,24 @@ export const SettingsScreen: React.FC = () => {
           </Alert>
 
           {/* Advanced: auto-confirmation (spending allowances) */}
+          <Card label="Network" className="w-full">
+            <div className="text-xs text-tertiary/70 mb-3">
+              Delegate your account&apos;s voting weight to a representative node. This helps
+              decentralize Open Representative Voting—it does not move your BAN.
+            </div>
+            <button
+              type="button"
+              onClick={() => navigation.goToRepresentative()}
+              className="w-full flex items-center justify-between rounded-lg border border-tertiary/20 px-3 py-3 hover:border-primary/40 transition-colors text-sm text-tertiary"
+            >
+              <span className="flex items-center gap-2">
+                <Icon icon="lucide:vote" className="text-lg" />
+                Voting representative
+              </span>
+              <Icon icon="lucide:chevron-right" className="text-tertiary" />
+            </button>
+          </Card>
+
           <Card label="Advanced" className="w-full">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">

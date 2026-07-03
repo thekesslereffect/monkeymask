@@ -14,8 +14,9 @@ export interface AccountInfo {
 export class BananoRPC {
   private static readonly RPC_ENDPOINTS = [
     'https://kaliumapi.appditto.com/api',
+    /** Full-node proxy — supports `representatives_online` and other node-only RPCs. */
+    'https://api.banano.trade/proxy',
     'https://booster.dev-ptera.com/banano-rpc',
-    'https://api.banano.cc'
   ];
 
   private currentEndpointIndex = 0;
@@ -175,6 +176,30 @@ export class BananoRPC {
       weight: false,
       pending: false
     });
+  }
+
+  /**
+   * Voting weight delegated to an account (representative or any address).
+   */
+  async getAccountWeight(account: string): Promise<RpcResponse<{ weight: string }>> {
+    return this.makeRpcCall('account_weight', { account });
+  }
+
+  /**
+   * Representatives sorted by descending voting weight.
+   */
+  async getRepresentatives(
+    count = 50,
+  ): Promise<RpcResponse<{ representatives: Record<string, string> }>> {
+    return this.makeRpcCall('representatives', {
+      sorting: true,
+      count: String(count),
+    });
+  }
+
+  /** Representatives that have voted recently (online). */
+  async getRepresentativesOnline(): Promise<RpcResponse<{ representatives: string[] }>> {
+    return this.makeRpcCall('representatives_online');
   }
 
   // Note: getAccountHistory is now handled by bananojs.getAccountHistory() directly

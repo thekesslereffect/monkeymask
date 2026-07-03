@@ -382,6 +382,20 @@ export const AccountsProvider: React.FC<AccountsProviderProps> = ({ children }) 
           
           if (accountsResponse.success) {
             setAccounts(accountsResponse.data);
+
+            const newIndex = accountsResponse.data.findIndex(
+              (acc: { address: string }) => acc.address === response.data.address,
+            );
+            if (newIndex >= 0) {
+              setCurrentAccountIndex(newIndex);
+              await chrome.storage.local.set({ currentAccountIndex: newIndex });
+              chrome.runtime
+                .sendMessage({
+                  type: 'ACCOUNT_CHANGED',
+                  newAccount: response.data.address,
+                })
+                .catch(() => undefined);
+            }
             
             // Try to resolve BNS names in the background (non-blocking)
             setTimeout(() => {

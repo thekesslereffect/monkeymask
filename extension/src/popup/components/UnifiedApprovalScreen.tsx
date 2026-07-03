@@ -27,7 +27,13 @@ interface UnifiedApprovalScreenProps {
   onReject: (requestId: string) => void;
 }
 
-function getTitle(type: ApprovalType): string {
+function getTitle(type: ApprovalType, txType?: string): string {
+  if (
+    txType === 'change' &&
+    (type === 'signAndSendTransaction' || type === 'signTransaction' || type === 'sendTransaction')
+  ) {
+    return 'Change Representative';
+  }
   switch (type) {
     case 'connect':
       return 'Connection Request';
@@ -49,7 +55,13 @@ function getTitle(type: ApprovalType): string {
   }
 }
 
-function getProcessingMessage(type: ApprovalType): string {
+function getProcessingMessage(type: ApprovalType, txType?: string): string {
+  if (
+    txType === 'change' &&
+    (type === 'signAndSendTransaction' || type === 'sendTransaction')
+  ) {
+    return 'Updating representative…';
+  }
   switch (type) {
     case 'signMessage':
     case 'signBlock':
@@ -66,7 +78,13 @@ function getProcessingMessage(type: ApprovalType): string {
   }
 }
 
-function getApproveLabel(type: ApprovalType): string {
+function getApproveLabel(type: ApprovalType, txType?: string): string {
+  if (
+    txType === 'change' &&
+    (type === 'signAndSendTransaction' || type === 'signTransaction' || type === 'sendTransaction')
+  ) {
+    return 'Change Representative';
+  }
   switch (type) {
     case 'signIn':
       return 'Sign In';
@@ -195,6 +213,25 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
   const isBurn =
     (request.type === 'signAndSendTransaction' || request.type === 'signTransaction') &&
     (request.data?.transaction as { type?: string } | undefined)?.type === 'burn';
+
+  const previewTx = (request.data?.transaction || {}) as {
+    type?: string;
+    to?: string;
+    amount?: string;
+    representative?: string;
+    sends?: unknown[];
+  };
+  const isLegacySendPreview = request.type === 'sendTransaction';
+  const previewTxType = isLegacySendPreview
+    ? 'send'
+    : previewTx.type === 'change' ||
+        (previewTx.representative &&
+          !previewTx.to &&
+          !previewTx.amount &&
+          !previewTx.sends?.length)
+      ? 'change'
+      : previewTx.type || 'send';
+  const isRepChange = previewTxType === 'change';
 
   const handleReject = () => onReject(request.id);
 
@@ -492,11 +529,44 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
     };
     const fromAddress: string = request.data.fromAddress || request.data.address || '';
     const isLegacySend = request.type === 'sendTransaction';
-    const txType = isLegacySend ? 'send' : tx.type || 'send';
     const willPublish = request.type !== 'signTransaction';
 
     const toAddress = isLegacySend ? request.data.toAddress : tx.to;
     const amount = isLegacySend ? request.data.amount : tx.amount;
+
+    const txType = isLegacySend
+      ? 'send'
+      : tx.type === 'change' ||
+          (tx.representative && !toAddress && !amount && !(tx.sends && tx.sends.length))
+        ? 'change'
+        : tx.type || 'send';
+    const isRepChangeTx = txType === 'change';
+
+    if (isRepChangeTx) {
+      return (
+        <>
+          <SiteHeader
+            domain={domain}
+            origin={request.origin}
+            description="Update which node your voting weight is delegated to. Your BAN stays in your account."
+          />
+
+          <Card label="Representative Change" className="w-full">
+            <DetailRow label="Account">{truncate(fromAddress)}</DetailRow>
+            <DetailRow label="Delegate to" border={false}>
+              {truncate(tx.representative)}
+            </DetailRow>
+          </Card>
+
+          <Alert variant="default" className="w-full flex items-start gap-2 text-foreground">
+            <Icon icon="lucide:vote" className="shrink-0 text-lg text-tertiary" />
+            <div className="text-sm text-secondary-foreground">
+              Representatives vote on network blocks only—they cannot spend your funds.
+            </div>
+          </Alert>
+        </>
+      );
+    }
 
     return (
       <>
@@ -584,10 +654,6 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
                 {truncate(toAddress)}
               </DetailRow>
             </>
-          ) : txType === 'change' ? (
-            <DetailRow label="Representative" border={false}>
-              {truncate(tx.representative)}
-            </DetailRow>
           ) : txType === 'receive' ? (
             <>
               {tx.name ? <DetailRow label="Name">{tx.name}</DetailRow> : null}
@@ -698,15 +764,19 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
       {processing && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 px-6 text-center">
           <Icon icon="lucide:loader-2" className="animate-spin text-4xl text-primary mb-4" />
-          <div className="text-lg font-semibold text-foreground">{getProcessingMessage(request.type)}</div>
+          <div className="text-lg font-semibold text-foreground">
+            {getProcessingMessage(request.type, previewTxType)}
+          </div>
           <div className="text-sm text-tertiary mt-2">
-            This may take a few seconds while your wallet signs and broadcasts.
+            {isRepChange
+              ? 'Signing a change block—your balance is not affected.'
+              : 'This may take a few seconds while your wallet signs and broadcasts.'}
           </div>
         </div>
       )}
       <Header active />
       <ContentContainer>
-        <PageName name={getTitle(request.type)} back={false} />
+        <PageName name={getTitle(request.type, previewTxType)} back={false} />
 
         <div className="w-full space-y-4">{renderBody()}</div>
 
@@ -735,8 +805,10 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
               `Connect (${selectedAccounts.length})`
             ) : isBurn ? (
               'Burn NFT'
+            ) : isRepChange ? (
+              'Change Representative'
             ) : (
-              getApproveLabel(request.type)
+              getApproveLabel(request.type, previewTxType)
             )}
           </Button>
         </div>

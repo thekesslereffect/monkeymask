@@ -56,6 +56,7 @@ const NAV: { group: string; items: [string, string][] }[] = [
       ['nft-finish', 'Finish (lock)'],
       ['nft-sendall', 'Send all'],
       ['nft-read', 'Read / query'],
+      ['nft-gate', 'Gating'],
     ],
   },
   {
@@ -503,12 +504,28 @@ const other = await getAccountInfo('ban_...'); // any account`}</CodeBlock>
 // Send BAN (recipient may be a ban_ address or a .ban BNS name)
 const { hash } = await send({ type: 'send', to: 'ban_1...', amount: '1.0' });
 
-// Change representative
+// Change representative (delegates ORV voting weight — does not move funds)
 await send({ type: 'change', representative: 'ban_1...' });
+
+// Pick an under-delegated online rep (wallet extension: Settings → Voting representative)
+// Website Rep Explorer demo loads representatives + representatives_online from the node.
 
 // Sign only (returns the signed block without publishing)
 const signTx = useSignTransaction();
 const { signedBlock } = await signTx({ type: 'send', to: 'ban_1...', amount: '0.1' });`}</CodeBlock>
+            </Section>
+
+            <Section id="representatives" title="Representatives (ORV)">
+              <P>
+                Banano uses Open Representative Voting. Your account balance contributes voting weight
+                to whichever <code>ban_</code> node you delegate to—representatives cannot spend your
+                funds. MonkeyMask blocks rep changes while an NFT metaprotocol operation is in flight or
+                when your account rep is reserved for supply/mint protocol state.
+              </P>
+              <CodeBlock>{`// Extension: drawer → Settings → Voting representative
+// Demo: home page → Representative Explorer
+
+await signAndSendTransaction({ type: 'change', representative: 'ban_1...' });`}</CodeBlock>
             </Section>
 
             <Section id="airdrop" title="Send & airdrop">
@@ -880,6 +897,41 @@ const { hash } = await sendAll({ to: 'ban_1...' }); // or a .ban name`}</CodeBlo
 //   supplyType?: 'unique' | 'limited' | 'unlimited',
 //   maxSupply?, mintedCount?, heldCount?,
 // }[]`}</CodeBlock>
+            </Section>
+
+            <Section id="nft-gate" title="Gating">
+              <P>
+                Token-gate content by combining <strong>Sign In With Banano</strong> (proves the
+                visitor controls the address) with the crawler-free ownership read. The rule that
+                keeps it secure: resolve the address from the SIWB session, never from the client,
+                then scan that address server-side. Only confirmed, non-pending holdings should
+                grant access.
+              </P>
+              <P>
+                Gating on metadata CID alone is weak: anyone can mint a new edition that points at
+                the same IPFS document. For a strong gate, also require an{' '}
+                <code>issuer</code> address and verify on-chain that each held NFT&apos;s mint block
+                was published on that issuer&apos;s account as a valid{' '}
+                <code>change#supply</code> → <code>send#mint</code> pair (the mint block&apos;s{' '}
+                <code>block_account</code> must match). Do not trust{' '}
+                <code>properties.issuer</code> in metadata JSON alone.
+              </P>
+              <CodeBlock>{`// Server: unlock only for authentic collection holders
+import { accountHoldsCollection, getSessionAddress } from '@/lib/gating';
+
+export async function GET(request: Request) {
+  const address = await getSessionAddress(request);       // from SIWB session cookie
+  if (!address) return Response.json({ unlocked: false }, { status: 401 });
+
+  const params = new URL(request.url).searchParams;
+  const { holds } = await accountHoldsCollection(address, {
+    collection: params.get('collection') ?? undefined,    // metadata CID
+    issuer: params.get('issuer') ?? undefined,            // on-chain minter account
+  });
+  if (!holds) return Response.json({ unlocked: false }, { status: 403 });
+
+  return Response.json({ unlocked: true, content: /* members-only payload */ {} });
+}`}</CodeBlock>
             </Section>
           </div>
 

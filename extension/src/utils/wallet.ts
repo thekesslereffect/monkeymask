@@ -15,6 +15,8 @@ import {
   finishSupplyHeightFromRepresentative,
   CANONICAL_BURN_ACCOUNT,
   SEND_ALL_NFTS_REPRESENTATIVE,
+  KALIUM_DEFAULT_REPRESENTATIVE,
+  assessRepresentativeForDelegationChange,
   type BananoBatchLegResult,
   type BananoOperation,
   type BananoSignInInput,
@@ -47,8 +49,7 @@ export interface MintNFTResult {
  * counts as another edition. After minting we always change the rep back to a
  * clean value so ordinary activity never accidentally mints phantom editions.
  */
-const CLEAN_REPRESENTATIVE =
-  'ban_1ka1ium4pfue3uxtntqkkksy3c3s5xy3q3xr8usayqp2yz3h2msc8jqm7yxs';
+const CLEAN_REPRESENTATIVE = KALIUM_DEFAULT_REPRESENTATIVE;
 
 interface MintFee {
   to: string;
@@ -80,8 +81,12 @@ export class WalletManager {
   private isUnlocked = false;
   private currentSeed: string | null = null;
   private currentPasswordHash: string | null = null;
+  /** In-memory only (cleared on lock). Used to re-encrypt accounts after add/remove. */
+  private currentUnlockPassword: string | null = null;
   private currentSalt: string | null = null;
   private rpc: BananoRPC;
+  /** Blocks user rep changes while NFT/metaprotocol state chains publish. */
+  private stateChainDepth = 0;
 
   constructor() {
     this.rpc = new BananoRPC();
@@ -446,6 +451,7 @@ export class WalletManager {
     
     // Keep the wallet unlocked after saving (important for new wallet creation)
     this.accounts = accounts;
+    this.currentUnlockPassword = password;
     this.isUnlocked = true;
     console.log('WalletManager: Saved wallet and kept unlocked state');
   }
@@ -499,6 +505,29 @@ export class WalletManager {
   }
 
   /**
+   * Merge any accounts stored in tempAccounts (fallback from saves without a
+   * password) into `accounts`, then clear temp storage.
+   */
+  private async mergeTempAccounts(accounts: Account[]): Promise<Account[]> {
+    try {
+      const tempResult = await chrome.storage.local.get(['tempAccounts']);
+      const tempAccounts = tempResult.tempAccounts?.accounts as Account[] | undefined;
+      if (!tempAccounts?.length) return accounts;
+
+      const existingAddresses = new Set(accounts.map((acc) => acc.address));
+      const newAccounts = tempAccounts.filter((acc) => !existingAddresses.has(acc.address));
+      if (newAccounts.length > 0) {
+        accounts.push(...newAccounts);
+        console.log('WalletManager: Merged', newAccounts.length, 'temporarily stored accounts');
+      }
+      await chrome.storage.local.remove(['tempAccounts']);
+    } catch (error) {
+      console.warn('WalletManager: Error merging temporary accounts:', error);
+    }
+    return accounts;
+  }
+
+  /**
    * Save accounts to storage using stored password hash (for automatic saves)
    */
   private async saveAccountsToStorage(): Promise<void> {
@@ -506,41 +535,48 @@ export class WalletManager {
       throw new Error('Wallet must be unlocked to save accounts');
     }
 
-    // If we don't have stored credentials, use a temporary storage approach
-    if (!this.currentPasswordHash || !this.currentSalt) {
-      console.warn('WalletManager: No stored credentials, using temporary account storage');
+    // Without the unlock password we can only stash accounts temporarily and in
+    // the in-memory session (see persistSession). Proper encrypted persistence
+    // requires the password from unlock.
+    if (!this.currentUnlockPassword) {
+      console.warn('WalletManager: No unlock password in memory, using temporary account storage');
       await this.saveAccountsTemporarily();
+      await this.refreshPersistedSession();
       return;
     }
 
     try {
       console.log('WalletManager: Auto-saving accounts to storage...');
-      
-      // Encrypt accounts using the stored password hash
-      const accountsJson = JSON.stringify(this.accounts);
-      const encryptedData = CryptoJS.AES.encrypt(accountsJson, this.currentPasswordHash).toString();
-      
-      // Encrypt the seed if we have one
-      let encryptedSeed = '';
+
+      const walletData = await this.loadWallet();
+      const { encryptedData, salt } = await this.encryptAccounts(
+        this.accounts,
+        this.currentUnlockPassword,
+      );
+
+      let encryptedSeed = walletData?.encryptedSeed ?? '';
       if (this.currentSeed) {
-        encryptedSeed = CryptoJS.AES.encrypt(this.currentSeed, this.currentPasswordHash).toString();
+        encryptedSeed = JSON.stringify(
+          await encryptString(this.currentSeed, this.currentUnlockPassword),
+        );
       }
-      
+
       const updatedWalletData: StoredWallet = {
         encryptedAccounts: encryptedData,
         encryptedSeed,
-        salt: this.currentSalt,
-        isInitialized: true
+        salt: walletData?.salt ?? salt,
+        isInitialized: true,
+        keystoreVersion: 2,
       };
 
-      // Also store account addresses separately for connection purposes
-      const accountAddresses = this.accounts.map(acc => acc.address);
+      const accountAddresses = this.accounts.map((acc) => acc.address);
 
-      await chrome.storage.local.set({ 
+      await chrome.storage.local.set({
         wallet: updatedWalletData,
-        accountAddresses: accountAddresses 
+        accountAddresses,
       });
-      
+
+      await this.refreshPersistedSession();
       console.log('WalletManager: Successfully auto-saved accounts to storage');
     } catch (error) {
       console.error('WalletManager: Error auto-saving accounts:', error);
@@ -617,29 +653,10 @@ export class WalletManager {
     }
 
     // Check for temporarily stored accounts and merge them
-    try {
-      const tempResult = await chrome.storage.local.get(['tempAccounts']);
-      if (tempResult.tempAccounts && tempResult.tempAccounts.accounts) {
-        console.log('WalletManager: Found temporarily stored accounts, merging...');
-        const tempAccounts = tempResult.tempAccounts.accounts;
-        
-        // Merge temp accounts with loaded accounts (avoid duplicates)
-        const existingAddresses = new Set(accounts.map(acc => acc.address));
-        const newAccounts = tempAccounts.filter((acc: Account) => !existingAddresses.has(acc.address));
-        
-        if (newAccounts.length > 0) {
-          accounts.push(...newAccounts);
-          console.log('WalletManager: Merged', newAccounts.length, 'temporarily stored accounts');
-          
-          // Clear the temporary storage
-          await chrome.storage.local.remove(['tempAccounts']);
-        }
-      }
-    } catch (error) {
-      console.warn('WalletManager: Error merging temporary accounts:', error);
-    }
+    await this.mergeTempAccounts(accounts);
 
     this.accounts = accounts;
+    this.currentUnlockPassword = password;
     this.isUnlocked = true;
     return accounts;
   }
@@ -651,10 +668,24 @@ export class WalletManager {
     this.accounts = [];
     this.currentSeed = null;
     this.currentPasswordHash = null;
+    this.currentUnlockPassword = null;
     this.currentSalt = null;
     this.isUnlocked = false;
     // Clear the in-memory session so a restarted service worker stays locked.
     void this.clearSession();
+  }
+
+  /**
+   * Refresh the in-memory session snapshot after accounts change (add/remove).
+   * Keeps chrome.storage.session in sync so MV3 service-worker restarts don't
+   * restore a stale single-account list.
+   */
+  async refreshPersistedSession(): Promise<void> {
+    if (!this.isUnlocked) return;
+    const expiry = await this.getSessionExpiry();
+    if (expiry && Date.now() < expiry) {
+      await this.persistSession(expiry);
+    }
   }
 
   /**
@@ -718,6 +749,11 @@ export class WalletManager {
       this.accounts = data.accounts ?? [];
       this.currentSalt = data.salt ?? null;
       this.isUnlocked = true;
+
+      // Merge any temp accounts saved while the worker was down, then refresh session.
+      this.accounts = await this.mergeTempAccounts(this.accounts);
+      await this.refreshPersistedSession();
+
       console.log('WalletManager: Restored unlocked session from storage');
       return true;
     } catch (error) {
@@ -1594,6 +1630,8 @@ export class WalletManager {
     legs: EngineLeg[],
     opts?: { minBalanceRaw?: bigint; restoreRepresentative?: boolean },
   ): Promise<{ hashes: string[]; results: BananoBatchLegResult[] }> {
+    this.stateChainDepth += 1;
+    try {
     const info = await bananojs.BananodeApi.getAccountInfo(account.address, true);
     if (!info || info.error || !info.frontier || info.balance === undefined) {
       throw new Error(
@@ -1700,6 +1738,9 @@ export class WalletManager {
     }
 
     return { hashes, results };
+    } finally {
+      this.stateChainDepth = Math.max(0, this.stateChainDepth - 1);
+    }
   }
 
   private toRaw(amountBan: string): bigint {
@@ -2189,8 +2230,28 @@ export class WalletManager {
 
   private async changeRepresentative(accountAddress: string, representative: string): Promise<string> {
     if (!this.currentSeed) throw new Error('Seed not available');
+    if (this.stateChainDepth > 0) {
+      throw new Error(
+        'Cannot change representative while an NFT or batch transaction is in progress. Try again in a moment.',
+      );
+    }
+
     const account = this.accounts.find((acc) => acc.address === accountAddress);
     if (!account) throw new Error('Account not found');
+
+    const currentRep =
+      (await bananojs.bananodeApi.getAccountRepresentative(account.address)) ?? null;
+    const assessment = assessRepresentativeForDelegationChange(currentRep);
+    if (!assessment.allowed) {
+      throw new Error(assessment.message ?? 'Representative change is blocked for this account');
+    }
+    if (representative === currentRep) {
+      throw new Error('Account already delegates to this representative');
+    }
+    if (assessRepresentativeForDelegationChange(representative).severity === 'block') {
+      throw new Error('That address is not a valid node representative for delegation');
+    }
+
     const accountIndex = this.accounts.indexOf(account);
     const result = await bananojs.changeBananoRepresentativeForSeed(
       this.currentSeed,
@@ -2205,6 +2266,66 @@ export class WalletManager {
           : null;
     if (!hash) throw new Error('Invalid change result: missing transaction hash');
     return hash;
+  }
+
+  /** Whether a metaprotocol publish chain is running (mint, transfer, etc.). */
+  isMetaprotocolBusy(): boolean {
+    return this.stateChainDepth > 0;
+  }
+
+  /**
+   * Change voting delegate for one account. Does not move funds—only ORV weight.
+   */
+  async changeAccountRepresentative(accountAddress: string, representative: string): Promise<string> {
+    if (!this.isUnlocked) throw new Error('Wallet is locked');
+    return this.changeRepresentative(accountAddress, representative);
+  }
+
+  /**
+   * Apply the same node representative to every account that allows delegation.
+   * Skips accounts blocked by NFT protocol reps or in-flight operations.
+   */
+  async changeAllAccountsRepresentative(representative: string): Promise<{
+    changed: string[];
+    skipped: { address: string; reason: string }[];
+  }> {
+    if (!this.isUnlocked) throw new Error('Wallet is locked');
+    if (this.stateChainDepth > 0) {
+      throw new Error(
+        'Cannot change representatives while an NFT or batch transaction is in progress.',
+      );
+    }
+
+    const changed: string[] = [];
+    const skipped: { address: string; reason: string }[] = [];
+
+    for (const account of this.accounts) {
+      try {
+        const currentRep =
+          (await bananojs.bananodeApi.getAccountRepresentative(account.address)) ?? null;
+        const assessment = assessRepresentativeForDelegationChange(currentRep);
+        if (!assessment.allowed) {
+          skipped.push({
+            address: account.address,
+            reason: assessment.message ?? 'NFT protocol representative active',
+          });
+          continue;
+        }
+        if (currentRep === representative) {
+          skipped.push({ address: account.address, reason: 'Already using this representative' });
+          continue;
+        }
+        await this.changeRepresentative(account.address, representative);
+        changed.push(account.address);
+      } catch (error) {
+        skipped.push({
+          address: account.address,
+          reason: error instanceof Error ? error.message : 'Change failed',
+        });
+      }
+    }
+
+    return { changed, skipped };
   }
 
   private async buildSignedSendBlock(

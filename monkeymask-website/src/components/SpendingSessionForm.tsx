@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Icon } from '@iconify/react';
 import {
   useMonkeyMask,
@@ -12,6 +12,13 @@ import { Button, StatusBox } from '@/components/ui';
 
 const FIELD_CLASS = 'w-full px-3 py-2 border border-[var(--border)] rounded-md bg-white text-sm';
 
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 /**
  * Spending-session demo: request a per-origin allowance so small `send`s are
  * auto-approved (no popup) until the limit or expiry is reached. Then fire a
@@ -22,18 +29,35 @@ export function SpendingSessionForm() {
   const session = useSpendingSession();
   const send = useSend();
 
-  // `session.session` is reactive: it updates automatically when the allowance is
-  // granted, debited, or revoked — including a revoke done inside the wallet.
-  const info: SpendingSessionInfo | null = session.session;
-
   const [limit, setLimit] = useState('1');
   const [minutes, setMinutes] = useState('30');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const [amount, setAmount] = useState('0.01');
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
+
+  const rawInfo: SpendingSessionInfo | null = session.session;
+  const activeInfo =
+    rawInfo && rawInfo.expiresAt > now ? rawInfo : null;
+
+  // Tick every second while a session is active so the countdown stays live.
+  useEffect(() => {
+    if (!rawInfo) return undefined;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [rawInfo]);
+
+  // When the countdown hits zero, refresh provider state so we return to setup.
+  useEffect(() => {
+    if (!rawInfo || rawInfo.expiresAt > now) return;
+    void session.get().catch(() => undefined);
+  }, [rawInfo, now, session]);
+
+  const remainingMs = activeInfo ? activeInfo.expiresAt - now : 0;
+  const countdown = useMemo(() => formatCountdown(remainingMs), [remainingMs]);
 
   const handleRequest = async () => {
     setError(null);
@@ -54,6 +78,7 @@ export function SpendingSessionForm() {
     setBusy(true);
     try {
       await session.revoke();
+      setSendResult(null);
     } finally {
       setBusy(false);
     }
@@ -81,17 +106,18 @@ export function SpendingSessionForm() {
     );
   }
 
-  const expiresIn = info ? Math.max(0, Math.round((info.expiresAt - Date.now()) / 60000)) : 0;
-
   return (
     <div className="space-y-3">
-      {info ? (
+      {activeInfo ? (
         <StatusBox variant="success" title="Session active">
-          <div className="text-xs space-y-0.5">
-            <div>Limit: {info.limit} BAN</div>
-            <div>Spent: {info.spent} BAN</div>
-            <div>Remaining: {info.remaining} BAN</div>
-            <div>Expires in ~{expiresIn} min</div>
+          <div className="text-xs space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--text-secondary)]">Expires in</span>
+              <span className="font-mono text-sm font-semibold tabular-nums">{countdown}</span>
+            </div>
+            <div>Limit: {activeInfo.limit} BAN</div>
+            <div>Spent: {activeInfo.spent} BAN</div>
+            <div>Remaining: {activeInfo.remaining} BAN</div>
           </div>
         </StatusBox>
       ) : (
@@ -120,7 +146,7 @@ export function SpendingSessionForm() {
       )}
 
       <div className="flex gap-2">
-        {info ? (
+        {activeInfo ? (
           <Button onClick={handleRevoke} variant="secondary" size="sm" disabled={busy}>
             Revoke
           </Button>
@@ -138,7 +164,7 @@ export function SpendingSessionForm() {
         )}
       </div>
 
-      {info && (
+      {activeInfo && (
         <div className="border-t border-[var(--border)] pt-3 space-y-2">
           <label className="block text-sm font-medium">Auto-approved send (no popup)</label>
           <div className="flex gap-2">

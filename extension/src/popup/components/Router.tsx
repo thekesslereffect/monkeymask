@@ -11,6 +11,7 @@ import { SendScreen } from './SendScreen';
 import { TransactionConfirmationScreen } from './TransactionConfirmationScreen';
 import { ConnectedSitesScreen } from './ConnectedSitesScreen';
 import { SettingsScreen } from './SettingsScreen';
+import { RepresentativeScreen } from './RepresentativeScreen';
 import { QRScreen } from './QRScreen';
 import { HistoryScreen } from './HistoryScreen';
 import { NFTsScreen } from './NFTsScreen';
@@ -128,6 +129,10 @@ export const Router: React.FC<RouterProps> = ({
     
     settings: () => (
       <SettingsScreen />
+    ),
+
+    representative: () => (
+      <RepresentativeScreen />
     ),
     
     'connected-sites': () => (

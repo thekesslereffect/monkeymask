@@ -7,6 +7,8 @@
 // the minter and every recipient, with no crawler, index, or backend involved.
 
 import {
+  isSupplyRepresentative,
+  isValidMetadataRepresentative,
   scanOwnedNFTs,
   type ScanBlock,
   type ScanHistoryEntry,
@@ -347,4 +349,57 @@ export async function fetchNFTsForAddress(address: string): Promise<NFTFetchResu
   }
   const nfts = await Promise.all(scanned.map(toNormalizedNFT));
   return { nfts };
+}
+
+const MINT_HASH = /^[0-9A-F]{64}$/;
+
+/**
+ * Keep only NFTs whose asset representative (mint block hash) was published on
+ * `issuerAddress`'s chain as a valid `change#supply` → `send#mint` pair.
+ *
+ * This closes the "mint a copy with the same metadata CID" bypass: a forger's
+ * mint block lives on their account, not the official issuer's.
+ */
+export async function filterNftsByOnChainIssuer(
+  nfts: NormalizedNFT[],
+  issuerAddress: string,
+): Promise<NormalizedNFT[]> {
+  if (nfts.length === 0) return [];
+
+  const assetReps = [
+    ...new Set(
+      nfts
+        .map((nft) => nft.assetRepresentative?.toUpperCase())
+        .filter((hash): hash is string => !!hash && MINT_HASH.test(hash)),
+    ),
+  ];
+  if (assetReps.length === 0) return [];
+
+  const mintBlocks = await blocksInfo(assetReps);
+  const supplyHashes = new Set<string>();
+  for (const rep of assetReps) {
+    const prev = mintBlocks.get(rep)?.previous?.toUpperCase();
+    if (prev && MINT_HASH.test(prev)) supplyHashes.add(prev);
+  }
+  const supplyBlocks =
+    supplyHashes.size > 0 ? await blocksInfo([...supplyHashes]) : new Map<string, ScanBlock>();
+
+  return nfts.filter((nft) => {
+    const rep = nft.assetRepresentative?.toUpperCase();
+    if (!rep) return false;
+
+    const mint = mintBlocks.get(rep);
+    if (!mint || mint.subtype !== 'send') return false;
+    if (mint.blockAccount !== issuerAddress) return false;
+    if (!mint.representative || !isValidMetadataRepresentative(mint.representative)) return false;
+
+    const prev = mint.previous?.toUpperCase();
+    if (!prev) return false;
+    const supply = supplyBlocks.get(prev);
+    if (!supply || supply.subtype !== 'change') return false;
+    if (supply.blockAccount !== issuerAddress) return false;
+    if (!supply.representative || !isSupplyRepresentative(supply.representative)) return false;
+
+    return true;
+  });
 }

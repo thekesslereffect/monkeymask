@@ -2,6 +2,11 @@ import { WalletManager } from '../utils/wallet';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const bananojs = require('@bananocoin/bananojs');
 import { BananoRPC } from '../utils/rpc';
+import {
+  fetchAccountDelegation,
+  fetchRepNetworkSnapshot,
+  suggestDecentralizedRepresentative,
+} from '../utils/representatives';
 import { banToRaw, rawToBan } from '@monkeymask/wallet-standard';
 import { handleProtocolRequest, type ProtocolHandlerHost } from './protocolHandlers';
 
@@ -338,6 +343,8 @@ class BackgroundService {
         await this.savePermissions();
         console.log(`Background: Removed ${keysToDelete.length} permissions for account ${address}`);
       }
+
+      await this.persistUnlockedSession();
       
       sendResponse({ success: true });
       
@@ -581,6 +588,18 @@ class BackgroundService {
 
         case 'SET_AUTO_CONFIRM_ENABLED':
           await this.handleSetAutoConfirmEnabled(request, sendResponse);
+          break;
+
+        case 'GET_REPRESENTATIVE_DATA':
+          await this.handleGetRepresentativeData(request, sendResponse);
+          break;
+
+        case 'CHANGE_REPRESENTATIVE':
+          await this.handleChangeRepresentative(request, sendResponse);
+          break;
+
+        case 'SUGGEST_REPRESENTATIVE':
+          await this.handleSuggestRepresentative(request, sendResponse);
           break;
         
         default:
@@ -1785,6 +1804,115 @@ class BackgroundService {
     }
   }
 
+  private async handleGetRepresentativeData(
+    request: { address?: string },
+    sendResponse: (response: unknown) => void,
+  ): Promise<void> {
+    try {
+      let address = request.address;
+      if (!address) {
+        const currentAddress = await this.getCurrentAccountAddress();
+        if (!currentAddress) {
+          sendResponse({ success: false, error: 'No account selected' });
+          return;
+        }
+        address = currentAddress;
+      }
+
+      const [snapshot, delegation] = await Promise.all([
+        fetchRepNetworkSnapshot(25),
+        fetchAccountDelegation(address),
+      ]);
+
+      sendResponse({
+        success: true,
+        data: {
+          account: address,
+          delegation,
+          snapshot,
+          metaprotocolBusy: this.walletManager.isMetaprotocolBusy(),
+          accounts: this.walletManager.getAccounts().map((a) => ({
+            address: a.address,
+            name: a.name,
+          })),
+        },
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to load representative data',
+      });
+    }
+  }
+
+  private async handleChangeRepresentative(
+    request: { address?: string; representative?: string; allAccounts?: boolean },
+    sendResponse: (response: unknown) => void,
+  ): Promise<void> {
+    try {
+      if (!this.walletManager.isWalletUnlocked()) {
+        sendResponse({ success: false, error: 'Wallet is locked' });
+        return;
+      }
+
+      const representative = request.representative?.trim();
+      if (!representative || !representative.startsWith('ban_')) {
+        sendResponse({ success: false, error: 'A valid ban_ representative address is required' });
+        return;
+      }
+
+      if (request.allAccounts) {
+        const result = await this.walletManager.changeAllAccountsRepresentative(representative);
+        sendResponse({ success: true, data: result });
+        return;
+      }
+
+      let address = request.address;
+      if (!address) {
+        const currentAddress = await this.getCurrentAccountAddress();
+        if (!currentAddress) {
+          sendResponse({ success: false, error: 'No account selected' });
+          return;
+        }
+        address = currentAddress;
+      }
+
+      const hash = await this.walletManager.changeAccountRepresentative(address, representative);
+      sendResponse({ success: true, data: { hash, address } });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to change representative',
+      });
+    }
+  }
+
+  private async handleSuggestRepresentative(
+    request: { excludeAddresses?: string[] },
+    sendResponse: (response: unknown) => void,
+  ): Promise<void> {
+    try {
+      const exclude = new Set<string>(request.excludeAddresses ?? []);
+      for (const account of this.walletManager.getAccounts()) {
+        exclude.add(account.address);
+      }
+      const suggested = await suggestDecentralizedRepresentative(exclude);
+      if (!suggested) {
+        sendResponse({
+          success: false,
+          error: 'No suitable online representative found under 1% network weight',
+        });
+        return;
+      }
+      sendResponse({ success: true, data: { suggestion: suggested } });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to suggest representative',
+      });
+    }
+  }
+
   private async handleResolveBNS(request: any, sendResponse: (response: any) => void): Promise<void> {
     try {
       console.log('Background: Resolve BNS request for:', request.bnsName);
@@ -2747,6 +2875,10 @@ class BackgroundService {
 
       // Create new account using the next available index (auto-determined)
       const newAccount = await this.walletManager.createNewAccount();
+
+      // Keep the MV3 session snapshot and auto-lock timer in sync with the new
+      // account list so a service-worker restart doesn't drop the extra account.
+      await this.persistUnlockedSession();
       
       console.log('Background: Created new account:', newAccount.address);
       

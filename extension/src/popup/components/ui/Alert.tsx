@@ -14,7 +14,7 @@ export const Alert: React.FC<AlertProps> = ({
   const baseClasses = 'p-3 rounded-lg border text-sm';
   
   const variantClasses = {
-    default: 'bg-card text-card-foreground border-border',
+    default: 'bg-card text-foreground border-border',
     destructive: 'bg-destructive/10 text-destructive border-destructive/20',
     warning: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
     success: 'bg-green-500/10 text-green-600 border-green-500/20'

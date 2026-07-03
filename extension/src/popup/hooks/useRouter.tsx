@@ -14,6 +14,7 @@ export type Route =
   | 'explore'
   | 'faucet'
   | 'settings'
+  | 'representative'
   | 'connected-sites'
   | 'approval'
   | 'confirmation';
@@ -113,6 +114,7 @@ export const useNavigation = () => {
     goToExplore: () => router.push('explore'),
     goToFaucet: () => router.push('faucet'),
     goToSettings: () => router.push('settings'),
+    goToRepresentative: () => router.push('representative'),
     goToConnectedSites: () => router.push('connected-sites'),
     goToConfirmation: (transactionResult: RouteParams['transactionResult']) => 
       router.push('confirmation', { transactionResult }),
