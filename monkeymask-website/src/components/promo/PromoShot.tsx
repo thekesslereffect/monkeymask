@@ -43,21 +43,21 @@ export function PromoShot({
   const render = useCallback(async () => {
     const node = shotRef.current;
     if (!node) return null;
+
+    // Let layout settle so html-to-image reads unscaled computed styles.
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
     const { toBlob } = await import('html-to-image');
-    // Preview uses CSS transform: scale() to fit the page. html-to-image would
-    // bake that scale into the canvas (content top-left, empty right/bottom).
-    // Force 1:1 on the clone so the export matches the design dimensions.
+    // Capture shotRef only — it never has a preview scale transform. Scaling lives
+    // on a parent wrapper so box-shadows and rotations export at design size.
     return toBlob(node, {
       pixelRatio: 2,
       width,
       height,
       cacheBust: true,
       backgroundColor: undefined,
-      style: {
-        transform: 'none',
-        width: `${width}px`,
-        height: `${height}px`,
-      },
     });
   }, [width, height]);
 
@@ -132,14 +132,13 @@ export function PromoShot({
         </div>
       </div>
 
-      {/* Responsive scaler: reserves scaled layout box; shot renders at export size */}
+      {/* Preview scale is on a wrapper; shotRef stays at export size for capture */}
       <div ref={wrapRef} className="w-full max-w-full overflow-hidden rounded-2xl">
         <div
           className="overflow-hidden"
           style={{ width: width * scale, height: height * scale, maxWidth: '100%' }}
         >
           <div
-            ref={shotRef}
             style={{
               width,
               height,
@@ -147,7 +146,9 @@ export function PromoShot({
               transformOrigin: 'top left',
             }}
           >
-            {children}
+            <div ref={shotRef} style={{ width, height }}>
+              {children}
+            </div>
           </div>
         </div>
       </div>
