@@ -249,7 +249,7 @@ export default function PromoPage() {
     <div className="flex min-h-screen flex-col bg-white">
       <Header />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-14">
+      <main className="mx-auto w-full max-w-6xl flex-1 overflow-x-hidden px-4 py-14 sm:px-6">
         {/* Intro */}
         <div className="max-w-3xl">
           <h1 className="mt-6 font-nunito text-5xl font-extrabold tracking-tight md:text-6xl">
@@ -282,7 +282,7 @@ export default function PromoPage() {
             The mark, icon and wordmark. Transparent PNGs where usable; dark variants ship their own
             background.
           </p>
-          <div className="mt-8 grid gap-8 sm:grid-cols-2">
+          <div className="mt-8 grid min-w-0 gap-8 sm:grid-cols-2">
             {LOGOS.map((logo) => (
               <PromoShot
                 key={logo.id}
