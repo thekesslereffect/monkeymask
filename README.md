@@ -23,6 +23,11 @@ npm run dev:extension   # build/watch extension
 npm run dev:website     # demo site on :3000
 ```
 
+```bash
+$env:MONKEYMASK_CONVEX_URL="https://your-prod-site.convex.site"
+npm run build -w monkeymask
+```
+
 ## Architecture
 
 - **Extension** registers a Wallet Standard wallet + `window.banano` legacy provider

@@ -1,3 +1,5 @@
+import { BANANO_RPC_ENDPOINTS } from './bananoEndpoints';
+
 export interface RpcResponse<T = any> {
   success: boolean;
   data?: T;
@@ -12,14 +14,17 @@ export interface AccountInfo {
 }
 
 export class BananoRPC {
-  private static readonly RPC_ENDPOINTS = [
-    'https://kaliumapi.appditto.com/api',
-    /** Full-node proxy — supports `representatives_online` and other node-only RPCs. */
-    'https://api.banano.trade/proxy',
-    'https://booster.dev-ptera.com/banano-rpc',
-  ];
+  private static readonly RPC_ENDPOINTS = [...BANANO_RPC_ENDPOINTS];
 
   private currentEndpointIndex = 0;
+
+  private static async sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private static isTransientHttpStatus(status: number): boolean {
+    return status === 429 || status >= 500;
+  }
 
   /**
    * Make RPC call to Banano node
@@ -27,49 +32,61 @@ export class BananoRPC {
   private async makeRpcCall<T>(method: string, params: any = {}): Promise<RpcResponse<T>> {
     const payload = {
       action: method,
-      ...params
+      ...params,
     };
 
-    for (let i = 0; i < BananoRPC.RPC_ENDPOINTS.length; i++) {
-      const endpoint = BananoRPC.RPC_ENDPOINTS[this.currentEndpointIndex];
-      
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload)
-        });
+    let lastError: string | undefined;
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+    for (let round = 0; round < BananoRPC.RPC_ENDPOINTS.length; round++) {
+      for (let i = 0; i < BananoRPC.RPC_ENDPOINTS.length; i++) {
+        const endpoint = BananoRPC.RPC_ENDPOINTS[this.currentEndpointIndex];
 
-        const data = await response.json();
-        
-        if (data.error) {
-          throw new Error(data.error);
-        }
+        try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
 
-        return { success: true, data };
-      } catch (error) {
-        console.warn(`RPC call failed for endpoint ${endpoint}:`, error);
-        
-        // Try next endpoint
-        this.currentEndpointIndex = (this.currentEndpointIndex + 1) % BananoRPC.RPC_ENDPOINTS.length;
-        
-        // If this was the last endpoint, return the error
-        if (i === BananoRPC.RPC_ENDPOINTS.length - 1) {
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown RPC error'
-          };
+          if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            if (BananoRPC.isTransientHttpStatus(response.status)) {
+              throw new Error(`HTTP ${response.status}: ${body || response.statusText}`);
+            }
+            return {
+              success: false,
+              error: body || `HTTP ${response.status}: ${response.statusText}`,
+            };
+          }
+
+          const data = await response.json();
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          return { success: true, data };
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : 'Unknown RPC error';
+          console.warn(`RPC call failed for endpoint ${endpoint}:`, error);
+
+          this.currentEndpointIndex =
+            (this.currentEndpointIndex + 1) % BananoRPC.RPC_ENDPOINTS.length;
+
+          if (i < BananoRPC.RPC_ENDPOINTS.length - 1) {
+            await BananoRPC.sleep(250 * (i + 1));
+          }
         }
+      }
+
+      if (round < BananoRPC.RPC_ENDPOINTS.length - 1) {
+        await BananoRPC.sleep(500 * (round + 1));
       }
     }
 
-    return { success: false, error: 'All RPC endpoints failed' };
+    return { success: false, error: lastError ?? 'All RPC endpoints failed' };
   }
 
   /**
@@ -202,5 +219,19 @@ export class BananoRPC {
     return this.makeRpcCall('representatives_online');
   }
 
-  // Note: getAccountHistory is now handled by bananojs.getAccountHistory() directly
+  /**
+   * Account history (newest first). Prefer {@link withBananoNodeFallback} via bananojs
+   * when address decoding is needed; this is a direct RPC fallback.
+   */
+  async getAccountHistory(
+    address: string,
+    count = 10,
+    head?: string,
+  ): Promise<RpcResponse<{ history?: unknown[] }>> {
+    return this.makeRpcCall('account_history', {
+      account: address,
+      count: String(count),
+      ...(head ? { head } : {}),
+    });
+  }
 }

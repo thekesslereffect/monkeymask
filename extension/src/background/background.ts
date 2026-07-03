@@ -1,6 +1,5 @@
 import { WalletManager } from '../utils/wallet';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const bananojs = require('@bananocoin/bananojs');
+import { bananojs, withBananoNodeFallback } from '../utils/bananoNode';
 import { BananoRPC } from '../utils/rpc';
 import {
   fetchAccountDelegation,
@@ -805,71 +804,55 @@ class BackgroundService {
         return;
       }
 
-      // Process all accounts to get their balances
+      // Process all accounts to get their balances (one batched RPC call).
       console.log('Background: Fetching balances for all accounts:', accounts.length);
-      
-      // First, handle pending transactions for current account (auto-receive)
+
       const currentAccountIndex = await this.getCurrentAccountIndex();
-      const currentAccount = accounts[currentAccountIndex] || accounts[0]; // Fallback to first account if index is invalid
+      const currentAccount = accounts[currentAccountIndex] || accounts[0];
       const currentAddress = currentAccount.address;
 
-      let pendingAmount = '0';
-      try {
-        const preBalanceResult = await Promise.race([
-          this.rpc.getAccountBalance(currentAddress),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Pre-balance timeout')), 5000))
-        ]) as any;
-
-        if (preBalanceResult.success && preBalanceResult.data?.pending && preBalanceResult.data.pending !== '0') {
-          pendingAmount = BananoRPC.rawToBan(preBalanceResult.data.pending);
-          console.log('Background: Found pending amount for current account:', pendingAmount);
+      const applyBalances = (
+        balances: Record<string, { balance: string; pending: string }> | undefined,
+      ) => {
+        for (const account of accounts) {
+          const balanceData = balances?.[account.address];
+          if (!balanceData) continue;
+          account.balance = BananoRPC.rawToBan(balanceData.balance || '0');
+          (account as { pending?: string }).pending = BananoRPC.rawToBan(
+            balanceData.pending || '0',
+          );
         }
-      } catch (error) {
-        console.warn('Background: Failed to get pre-balance for pending check:', error);
-      }
+      };
 
-      // Try to auto-receive any pending transactions on current account (needs seed)
-      if (pendingAmount !== '0' && this.walletManager.hasSeed()) {
+      const fetchAllBalances = async () => {
+        const batchResult = await Promise.race([
+          this.rpc.getAccountsBalances(accounts.map((a) => a.address)),
+          new Promise<{ success: false; error: string }>((_, reject) =>
+            setTimeout(() => reject(new Error('Balance fetch timeout')), 15000),
+          ),
+        ]);
+        if (batchResult.success && batchResult.data?.balances) {
+          applyBalances(batchResult.data.balances);
+        }
+        return batchResult;
+      };
+
+      await fetchAllBalances();
+
+      const refreshedCurrent = accounts.find((a) => a.address === currentAddress) ?? currentAccount;
+      const pendingDisplay = (refreshedCurrent as { pending?: string }).pending ?? '0';
+      if (pendingDisplay !== '0' && pendingDisplay !== '0.0' && this.walletManager.hasSeed()) {
         console.log(
           'Background: Auto-receiving pending for current account:',
           currentAddress,
           'amount:',
-          pendingAmount,
+          pendingDisplay,
         );
-        await this.walletManager.autoReceivePending(currentAddress, pendingAmount);
+        await this.walletManager.autoReceivePending(currentAddress, pendingDisplay);
+        await fetchAllBalances();
       }
-      
-      // Now fetch balances for ALL accounts
-      const updatedAccounts = await Promise.all(accounts.map(async (account, index) => {
-        try {
-          console.log(`Background: Fetching balance for account ${index}:`, account.address);
-          
-          const balanceResult = await Promise.race([
-            this.rpc.getAccountBalance(account.address),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Balance fetch timeout')), 10000))
-          ]) as any;
-          
-          console.log(`Background: Balance result for account ${index}:`, balanceResult);
-          
-          if (balanceResult.success && balanceResult.data) {
-            const balanceData = balanceResult.data;
-            account.balance = BananoRPC.rawToBan(balanceData.balance || '0');
-            const pendingRaw = balanceData.pending || '0';
-            const pendingAmount = BananoRPC.rawToBan(pendingRaw);
-            (account as any).pending = pendingAmount;
-            
-            console.log(`Background: Updated account ${index} balance:`, account.balance, 'pending:', pendingAmount);
-          } else {
-            console.warn(`Background: Failed to get balance for account ${index}:`, balanceResult.error);
-            // Keep existing balance data if fetch fails
-          }
-        } catch (error) {
-          console.error(`Background: Error fetching balance for account ${index}:`, error);
-          // Keep existing balance data if fetch fails
-        }
-        
-        return account;
-      }));
+
+      const updatedAccounts = accounts;
 
       console.log('Background: Updated all accounts with balances:', updatedAccounts.length);
 
@@ -2302,9 +2285,10 @@ class BackgroundService {
         console.log('Background: Using current account for account history request:', address);
       }
 
-      // Use bananojs getAccountHistory method with optional head parameter for pagination
-      const historyResult = await bananojs.getAccountHistory(address, count, head);
-      console.log('Background: bananojs getAccountHistory result:', JSON.stringify(historyResult, null, 2));
+      // Use bananojs getAccountHistory with endpoint fallback on rate limits.
+      const historyResult = (await withBananoNodeFallback(() =>
+        bananojs.getAccountHistory(address, count, head),
+      )) as { history?: unknown[]; error?: string } | null;
       
       // bananojs methods return data directly, not wrapped in success/data structure
       if (!historyResult || historyResult.error) {

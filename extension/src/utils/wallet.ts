@@ -1,11 +1,4 @@
-const bananojs = require('@bananocoin/bananojs');
-// Configure bananojs once at module load
-try {
-  bananojs.setBananodeApiUrl('https://kaliumapi.appditto.com/api');
-  if (bananojs.BananodeApi && typeof bananojs.BananodeApi.setUseRateLimit === 'function') {
-    bananojs.BananodeApi.setUseRateLimit(true);
-  }
-} catch {}
+import { bananojs, withBananoNodeFallback } from './bananoNode';
 import {
   createSignInMessageText,
   isSupplyRepresentative,
@@ -930,7 +923,7 @@ export class WalletManager {
         this.currentSeed,
         accountIndex,
         resolvedTo,
-        amount
+        amount,
       );
       
       console.log('WalletManager: Send result:', result);
@@ -2039,10 +2032,12 @@ export class WalletManager {
         /* fall back to default representative */
       }
 
-      const receivedHashes = await bananojs.receiveBananoDepositsForSeed(
-        this.currentSeed,
-        accountIndex,
-        representative,
+      const receivedHashes = await withBananoNodeFallback(() =>
+        bananojs.receiveBananoDepositsForSeed(
+          this.currentSeed,
+          accountIndex,
+          representative,
+        ),
       );
 
       const hashArray = extractReceiveBlockHashes(receivedHashes);
@@ -2149,6 +2144,13 @@ export class WalletManager {
     operation: BananoOperation,
   ): Promise<{ hashes: string[]; results?: BananoBatchLegResult[] }> {
     if (!this.isUnlocked) throw new Error('Wallet is locked');
+    return withBananoNodeFallback(() => this.publishOperation(accountAddress, operation));
+  }
+
+  private async publishOperation(
+    accountAddress: string,
+    operation: BananoOperation,
+  ): Promise<{ hashes: string[]; results?: BananoBatchLegResult[] }> {
     if (operation.type === 'send') {
       if ('sends' in operation) {
         if (operation.sends.length === 0) {
