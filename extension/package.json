@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@bananocoin/bananojs": "^2.8.6",
-    "@monkeymask/core": "0.1.0",
-    "@monkeymask/wallet-standard": "0.2.1",
+    "@monkeymask/core": "*",
+    "@monkeymask/wallet-standard": "*",
     "@wallet-standard/base": "^1.1.0",
     "@wallet-standard/features": "^1.1.0",
     "@types/qrcode": "^1.5.5",

@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm ci --include=optional -w @monkeymask/wallet-standard -w @monkeymask/react -w monkeymask-dapp-template",
+  "installCommand": "npm ci --include=optional -w @monkeymask/wallet-standard -w @monkeymask/core -w @monkeymask/react -w monkeymask-dapp-template",
   "buildCommand": "npm run build:packages && npm run build -w monkeymask-dapp-template",
   "outputDirectory": "monkeymask-website/.next"
 }
