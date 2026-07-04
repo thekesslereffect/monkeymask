@@ -1,6 +1,6 @@
 {
   "name": "@monkeymask/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Banano keys, signing, block publishing, and NFT metaprotocol operations — the web3.js-style core for MonkeyMask, usable in Node servers and browsers",
   "type": "module",
   "main": "./dist/index.js",
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@bananocoin/bananojs": "^2.10.10",
-    "@monkeymask/wallet-standard": "^0.2.1",
+    "@monkeymask/wallet-standard": "^0.2.2",
     "bip39": "^3.1.0"
   },
   "devDependencies": {

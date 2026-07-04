@@ -1,6 +1,6 @@
 {
   "name": "@monkeymask/react",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "React hooks and provider for MonkeyMask Banano wallet",
   "type": "module",
   "main": "./dist/index.js",
@@ -37,7 +37,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@monkeymask/wallet-standard": "0.2.1",
+    "@monkeymask/wallet-standard": "0.2.2",
     "@wallet-standard/app": "^1.1.0",
     "@wallet-standard/base": "^1.1.0",
     "@wallet-standard/features": "^1.1.0"

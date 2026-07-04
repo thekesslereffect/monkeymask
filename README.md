@@ -58,6 +58,47 @@ npm run build -w monkeymask
 | `@monkeymask/wallet-standard` | Chain IDs, feature types, SIWB build/verify, protocol envelope |
 | `@monkeymask/react` | `MonkeyMaskProvider`, `useSignIn`, `useSignAndSendTransaction`, `useSend`, `useReceive`, `useReceivable`, `useAccountHistory`, `useReverseBNS`, `useSweep`, `useSpendingSession`, `useMintNFT`, `useMintEdition`, `useTransferNFT`, `useBurnNFT`, `useFinishSupply`, `useSendAllNfts`, `buildBananoUri`/`parseBananoUri`, etc. |
 
+**Dependency order:** `wallet-standard` → `core` → `react` (`core` depends on `wallet-standard`; `react` depends on `wallet-standard`).
+
+## Publishing packages
+
+Packages are published to npm under the `@monkeymask` scope. Log in once with `npm login`, then publish from the repo root.
+
+**Build first** (each package ships only `dist/` + `README.md`):
+
+```bash
+npm run build:packages
+```
+
+**First publish** of a scoped package requires public access:
+
+```bash
+npm publish -w @monkeymask/core --access public
+```
+
+After the first publish, add `"publishConfig": { "access": "public" }` to that package's `package.json` so later releases can omit the flag.
+
+**Publish order** when releasing updates (bump versions in each `package.json` first — npm rejects a version that already exists):
+
+```bash
+npm publish -w @monkeymask/wallet-standard --access public
+npm publish -w @monkeymask/core --access public
+npm publish -w @monkeymask/react --access public
+```
+
+Only publish packages that changed. If `wallet-standard` is unchanged on npm, you can publish `core` alone as long as its dependency version is already on the registry.
+
+**Verify:**
+
+```bash
+npm whoami
+npm view @monkeymask/core version
+npm view @monkeymask/wallet-standard version
+npm view @monkeymask/react version
+```
+
+Optional git tag after a release: `git tag @monkeymask/core@<version> && git push origin @monkeymask/core@<version>` (use the version from that package's `package.json`).
+
 ## Environment
 
 Website (`monkeymask-website`):
