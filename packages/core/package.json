@@ -1,0 +1,52 @@
+{
+  "name": "@monkeymask/core",
+  "version": "0.1.0",
+  "description": "Banano keys, signing, block publishing, and NFT metaprotocol operations — the web3.js-style core for MonkeyMask, usable in Node servers and browsers",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thekesslereffect/monkeymask.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/thekesslereffect/monkeymask/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/thekesslereffect/monkeymask/issues"
+  },
+  "keywords": [
+    "banano",
+    "wallet",
+    "signing",
+    "nft",
+    "monkeymask",
+    "server",
+    "crypto"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bananocoin/bananojs": "^2.10.10",
+    "@monkeymask/wallet-standard": "^0.2.1",
+    "bip39": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsup": "^8.5.0",
+    "typescript": "^5.0.0"
+  }
+}

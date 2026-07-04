@@ -102,6 +102,7 @@ module.exports = (_env, argv) => {
     extensions: ['.tsx', '.ts', '.js'],
     alias: {
       '@monkeymask/wallet-standard': path.resolve(__dirname, '../packages/wallet-standard/dist/index.js'),
+      '@monkeymask/core': path.resolve(__dirname, '../packages/core/dist/index.js'),
     },
     fallback: {
       "crypto": require.resolve("crypto-browserify", { paths: [__dirname] }),

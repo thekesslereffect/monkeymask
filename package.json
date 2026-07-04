@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "build:packages": "npm run build -w @monkeymask/wallet-standard && npm run build -w @monkeymask/react",
+    "build:packages": "npm run build -w @monkeymask/wallet-standard && npm run build -w @monkeymask/core && npm run build -w @monkeymask/react",
     "build:extension": "npm run build -w monkeymask",
     "build:website": "npm run build -w monkeymask-dapp-template",
     "dev:extension": "npm run dev -w monkeymask",

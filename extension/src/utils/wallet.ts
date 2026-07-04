@@ -1983,12 +1983,9 @@ export class WalletManager {
         /* fall back to default representative */
       }
 
+      const seed = this.currentSeed;
       const receivedHashes = await withBananoNodeFallback(() =>
-        bananojs.receiveBananoDepositsForSeed(
-          this.currentSeed,
-          accountIndex,
-          representative,
-        ),
+        bananojs.receiveBananoDepositsForSeed(seed, accountIndex, representative),
       );
 
       const hashArray = extractReceiveBlockHashes(receivedHashes);

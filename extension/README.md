@@ -23,6 +23,8 @@ Load `extension/dist` as an unpacked extension in Chrome.
 | `background.ts` | Method dispatch, approvals, events |
 | `wallet.ts` | WebCrypto keystore, block build/sign/publish, SIWB |
 
+Node configuration, NFT representative encoding, and endpoint fallback are shared with server wallets via [`@monkeymask/core`](../packages/core/README.md); `utils/bananoNode.ts` and `utils/nftMint.ts` re-export from it.
+
 ## Features
 
 - `standard:connect` / `standard:disconnect` / `standard:events`

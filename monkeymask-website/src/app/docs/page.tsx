@@ -67,6 +67,7 @@ const NAV: { group: string; items: [string, string][] }[] = [
       ['events', 'Events'],
       ['legacy', 'Legacy provider'],
       ['backend', 'Backend (Convex)'],
+      ['server-wallet', 'Server wallet'],
       ['chain', 'Chain ID'],
     ],
   },
@@ -255,6 +256,11 @@ export default function DocsPage() {
                 <li>
                   <code>@monkeymask/wallet-standard</code>: chain IDs, feature/operation types, SIWB
                   build/verify, NFT codecs, error codes. Safe to import server-side.
+                </li>
+                <li>
+                  <code>@monkeymask/core</code> (optional): keys, signing, block publishing, and NFT
+                  operations as a plain library — for <a href="#server-wallet">server-side wallets</a>{' '}
+                  and anywhere the extension isn&apos;t available.
                 </li>
               </ul>
             </Section>
@@ -1071,6 +1077,48 @@ useEffect(() => { /* refetch data for the active account */ }, [publicKey]);`}</
                 an in-memory SIWB store. Enable it with{' '}
                 <code>npx convex dev</code> and set <code>NEXT_PUBLIC_CONVEX_URL</code> /{' '}
                 <code>NEXT_PUBLIC_CONVEX_SITE_URL</code>. See the repository README for details.
+              </P>
+            </Section>
+
+            <Section id="server-wallet" title="Server wallet (@monkeymask/core)">
+              <P>
+                The wallet adapter pattern covers users signing in the browser — but a server can hold
+                its own account too, exactly like loading a Solana <code>Keypair</code> from an env
+                secret. <code>@monkeymask/core</code> is the <code>@solana/web3.js</code>-style layer
+                of the stack: everything the extension can do (send, claim pending, sweep, sign
+                messages / SIWB, mint / transfer / burn NFTs, airdrops) as a plain library that runs
+                in Node.
+              </P>
+              <CodeBlock>{`// Server only — API route, server action, cron, bot…
+import { Wallet } from '@monkeymask/core';
+
+const wallet = await Wallet.fromSeed(process.env.BANANO_SEED!); // hex seed or mnemonic
+
+await wallet.receiveAll();                        // claim pending
+const hash = await wallet.send('user.ban', '1');  // BNS names resolve
+
+// Sign / verify without the extension
+const sig = await wallet.signMessage('hello');
+
+// Full NFT surface: mint, editions, transfer, burn, finish, send-all
+const mint = await wallet.mintNFT({ metadataCid: 'Qm…', to: 'ban_1recipient…' });
+await wallet.transferNFT({ assetRepresentative: mint.assetRepresentative, to: 'ban_1buyer…' });
+
+// Same structured envelope dApps send through the provider
+await wallet.sendOperation({ type: 'sweep', to: 'ban_1vault…' });`}</CodeBlock>
+              <P>
+                This template ships a ready helper — <code>src/lib/server-wallet.ts</code> exposes{' '}
+                <code>getServerWallet()</code>, cached per process and driven by the{' '}
+                <code>BANANO_SEED</code> env var. The same metaprotocol safety rules as the extension
+                apply (self-delimiting supply→mint pairs, clean-representative restore after
+                mints/transfers), and <code>setBananoRpcEndpoints()</code> points it at your own node.
+              </P>
+              <P>
+                <strong>Security:</strong> a seed in an env var is a hot wallet. Use a dedicated
+                account (never a treasury), keep only working balances on it, never expose the seed
+                with a <code>NEXT_PUBLIC_</code> prefix, and gate any HTTP endpoint that triggers
+                signing behind a verified <a href="#siwb">SIWB session</a>. Full API in{' '}
+                <code>packages/core/README.md</code>.
               </P>
             </Section>
 
