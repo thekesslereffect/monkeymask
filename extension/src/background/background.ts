@@ -328,19 +328,27 @@ class BackgroundService {
       
       // Also remove all permissions for this account across all origins
       const keysToDelete: string[] = [];
+      const affectedOrigins = new Set<string>();
       this.permissions.forEach((permission, key) => {
         if (permission.account === address) {
           keysToDelete.push(key);
+          affectedOrigins.add(permission.origin);
         }
       });
-      
+
       keysToDelete.forEach(key => {
         this.permissions.delete(key);
       });
-      
+
       if (keysToDelete.length > 0) {
         await this.savePermissions();
         console.log(`Background: Removed ${keysToDelete.length} permissions for account ${address}`);
+        // Disconnect sites that were connected to the removed account so they
+        // don't keep showing it and fail with "Unauthorized" on the next request.
+        // (Same behavior as revoking a permission from settings.)
+        affectedOrigins.forEach((origin) => {
+          this.emitProviderEvent('disconnect', null, origin);
+        });
       }
 
       await this.persistUnlockedSession();
@@ -395,6 +403,20 @@ class BackgroundService {
         }
       });
     });
+  }
+
+  /**
+   * Tell connected dApps that on-chain state changed for these wallet accounts
+   * (balance, receivable, history, NFTs) so they can re-fetch what they display.
+   * Non-wallet addresses (external recipients) are filtered out.
+   */
+  notifyBalancesChanged(addresses: Array<string | undefined>): void {
+    const owned = new Set(this.walletManager.getAccounts().map((a) => a.address));
+    const affected = [...new Set(addresses)].filter(
+      (a): a is string => !!a && owned.has(a),
+    );
+    if (affected.length === 0) return;
+    this.emitProviderEvent('balancesChanged', { addresses: affected });
   }
 
   private async handleMessage(request: any, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void): Promise<void> {
@@ -850,6 +872,8 @@ class BackgroundService {
         );
         await this.walletManager.autoReceivePending(currentAddress, pendingDisplay);
         await fetchAllBalances();
+        // Claimed pending moved into the balance — let connected dApps re-fetch.
+        this.notifyBalancesChanged([currentAddress]);
       }
 
       const updatedAccounts = accounts;
@@ -1306,6 +1330,7 @@ class BackgroundService {
           console.warn('Background: post transfer refresh failed:', err);
         });
       }, 0);
+      this.notifyBalancesChanged([fromAddress, toAddress]);
 
       sendResponse({ success: true, data: { hash } });
     } catch (error) {
@@ -1346,6 +1371,7 @@ class BackgroundService {
           console.warn('Background: post burn refresh failed:', err);
         });
       }, 0);
+      this.notifyBalancesChanged([fromAddress]);
 
       sendResponse({ success: true, data: { hash } });
     } catch (error) {
@@ -1376,6 +1402,7 @@ class BackgroundService {
         return;
       }
       const hash = await this.walletManager.finishCollection(fromAddress, { metadataCid });
+      this.notifyBalancesChanged([fromAddress]);
       sendResponse({ success: true, data: { hash } });
     } catch (error) {
       console.error('Background: Error finishing collection:', error);
@@ -1410,6 +1437,7 @@ class BackgroundService {
           console.warn('Background: post send-all refresh failed:', err);
         });
       }, 0);
+      this.notifyBalancesChanged([fromAddress, toAddress]);
       sendResponse({ success: true, data: { hash } });
     } catch (error) {
       console.error('Background: Error sending all NFTs:', error);
@@ -1439,6 +1467,7 @@ class BackgroundService {
           console.warn('Background: post sweep refresh failed:', err);
         });
       }, 0);
+      this.notifyBalancesChanged([fromAddress, toAddress]);
 
       sendResponse({
         success: true,
@@ -1625,7 +1654,9 @@ class BackgroundService {
             console.warn('Background: post dApp tx refresh failed:', err);
           });
         }, 0);
-        
+        // Broadcast so tabs other than the initiator also refresh their view.
+        this.notifyBalancesChanged([fromAddress, toAddress]);
+
         sendResponse({
           success: true,
           data: { 
@@ -1651,7 +1682,8 @@ class BackgroundService {
             console.warn('Background: post extension tx refresh failed:', err);
           });
         }, 0);
-        
+        this.notifyBalancesChanged([fromAddress, toAddress]);
+
         sendResponse({
           success: true,
           data: { 
@@ -1847,6 +1879,12 @@ class BackgroundService {
 
       if (request.allAccounts) {
         const result = await this.walletManager.changeAllAccountsRepresentative(representative);
+        if (result.changed.length > 0) {
+          this.emitProviderEvent('representativeChanged', {
+            addresses: result.changed,
+            representative,
+          });
+        }
         sendResponse({ success: true, data: result });
         return;
       }
@@ -1862,6 +1900,13 @@ class BackgroundService {
       }
 
       const hash = await this.walletManager.changeAccountRepresentative(address, representative);
+      // Let connected dApps refresh their delegation UI (e.g. the website's
+      // representative demo) without polling.
+      this.emitProviderEvent('representativeChanged', {
+        addresses: [address],
+        representative,
+        hash,
+      });
       sendResponse({ success: true, data: { hash, address } });
     } catch (error) {
       sendResponse({

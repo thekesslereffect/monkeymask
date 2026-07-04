@@ -18,9 +18,9 @@ const TYPE_ICON: Record<string, string> = {
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  send: 'text-destructive',
-  receive: 'text-primary',
-  open: 'text-primary',
+  send: 'text-primary',
+  receive: 'text-success',
+  open: 'text-success',
   change: 'text-tertiary',
 };
 
@@ -50,21 +50,33 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({ transaction, tim
       ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : date.toLocaleDateString();
 
+  const isIncoming = transaction.type === 'receive' || transaction.type === 'open';
+  const amountPrefix = isIncoming ? '+' : transaction.type === 'send' ? '-' : '';
+
   return (
     <button
-      className="flex justify-between items-center w-full hover:bg-tertiary/10 cursor-pointer transition-colors rounded-lg p-2 text-tertiary"
+      className="flex justify-between items-center w-full hover:bg-tertiary/10 cursor-pointer transition-colors rounded-lg p-2"
       onClick={() => openCreeperHash(transaction.hash)}
     >
-      <div className="flex items-center gap-2">
-        <Icon icon={getTransactionIcon(transaction.type)} className={getTransactionColor(transaction.type)} />
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full bg-popover ${getTransactionColor(transaction.type)}`}
+        >
+          <Icon icon={getTransactionIcon(transaction.type)} width={18} />
+        </div>
         <div className="flex flex-col items-start">
-          <span className="text-sm">{getTransactionLabel(transaction.type)}</span>
-          <span className="text-xs">{truncateMiddle(transaction.account, 10, 6)}</span>
+          <span className="text-sm font-semibold text-foreground">
+            {getTransactionLabel(transaction.type)}
+          </span>
+          <span className="text-[11px] text-tertiary">{truncateMiddle(transaction.account, 10, 6)}</span>
         </div>
       </div>
       <div className="flex flex-col items-end">
-        <span className="text-sm">{parseFloat(transaction.amount).toFixed(2)} BAN</span>
-        <span className="text-xs">{timestampLabel}</span>
+        <span className={`text-sm font-bold ${isIncoming ? 'text-success' : 'text-foreground'}`}>
+          {amountPrefix}
+          {parseFloat(transaction.amount).toFixed(2)}
+        </span>
+        <span className="text-[11px] text-tertiary">{timestampLabel}</span>
       </div>
     </button>
   );

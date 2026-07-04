@@ -2,7 +2,10 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
-import { KALIUM_DEFAULT_REPRESENTATIVE } from '@monkeymask/wallet-standard';
+import {
+  KALIUM_DEFAULT_REPRESENTATIVE,
+  REPRESENTATIVE_CHANGED_EVENT,
+} from '@monkeymask/wallet-standard';
 import { useMonkeyMask } from '@/providers';
 import { Button, StatusBox } from '@/components/ui';
 import { DemoSection } from '@/components/demos/DemoSection';
@@ -137,6 +140,20 @@ export function RepExplorerDemo() {
   useEffect(() => {
     void loadAccount();
   }, [loadAccount]);
+
+  // The extension dispatches this DOM event when the user changes their rep
+  // from inside the wallet, so the demo stays in sync without polling.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ addresses?: string[]; representative?: string }>)
+        .detail;
+      if (!publicKey) return;
+      if (detail?.addresses && !detail.addresses.includes(publicKey)) return;
+      void loadAccount();
+    };
+    window.addEventListener(REPRESENTATIVE_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(REPRESENTATIVE_CHANGED_EVENT, handler);
+  }, [publicKey, loadAccount]);
 
   const handleSuggest = async () => {
     setSuggesting(true);

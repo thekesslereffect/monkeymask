@@ -205,21 +205,10 @@ function Send() {
 
       <div className="mt-auto flex flex-col gap-3">
         <div
-          className="flex items-center justify-between rounded-xl px-4 py-3"
-          style={{ background: CARD }}
-        >
-          <span className="text-xs font-semibold" style={{ color: SUB }}>
-            Network fee
-          </span>
-          <span className="text-xs font-bold" style={{ color: '#3fcf6b' }}>
-            FREE · instant
-          </span>
-        </div>
-        <div
-          className="flex items-center justify-center rounded-xl py-3.5 text-base font-bold"
+          className="flex items-center justify-center rounded-full py-3.5 text-base font-bold"
           style={{ background: TEXT, color: BG }}
         >
-          Review Send
+          Send
         </div>
       </div>
     </div>
@@ -306,13 +295,13 @@ function Approval() {
       </div>
       <div className="flex gap-3">
         <div
-          className="flex flex-1 items-center justify-center rounded-xl py-3 text-sm font-bold"
+          className="flex flex-1 items-center justify-center rounded-full py-3 text-sm font-bold"
           style={{ background: CARD, color: SUB }}
         >
           Cancel
         </div>
         <div
-          className="flex flex-1 items-center justify-center rounded-xl py-3 text-sm font-bold"
+          className="flex flex-1 items-center justify-center rounded-full py-3 text-sm font-bold"
           style={{ background: TEXT, color: BG }}
         >
           Connect
@@ -396,7 +385,7 @@ function MultiSend() {
       </div>
 
       <div
-        className="flex items-center justify-center rounded-xl py-3.5 text-base font-bold"
+        className="flex items-center justify-center rounded-full py-3.5 text-base font-bold"
         style={{ background: TEXT, color: BG }}
       >
         Send airdrop
@@ -449,13 +438,13 @@ function SpendingSession() {
 
       <div className="flex gap-3">
         <div
-          className="flex flex-1 items-center justify-center rounded-xl py-3 text-sm font-bold"
+          className="flex flex-1 items-center justify-center rounded-full py-3 text-sm font-bold"
           style={{ background: CARD, color: SUB }}
         >
           Deny
         </div>
         <div
-          className="flex flex-1 items-center justify-center rounded-xl py-3 text-sm font-bold"
+          className="flex flex-1 items-center justify-center rounded-full py-3 text-sm font-bold"
           style={{ background: TEXT, color: BG }}
         >
           Approve

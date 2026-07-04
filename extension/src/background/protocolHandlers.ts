@@ -45,6 +45,8 @@ export interface ProtocolHandlerHost {
   ): Promise<{ approved: boolean; accounts?: string[]; requestId: string }>;
   storeOperationResult(requestId: string, result: Record<string, unknown>): void;
   emitProviderEvent(event: string, data: unknown, targetOrigin?: string): void;
+  /** Broadcast `balancesChanged` for the wallet accounts among `addresses`. */
+  notifyBalancesChanged(addresses: Array<string | undefined>): void;
   createStandardError(message: string, code: number): { success: false; error: string; code: number };
   handleGetAccountInfo(request: { address?: string; origin?: string }, sendResponse: SendResponse): Promise<void>;
   handleGetReceivable(request: { address?: string; count?: number }, sendResponse: SendResponse): Promise<void>;
@@ -427,6 +429,28 @@ async function handleProtocolSignTransaction(
   }
 }
 
+/**
+ * Wallet addresses a published operation may have touched: the signer plus any
+ * recipients (single or batched). Non-wallet addresses are filtered by
+ * `notifyBalancesChanged`, so over-collecting here is harmless.
+ */
+function operationAddresses(
+  address: string,
+  transaction: BananoOperation,
+): Array<string | undefined> {
+  const tx = transaction as {
+    to?: string;
+    sends?: Array<{ to: string }>;
+    transfers?: Array<{ to: string }>;
+  };
+  return [
+    address,
+    tx.to,
+    ...(tx.sends?.map((s) => s.to) ?? []),
+    ...(tx.transfers?.map((t) => t.to) ?? []),
+  ];
+}
+
 async function handleProtocolSignAndSend(
   host: ProtocolHandlerHost,
   origin: string,
@@ -452,6 +476,7 @@ async function handleProtocolSignAndSend(
       const { hashes, results } = await host.walletManager.sendOperation(address, transaction);
       const hash = hashes[0] ?? '';
       host.recordAutoApprovedSpend(origin, address, transaction.amount);
+      host.notifyBalancesChanged(operationAddresses(address, transaction));
       sendResponse({ success: true, data: { hash, hashes, ...(results ? { results } : {}) } });
     } catch (error) {
       sendResponse(
@@ -574,6 +599,18 @@ async function handleProtocolSignAndSend(
       ...(results ? { results } : {}),
       block: confirmationBlock,
     });
+    if (transaction.type === 'change') {
+      // Broadcast to every connected tab so other dApps showing this account's
+      // delegation refresh too (the initiating dApp already has the result).
+      host.emitProviderEvent('representativeChanged', {
+        addresses: [address],
+        representative: transaction.representative,
+        hash,
+      });
+    } else {
+      // Anything else moved funds or assets — tell connected dApps to re-fetch.
+      host.notifyBalancesChanged(operationAddresses(address, transaction));
+    }
     sendResponse({ success: true, data: { hash, hashes, ...(results ? { results } : {}) } });
   } catch (error) {
     host.storeOperationResult(approval.requestId, {

@@ -13,4 +13,5 @@ export { PageName } from './PageName';
 export { Carousel } from './Carousel';
 export { Avatar } from './Avatar';
 export { EmptyState } from './EmptyState';
+export { MonkeyLogo } from './MonkeyLogo';
 export { Skeleton, AccountSkeleton, TransactionSkeleton, BalanceSkeleton } from './Skeleton';

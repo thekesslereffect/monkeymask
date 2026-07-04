@@ -42,9 +42,9 @@ export const Label: React.FC<LabelProps> = ({
   }, [showTooltip]);
 
   return (
-    <div className={`flex justify-between items-center mb-1 relative px-2 ${className}`}>
+    <div className={`flex justify-between items-center mb-2 relative px-2 ${className}`}>
       {label ? (
-        <div className="text-xl text-tertiary">
+        <div className="text-sm font-bold text-foreground">
           {label}
         </div>
       ) : (
@@ -54,7 +54,7 @@ export const Label: React.FC<LabelProps> = ({
         <div className="relative">
           <span
             ref={hintRef}
-            className="text-xs text-tertiary cursor-help hover:text-foreground transition-colors duration-200"
+            className="text-xs font-semibold text-accent cursor-help hover:text-accent/80 transition-colors duration-200"
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
             onClick={() => {hintOnClick?.()}}

@@ -29,7 +29,7 @@
     "@bananocoin/bananojs": "^2.10.10",
     "@monkeymask/core": "0.1.0",
     "@monkeymask/react": "0.2.0",
-    "@monkeymask/wallet-standard": "0.2.0",
+    "@monkeymask/wallet-standard": "0.2.1",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",

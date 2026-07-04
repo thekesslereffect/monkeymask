@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MonkeyMask - Banano Wallet",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Banano browser wallet with Wallet Standard and Sign In With Banano",
   "icons": {
     "16": "icons/icon-16.png",

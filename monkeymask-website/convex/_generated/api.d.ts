@@ -11,6 +11,7 @@
 import type * as crons from "../crons.js";
 import type * as exploreSites from "../exploreSites.js";
 import type * as exploreSitesActions from "../exploreSitesActions.js";
+import type * as faucet from "../faucet.js";
 import type * as http from "../http.js";
 import type * as lib_explorePreview from "../lib/explorePreview.js";
 import type * as lib_exploreSeedData from "../lib/exploreSeedData.js";
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   exploreSites: typeof exploreSites;
   exploreSitesActions: typeof exploreSitesActions;
+  faucet: typeof faucet;
   http: typeof http;
   "lib/explorePreview": typeof lib_explorePreview;
   "lib/exploreSeedData": typeof lib_exploreSeedData;

@@ -12,7 +12,6 @@ export type Route =
   | 'history'
   | 'nfts'
   | 'explore'
-  | 'faucet'
   | 'settings'
   | 'representative'
   | 'connected-sites'
@@ -112,7 +111,6 @@ export const useNavigation = () => {
     goToHistory: () => router.push('history'),
     goToNFTs: () => router.push('nfts'),
     goToExplore: () => router.push('explore'),
-    goToFaucet: () => router.push('faucet'),
     goToSettings: () => router.push('settings'),
     goToRepresentative: () => router.push('representative'),
     goToConnectedSites: () => router.push('connected-sites'),

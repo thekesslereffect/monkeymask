@@ -20,6 +20,22 @@ export default defineSchema({
     expiresAt: v.number(),
   }).index('by_token', ['token']),
 
+  // --- Faucet claim tracking ---
+  // One row per claim (or in-flight claim). Cooldowns are enforced against the
+  // newest row per address and per IP hash; failed sends delete their row so
+  // the user can retry. `_creationTime` is the claim time.
+  faucetClaims: defineTable({
+    address: v.string(),
+    /** SHA-256 of the claimer's IP (+ salt) — never the raw IP. */
+    ipHash: v.string(),
+    amountBan: v.string(),
+    status: v.union(v.literal('pending'), v.literal('sent')),
+    /** Send block hash, set once the payout is published. */
+    hash: v.optional(v.string()),
+  })
+    .index('by_address', ['address'])
+    .index('by_ipHash', ['ipHash']),
+
   // Curated Banano ecosystem directory (extension explore + website).
   exploreSites: defineTable({
     slug: v.string(),

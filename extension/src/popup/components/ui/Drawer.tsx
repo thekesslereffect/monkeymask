@@ -123,26 +123,18 @@ export const Drawer: React.FC<DrawerProps> = ({
 
   return (
     <>
-      <div className="flex items-center gap-2">
-        <div
-          ref={triggerRef}
-          onClick={() => setIsOpen(true)}
-          className="cursor-pointer"
-        >
-          <Avatar address={currentAccount?.address || ''} size={32} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-primary text-md">
-            {currentAccount?.bnsNames && currentAccount.bnsNames.length > 0 ? currentAccount.bnsNames[0] : formatAddress(currentAccount?.address || '', false)}
-          </span>
-          <button
-            onClick={() => copyAddress(currentAccount?.address || '')}
-            className="text-tertiary hover:text-primary/80 text-lg transition-colors"
-            title="Copy address"
-          >
-            <Icon icon="lucide:copy" />
-          </button>
-        </div>
+      <div
+        ref={triggerRef}
+        onClick={() => setIsOpen(true)}
+        className="flex max-w-40 cursor-pointer items-center gap-1.5 rounded-full bg-background px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-background/70"
+        title="Accounts & settings"
+      >
+        <span className="size-2 shrink-0 rounded-full bg-success" />
+        <span className="truncate">
+          {currentAccount?.bnsNames && currentAccount.bnsNames.length > 0
+            ? currentAccount.bnsNames[0]
+            : formatAddress(currentAccount?.address || '', false)}
+        </span>
       </div>
 
       {/* Backdrop */}
@@ -216,7 +208,7 @@ export const Drawer: React.FC<DrawerProps> = ({
                   createNewAccount();
                 }}
                 disabled={loading}
-                className="px-3 py-1.5 bg-primary hover:bg-primary/80 text-background text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-3 py-1.5 bg-primary hover:bg-primary/80 text-background text-sm rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <Icon icon="lucide:plus" className="text-sm" />
                 Add Account

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import QRCode from 'qrcode';
-import { Header, Card, Button, ContentContainer, Footer } from './ui';
+import { Header, Button, ContentContainer, Footer } from './ui';
 import { PageName } from './ui/PageName';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import { truncateMiddle } from '../../utils/format';
@@ -34,8 +34,8 @@ export const QRScreen: React.FC<QRScreenProps> = ({ account }) => {
         width: 256,
         margin: 2,
         color: {
-          dark: '#FFFFFF',
-          light: '#00000000'
+          dark: '#000000',
+          light: '#FFFFFF'
         }
       });
       setQrCodeUrl(qrUrl);
@@ -52,20 +52,22 @@ export const QRScreen: React.FC<QRScreenProps> = ({ account }) => {
       
       <ContentContainer>
         <PageName name="Receive" back />
-              {/* QR Code Display */}
-                <Card className="justify-center items-center aspect-square">
-                  <div className="flex flex-col items-center justify-center w-full">
-                  {qrCodeUrl && !loading && (
-                    <img 
-                      src={qrCodeUrl} 
-                      alt="Address QR Code" 
-                      className="w-full h-full"
-                    />
-                  )}
+              {/* QR Code Display — white panel with dark modules (promo look) */}
+                <div className="flex flex-1 flex-col items-center justify-center gap-5">
+                  <div className="rounded-3xl bg-white p-5 shadow-sm">
+                    {qrCodeUrl && !loading ? (
+                      <img
+                        src={qrCodeUrl}
+                        alt="Address QR Code"
+                        className="size-52"
+                      />
+                    ) : (
+                      <div className="size-52 animate-pulse rounded-xl bg-black/10" />
+                    )}
                   </div>
-                </Card>
-                <div className="text-center text-lg font-mono text-foreground break-all">
-                  {truncateMiddle(account.address, 8, 8)}
+                  <div className="rounded-xl bg-card px-4 py-2 font-mono text-xs font-semibold text-tertiary">
+                    {truncateMiddle(account.address, 12, 6)}
+                  </div>
                 </div>
               {/* Copy Button */}
               <Button

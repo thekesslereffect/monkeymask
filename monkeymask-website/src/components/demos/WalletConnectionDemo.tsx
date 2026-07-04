@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { useMonkeyMask } from '@/providers';
 import { ConnectButton } from '@/components/ConnectButton';
-import { serializeSignInOutput } from '@monkeymask/wallet-standard';
+import { BALANCES_CHANGED_EVENT, serializeSignInOutput } from '@monkeymask/wallet-standard';
 import { Button, Badge } from '@/components/ui';
 
 /**
@@ -46,6 +46,19 @@ export function WalletConnectionDemo() {
       setAuthStatus(null);
     }
   }, [connected, refreshBalance]);
+
+  // The extension dispatches this DOM event after any block publish (send,
+  // receive, NFT ops) so the balance stays live without polling.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ addresses?: string[] }>).detail;
+      if (!publicKey) return;
+      if (detail?.addresses && !detail.addresses.includes(publicKey)) return;
+      void refreshBalance();
+    };
+    window.addEventListener(BALANCES_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(BALANCES_CHANGED_EVENT, handler);
+  }, [publicKey, refreshBalance]);
 
   const handleSignIn = async () => {
     setSigningIn(true);

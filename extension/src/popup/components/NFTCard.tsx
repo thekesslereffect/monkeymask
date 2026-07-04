@@ -29,7 +29,7 @@ export function nftSupplyBadge(
   return { label: `Limited ${minted}/${nft.maxSupply}${heldSuffix}`, icon: 'lucide:layers' };
 }
 
-/** Image-only collectible tile with a supply badge overlay. */
+/** Collectible tile: square artwork with a supply badge — no caption. */
 export const NFTCard: React.FC<NFTCardProps> = ({ nft, onClick }) => {
   const [imageFailed, setImageFailed] = useState(false);
   const showImage = nft.image && !imageFailed;
@@ -41,7 +41,8 @@ export const NFTCard: React.FC<NFTCardProps> = ({ nft, onClick }) => {
       onClick={onClick ? () => onClick(nft) : undefined}
       disabled={!onClick}
       aria-label={nft.name}
-      className={`group relative aspect-square w-full overflow-hidden rounded-xl border border-tertiary/15 bg-tertiary/10 transition-all ${
+      title={nft.name}
+      className={`group relative aspect-square w-full overflow-hidden rounded-2xl bg-card text-left transition-all ${
         onClick
           ? 'cursor-pointer hover:shadow-md hover:ring-2 hover:ring-tertiary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'
           : 'cursor-default'
@@ -56,7 +57,7 @@ export const NFTCard: React.FC<NFTCardProps> = ({ nft, onClick }) => {
           onError={() => setImageFailed(true)}
         />
       ) : (
-        <div className="flex size-full items-center justify-center">
+        <div className="flex size-full items-center justify-center bg-tertiary/10">
           <Icon icon="lucide:image" className="text-4xl text-tertiary/50" />
         </div>
       )}

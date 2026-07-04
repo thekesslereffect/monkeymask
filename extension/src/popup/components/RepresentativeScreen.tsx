@@ -87,7 +87,7 @@ export const RepresentativeScreen: React.FC = () => {
 
   const activeAddress = selectedAddress || currentAccount?.address || '';
 
-  const loadData = useCallback(async (address: string, opts?: { preserveRepInput?: boolean }) => {
+  const loadData = useCallback(async (address: string) => {
     if (!address) return;
     setLoading(true);
     setError('');
@@ -101,10 +101,8 @@ export const RepresentativeScreen: React.FC = () => {
       }
       const repData = response.data as RepData;
       setData(repData);
-      if (!opts?.preserveRepInput) {
-        setManualRep(repData.delegation.representative ?? '');
-        setSuggestedMeta(null);
-      }
+      setManualRep(repData.delegation.representative ?? '');
+      setSuggestedMeta(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
       setData(null);
@@ -134,9 +132,10 @@ export const RepresentativeScreen: React.FC = () => {
         throw new Error(response.error ?? 'No suggestion available');
       }
       const suggestion = response.data.suggestion as SuggestedRepresentative;
+      // The suggestion carries its own online/weight metadata, so there's no
+      // need to reload the leaderboard (which would blank the whole screen).
       setManualRep(suggestion.account);
       setSuggestedMeta(suggestion);
-      await loadData(activeAddress, { preserveRepInput: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Suggest failed');
     } finally {
@@ -265,7 +264,7 @@ export const RepresentativeScreen: React.FC = () => {
                 )}
 
                 <Input
-                  label="Representative address"
+                  label=""
                   value={manualRep}
                   onChange={(e) => {
                     setManualRep(e.target.value);

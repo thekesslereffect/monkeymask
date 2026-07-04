@@ -33,8 +33,12 @@
     --tertiary-foreground: 0 0% 95%;
     --muted: 0 0% 16%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 0 0% 16%;
-    --accent-foreground: 0 0% 46%;
+    /* Banano yellow — brand accent used for hints, badges and highlights. */
+    --accent: 52 97% 53%;
+    --accent-foreground: 0 0% 7%;
+    /* Success green used for incoming funds and connection status. */
+    --success: 138 60% 53%;
+    --success-foreground: 0 0% 7%;
     --bars: 0 0% 16%;
     --bars-foreground: 0 0% 46%;
     --bars-border: 0 0% 21%;

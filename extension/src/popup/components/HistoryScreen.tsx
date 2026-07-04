@@ -177,7 +177,7 @@ export const HistoryScreen: React.FC = () => {
                 <button
                   onClick={loadMoreTransactions}
                   disabled={loadingMore}
-                  className="px-6 py-2 bg-secondary hover:bg-secondary/80 text-tertiary hover:text-primary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-secondary hover:bg-secondary/80 text-tertiary hover:text-primary rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loadingMore ? (
                     <div className="flex items-center gap-2">

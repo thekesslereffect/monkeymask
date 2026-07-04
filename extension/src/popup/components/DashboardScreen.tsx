@@ -63,11 +63,11 @@ export const DashboardScreen: React.FC = () => {
 
       {/* Balance */}
         <div className="flex flex-col items-center gap-2 h-full min-h-36 justify-center">
-          <div className="text-5xl text-primary">
+          <div className="text-5xl font-bold text-primary">
             {formatBalance(currentAccount?.balance || '0')}
             {/* {formatBalance("19420.69")} */}
           </div>
-          <div className="text-xl text-tertiary">
+          <div className="text-lg text-tertiary">
             {priceLoading ? (
               <span className="animate-pulse">Loading price...</span>
             ) : (
@@ -83,7 +83,7 @@ export const DashboardScreen: React.FC = () => {
             <Button 
                 variant="secondary"
                 size="lg"
-                className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
+                className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square rounded-xl"
                 onClick={() => currentAccount && navigation.goToQR(currentAccount)}
                 disabled={accounts.length === 0}
               >
@@ -94,19 +94,19 @@ export const DashboardScreen: React.FC = () => {
             <Button 
               variant="secondary"
               size="lg"
-              className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
+              className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square rounded-xl"
               onClick={() => currentAccount && navigation.goToSend(currentAccount)}
               disabled={accounts.length === 0}
             >
               <Icon icon="lucide:send" className="text-2xl mb-1" />
               <span className="text-xs">Send</span>
             </Button>
-            {/* Faucet */}
+            {/* Faucet — hosted on the website (monkeymask.cc/faucet) */}
             <Button 
               variant="secondary"
               size="lg"
-              className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
-              onClick={() => navigation.goToFaucet()}
+              className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square rounded-xl"
+              onClick={() => window.open('https://monkeymask.cc/faucet', '_blank')}
               disabled={accounts.length === 0}
             >
               <Icon icon="lucide:droplet" className="text-2xl mb-1" />
@@ -116,7 +116,7 @@ export const DashboardScreen: React.FC = () => {
             <Button 
               variant="secondary"
               size="lg"
-              className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square "
+              className="flex flex-col items-center justify-center text-tertiary hover:text-primary p-2 aspect-square rounded-xl"
               onClick={() => window.open('https://banano.trade', '_blank')}
               disabled={accounts.length === 0}
             >

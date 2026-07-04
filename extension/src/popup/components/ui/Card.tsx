@@ -22,7 +22,7 @@ export const Card: React.FC<CardProps> = ({
   onClick,
   hintOnClick
 }) => {
-  const baseClasses = 'bg-card p-2 rounded-xl text-foreground';
+  const baseClasses = 'bg-card p-3 rounded-2xl text-foreground';
   const hoverClasses = hover ? 'hover:shadow-md transition-shadow cursor-pointer' : '';
   const clickableClasses = onClick ? 'cursor-pointer' : '';
   
@@ -37,10 +37,11 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <div className={outerClasses}>
-    {(label || hintText) && (
-        <Label label={label} hintText={hintText} hintTooltip={hintTooltip} hintOnClick={hintOnClick}/>
-      )}
     <div className={innerClasses} onClick={onClick}>
+        {/* Label lives inside the card surface (matches the promo layout). */}
+        {(label || hintText) && (
+          <Label label={label} hintText={hintText} hintTooltip={hintTooltip} hintOnClick={hintOnClick}/>
+        )}
         {children}
     </div>
     </div>

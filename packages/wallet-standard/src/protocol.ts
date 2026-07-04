@@ -14,6 +14,25 @@ export const PROTOCOL_INIT_EVENT = 'monkeymask#initialized' as const;
  */
 export const SPENDING_SESSION_EVENT = 'monkeymask:spendingSessionChanged' as const;
 
+/**
+ * DOM CustomEvent the injected provider dispatches on `window` when the user
+ * changes an account's voting representative from inside the wallet (or a dApp
+ * publishes a change block). Lets a connected dApp refresh its delegation UI
+ * without polling. `event.detail` is
+ * `{ addresses: string[]; representative: string; hash?: string }`.
+ */
+export const REPRESENTATIVE_CHANGED_EVENT = 'monkeymask:representativeChanged' as const;
+
+/**
+ * DOM CustomEvent the injected provider dispatches on `window` after the wallet
+ * publishes any block that moves funds or assets (send, sweep, NFT transfer/burn,
+ * pending claims, …) — whether initiated from the wallet popup or a dApp. A
+ * connected dApp should re-fetch whatever account state it displays (balance,
+ * receivable, history, NFTs). `event.detail` is `{ addresses: string[] }` — the
+ * wallet accounts whose state changed.
+ */
+export const BALANCES_CHANGED_EVENT = 'monkeymask:balancesChanged' as const;
+
 export const WALLET_STANDARD_REGISTER_EVENT = 'wallet-standard:register-wallet' as const;
 export const WALLET_STANDARD_APP_READY_EVENT = 'wallet-standard:app-ready' as const;
 
@@ -55,7 +74,13 @@ export type ProtocolResponse<T = unknown> = ProtocolSuccessResponse<T> | Protoco
 
 export interface ProtocolEventMessage {
   readonly source: typeof PROTOCOL_SOURCE_EVENT;
-  readonly event: 'connect' | 'disconnect' | 'change';
+  readonly event:
+    | 'connect'
+    | 'disconnect'
+    | 'change'
+    | 'spendingSessionChanged'
+    | 'representativeChanged'
+    | 'balancesChanged';
   readonly data?: unknown;
 }
 

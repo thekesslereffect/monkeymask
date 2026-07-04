@@ -1,16 +1,17 @@
 {
   "name": "monkeymask",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "description": "Browser extension wallet for Banano cryptocurrency",
   "scripts": {
     "dev": "npx webpack --mode development --watch",
-    "build": "npx webpack --mode production",
+    "generate-icons": "node scripts/generate-icons.mjs",
+    "build": "npm run generate-icons && npx webpack --mode production",
     "clean": "npx rimraf dist"
   },
   "dependencies": {
     "@bananocoin/bananojs": "^2.8.6",
     "@monkeymask/core": "0.1.0",
-    "@monkeymask/wallet-standard": "0.2.0",
+    "@monkeymask/wallet-standard": "0.2.1",
     "@wallet-standard/base": "^1.1.0",
     "@wallet-standard/features": "^1.1.0",
     "@types/qrcode": "^1.5.5",

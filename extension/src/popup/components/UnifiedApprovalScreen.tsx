@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Header, ContentContainer, Footer, PageName, Card, Button, Alert } from './ui';
+import { Header, ContentContainer, Footer, PageName, Card, Button, Alert, MonkeyLogo } from './ui';
 import { Icon } from '@iconify/react';
 import { formatBalance } from '../../utils/format';
 
@@ -32,7 +32,7 @@ function getTitle(type: ApprovalType, txType?: string): string {
     txType === 'change' &&
     (type === 'signAndSendTransaction' || type === 'signTransaction' || type === 'sendTransaction')
   ) {
-    return 'Change Representative';
+    return 'Change';
   }
   if (
     txType === 'receive' &&
@@ -95,7 +95,7 @@ function getApproveLabel(type: ApprovalType, txType?: string): string {
     txType === 'change' &&
     (type === 'signAndSendTransaction' || type === 'signTransaction' || type === 'sendTransaction')
   ) {
-    return 'Change Representative';
+    return 'Change';
   }
   if (
     txType === 'receive' &&
@@ -177,15 +177,18 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
   onReject
 }) => {
   const [processing, setProcessing] = useState(false);
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>(
+
+  // Connect always uses the currently active account (no selector).
+  const connectAddress: string =
     request.type === 'connect'
-      ? [
-          request.data.currentAccountAddress ||
-            request.data.accounts?.[0]?.address ||
-            ''
-        ]
-      : []
-  );
+      ? request.data.currentAccountAddress || request.data.accounts?.[0]?.address || ''
+      : '';
+  const connectAccount =
+    request.type === 'connect'
+      ? (request.data.accounts || []).find(
+          (a: { address: string }) => a.address === connectAddress,
+        )
+      : undefined;
 
   // Auto-confirmation is an advanced, off-by-default feature. A spending-session
   // request can only be approved once the user has explicitly turned it on.
@@ -256,8 +259,8 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
 
   const handleApprove = async () => {
     if (request.type === 'connect') {
-      if (selectedAccounts.length === 0) return;
-      onApproveConnect(request.id, selectedAccounts);
+      if (!connectAddress) return;
+      onApproveConnect(request.id, [connectAddress]);
       return;
     }
 
@@ -271,80 +274,42 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
     }
   };
 
-  const toggleAccount = (address: string) => {
-    setSelectedAccounts(prev =>
-      prev.includes(address)
-        ? prev.filter(a => a !== address)
-        : [...prev, address]
-    );
-  };
-
   const renderConnect = () => (
     <>
-      <Card label="Site Details" className="w-full">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-primary rounded-full aspect-square flex items-center justify-center text-primary-foreground font-bold text-sm">
-            {domain.charAt(0).toUpperCase()}
+      {/* Origin → wallet graphic (promo layout) */}
+      <div className="flex flex-col items-center gap-4 pt-2 text-center">
+        <div className="flex items-center gap-3">
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-card">
+            <Icon icon="lucide:globe" width={26} className="text-tertiary" />
           </div>
-          <div className="min-w-0">
-            <div className="text-sm text-tertiary font-semibold truncate">{domain}</div>
-            <div className="text-xs text-tertiary/70 truncate">{request.origin}</div>
-            <div className="text-xs text-tertiary/70 mt-2">
-              This site is requesting access to view your account addresses, balance, activity,
-              and to suggest transactions to approve.
-            </div>
+          <Icon icon="lucide:arrow-right" width={20} className="text-tertiary/60" />
+          <div className="flex size-14 items-center justify-center rounded-full bg-black text-white">
+            <MonkeyLogo className="size-8" />
           </div>
         </div>
-      </Card>
+        <div>
+          <div className="text-lg font-bold text-foreground">Connect wallet</div>
+          <div className="mt-1 text-sm text-tertiary">{domain} wants to connect</div>
+          {connectAccount && (
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
+              <span className="size-2 shrink-0 rounded-full bg-success" />
+              {connectAccount.name || truncate(connectAddress)}
+            </div>
+          )}
+        </div>
+      </div>
 
-      <Card label="Select Accounts to Connect" className="w-full">
-        <div className="space-y-3">
-          {(request.data.accounts || []).map((account: any) => (
-            <div
-              key={account.address}
-              className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                selectedAccounts.includes(account.address)
-                  ? 'border-primary bg-primary/10'
-                  : 'border-tertiary/20 hover:border-tertiary/40'
-              }`}
-              onClick={() => toggleAccount(account.address)}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={selectedAccounts.includes(account.address)}
-                    onChange={() => toggleAccount(account.address)}
-                    className="text-primary focus:ring-primary shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <div className="text-sm text-tertiary font-semibold truncate">{account.name}</div>
-                    <div className="text-xs text-tertiary/70 font-mono truncate">
-                      {truncate(account.address)}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-sm text-tertiary font-semibold shrink-0">
-                  {formatBalance(account.balance || '0')} BAN
-                </div>
-              </div>
-            </div>
-          ))}
+      <Card className="w-full">
+        <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-tertiary">
+          This app will be able to
         </div>
-      </Card>
-
-      <Alert variant="warning" className="w-full">
-        <div className="flex items-start gap-2">
-          <Icon icon="lucide:alert-triangle" className="text-lg shrink-0 mt-0.5" />
-          <div>
-            <div className="font-semibold mb-1">Only connect with sites you trust</div>
-            <div className="text-sm">
-              Connecting lets this site view your addresses and balances, and request approval
-              for transactions.
-            </div>
+        {['View your account address', 'Request approval for transactions'].map((t) => (
+          <div key={t} className="flex items-center gap-2 py-1">
+            <Icon icon="lucide:check" width={16} className="text-success shrink-0" />
+            <span className="text-xs text-foreground">{t}</span>
           </div>
-        </div>
-      </Alert>
+        ))}
+      </Card>
     </>
   );
 
@@ -825,7 +790,10 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
       )}
       <Header active />
       <ContentContainer>
-        <PageName name={getTitle(request.type, previewTxType)} back={false} />
+        {/* Connect renders its own centered title inside the origin→wallet graphic. */}
+        {request.type !== 'connect' && (
+          <PageName name={getTitle(request.type, previewTxType)} back={false} />
+        )}
 
         <div className="w-full space-y-4">{renderBody()}</div>
 
@@ -838,7 +806,7 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
             onClick={handleApprove}
             disabled={
               request.type === 'connect'
-                ? selectedAccounts.length === 0
+                ? !connectAddress
                 : request.type === 'spendingSession'
                   ? processing || !autoConfirmEnabled
                   : processing
@@ -851,11 +819,11 @@ export const ApprovalScreen: React.FC<UnifiedApprovalScreenProps> = ({
                 Processing…
               </>
             ) : request.type === 'connect' ? (
-              `Connect (${selectedAccounts.length})`
+              'Connect'
             ) : isBurn ? (
               'Burn NFT'
             ) : isRepChange ? (
-              'Change Representative'
+              'Change'
             ) : isReceiveClaim ? (
               'Claim Pending'
             ) : (

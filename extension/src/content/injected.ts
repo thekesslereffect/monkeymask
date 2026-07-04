@@ -21,6 +21,8 @@ import {
   PROTOCOL_SOURCE_EVENT,
   PROTOCOL_SOURCE_REQUEST,
   PROTOCOL_SOURCE_RESPONSE,
+  BALANCES_CHANGED_EVENT,
+  REPRESENTATIVE_CHANGED_EVENT,
   SPENDING_SESSION_EVENT,
   WALLET_STANDARD_APP_READY_EVENT,
   WALLET_STANDARD_REGISTER_EVENT,
@@ -39,7 +41,7 @@ import {
 } from '@wallet-standard/features';
 
 const MONKEYMASK_ICON =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iNjQiIGN5PSI2NCIgcj0iNjQiIGZpbGw9IiNGRkQ3MDAiLz48dGV4dCB4PSI2NCIgeT0iNzgiIGZvbnQtc2l6ZT0iNjQiIHRleHRLYW5jaG9yPSJtaWRkbGUiPjwvdGV4dD48L3N2Zz4=';
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCI+PGNpcmNsZSBjeD0iNjQiIGN5PSI2NCIgcj0iNjQiIGZpbGw9IiMwMDAwMDAiLz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMCAyMCkgc2NhbGUoMC42ODc1KSIgZmlsbD0iI2Y5ZmFmYiI+PHBhdGggZD0iTTEyMC43NCA1NC42N2MtMi4yMy0xLjIzLTUuMTktMS45NC03LjczLTEuNjhjLTIuNzYtMTAuNjctOC41OS0yMC43My0xNi41NC0yNy42M0M4Ny45IDE3LjkxIDc1LjgzIDE0LjExIDY0IDE0LjE0Yy0xMS44Mi0uMDMtMjMuOSAzLjc3LTMyLjQ3IDExLjIyYy03Ljk2IDYuOS0xMy43OSAxNi45Ni0xNi41NCAyNy42M2MtMi41My0uMjYtNS40OS40NS03LjczIDEuNjhDLjk5IDU4LjEzLS40NSA2Ni40NSAxLjAzIDczLjQyYzEuMTggNS41NSA0LjM5IDkuNzIgMTEuMDEgMTEuMzhjMS4yOC4zMiAyLjQ0LjM1IDMuNDUuMjZjMS44NSA1LjgzIDQuOTQgMTEuMTggOS44MyAxNS42YzUuODEgNS4yNiAxMy4wNSA4LjgyIDIwLjUgMTAuNzZjMi44NC43NCAxMC4xNiAyLjQ1IDE3LjgzIDIuNDVjNy42OCAwIDE1LjcxLTEuNzEgMTguNTQtMi40NWM3LjQ2LTEuOTQgMTQuNjktNS41IDIwLjUtMTAuNzZjNC44OS00LjQzIDcuOTgtOS43NyA5LjgzLTE1LjZjMS4wMS4wOSAyLjE3LjA2IDMuNDQtLjI2YzYuNjItMS42NiA5Ljg0LTUuODMgMTEuMDItMTEuMzhjMS40Ny02Ljk3LjA0LTE1LjI4LTYuMjQtMTguNzUiLz48L2c+PC9zdmc+';
 
 type WalletRegisterCallback = (api: { register: (...wallets: Wallet[]) => () => void }) => void;
 
@@ -266,6 +268,17 @@ class MonkeyMaskWallet implements Wallet {
       if (eventName === 'spendingSessionChanged') {
         // Surface as a DOM event so the React provider can react without polling.
         window.dispatchEvent(new CustomEvent(SPENDING_SESSION_EVENT, { detail: data }));
+        return;
+      }
+      if (eventName === 'representativeChanged') {
+        // Rep changed inside the wallet — let the dApp refresh its delegation UI.
+        window.dispatchEvent(new CustomEvent(REPRESENTATIVE_CHANGED_EVENT, { detail: data }));
+        return;
+      }
+      if (eventName === 'balancesChanged') {
+        // A block was published (send/receive/NFT/…) — let the dApp re-fetch
+        // balance, receivable, history, or NFTs for the affected accounts.
+        window.dispatchEvent(new CustomEvent(BALANCES_CHANGED_EVENT, { detail: data }));
       }
     });
   }

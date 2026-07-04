@@ -175,13 +175,13 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
 
       {/* Content */}
       <ContentContainer>
-        <PageName name="Send" back />
+        <PageName name="Send BANANO" back />
         {/* Balance */}
         <div className="flex flex-col items-center gap-2 h-full min-h-36 justify-center">
-          <div className="text-5xl text-primary">
+          <div className="text-5xl font-bold text-primary">
             {formatBalance(account.balance)}
           </div>
-          <div className="text-xl text-tertiary">
+          <div className="text-lg text-tertiary">
             {priceLoading ? (
               <span className="animate-pulse">Loading price...</span>
             ) : (
@@ -273,10 +273,18 @@ export const SendScreen: React.FC<SendScreenProps> = ({ account, onSendComplete 
               required={!isMax}
               className="text-center no-spinner"
             />
-            {isMax && (
+            {isMax ? (
               <div className="text-xs text-tertiary mt-1 text-center">
                 Sweeping entire balance (claims pending first).
               </div>
+            ) : (
+              amount &&
+              parseFloat(amount) > 0 &&
+              !priceLoading && (
+                <div className="text-xs text-tertiary mt-1 text-center">
+                  ≈ ${getUsdBalance(amount)}
+                </div>
+              )
             )}
           </div>
 

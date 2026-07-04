@@ -16,7 +16,6 @@ import { QRScreen } from './QRScreen';
 import { HistoryScreen } from './HistoryScreen';
 import { NFTsScreen } from './NFTsScreen';
 import { ExploreScreen } from './ExploreScreen';
-import { FaucetScreen } from './FaucetScreen';
 // Unified approval screen
 import { ApprovalScreen } from './UnifiedApprovalScreen';
 
@@ -122,10 +121,7 @@ export const Router: React.FC<RouterProps> = ({
     explore: () => (
       <ExploreScreen />
     ),
-    faucet: () => (
-      <FaucetScreen account={params.account || { address: '', name: '', balance: '0' }} />
-    ),
-    // removed buy route; open external from Dashboard
+    // Faucet and buy open externally from the Dashboard (monkeymask.cc/faucet, banano.trade)
     
     settings: () => (
       <SettingsScreen />

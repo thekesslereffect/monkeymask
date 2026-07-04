@@ -123,7 +123,7 @@ export const NFTsScreen: React.FC = () => {
       return (
         <div className="grid grid-cols-2 gap-3 w-full">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="aspect-square bg-tertiary/10 rounded-xl animate-pulse" />
+            <div key={i} className="aspect-square bg-tertiary/10 rounded-2xl animate-pulse" />
           ))}
         </div>
       );
@@ -145,9 +145,6 @@ export const NFTsScreen: React.FC = () => {
 
     return (
       <div className="w-full space-y-4">
-        <div className="text-center text-tertiary">
-          {nfts.length} NFT{nfts.length !== 1 ? 's' : ''}
-        </div>
         <div className="grid grid-cols-2 gap-3 w-full">
           {nfts.map((nft) => (
             <NFTCard key={nft.id} nft={nft} onClick={handleNFTClick} />
@@ -171,7 +168,11 @@ export const NFTsScreen: React.FC = () => {
     <div className="h-full flex flex-col font-semibold relative">
       <Header active={true} />
       <ContentContainer>
-        <PageName name="NFTs" back={true} />
+        <PageName
+          name="Collectibles"
+          back={true}
+          hint={nfts.length > 0 ? `${nfts.length} item${nfts.length !== 1 ? 's' : ''}` : undefined}
+        />
         {renderBody()}
       </ContentContainer>
       <Footer />

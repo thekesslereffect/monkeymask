@@ -13,7 +13,9 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   ...props
 }) => {
-  const baseClasses = 'flex items-center justify-center w-full font-semibold rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+  // Pill-shaped by default; a `rounded-*` in className overrides the shape
+  // (e.g. the square dashboard action tiles).
+  const baseClasses = 'flex items-center justify-center w-full font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variantClasses = {
     primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -34,9 +36,13 @@ export const Button: React.FC<ButtonProps> = ({
   // If custom padding is provided, exclude size padding
   const finalSizeClasses = hasPaddingOverride ? sizeClasses[size].replace(/px-\d+|py-\d+/g, '').trim() : sizeClasses[size];
   
+  const hasRoundedOverride = /\brounded/.test(className);
+  const roundedClasses = hasRoundedOverride ? '' : 'rounded-full';
+  
   // Combine classes with proper precedence: base -> variant -> size -> custom className
   const classes = [
     baseClasses,
+    roundedClasses,
     variantClasses[variant],
     finalSizeClasses,
     className
