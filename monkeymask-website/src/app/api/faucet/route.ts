@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionAddress } from '@/lib/gating';
-import { getServerWallet, hasServerWallet } from '@/lib/server-wallet';
+import { getServerWalletSpendableBalance, hasServerWallet } from '@/lib/server-wallet';
 import { FAUCET_CLAIM_BAN, FAUCET_COOLDOWN_MS, getCooldown, hashIp } from '@/lib/faucet-store';
 
 // Balance and per-visitor cooldown are live data.
@@ -15,11 +15,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ enabled: false });
   }
 
-  const wallet = await getServerWallet();
-  const [balance, address] = await Promise.all([
-    wallet.getBalance().catch(() => null),
-    Promise.resolve(wallet.address),
-  ]);
+  const { address, balance } = await getServerWalletSpendableBalance();
 
   const sessionAddress = await getSessionAddress(request);
   let retryAfterMs: number | null = null;

@@ -30,6 +30,24 @@ export function hasServerWallet(): boolean {
 }
 
 /**
+ * Claim any receivable blocks into confirmed balance, then return spendable BAN.
+ *
+ * Donations to the faucet account arrive as pending blocks — they are not
+ * spendable until received. `receiveAll()` is cheap when nothing is pending
+ * (one receivable lookup); call this before balance checks and sends.
+ */
+export async function getServerWalletSpendableBalance(): Promise<{
+  address: string;
+  balance: string;
+  receivedHashes: string[];
+}> {
+  const wallet = await getServerWallet();
+  const receivedHashes = await wallet.receiveAll().catch(() => []);
+  const balance = await wallet.getBalance().catch(() => '0');
+  return { address: wallet.address, balance, receivedHashes };
+}
+
+/**
  * The server's Banano wallet, derived from the `BANANO_SEED` env var (64-char
  * hex seed or BIP39 mnemonic). Cached for the process lifetime.
  */

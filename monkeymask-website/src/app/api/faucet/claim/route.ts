@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionAddress, isValidBananoAddress } from '@/lib/gating';
-import { getServerWallet, hasServerWallet } from '@/lib/server-wallet';
+import { getServerWallet, getServerWalletSpendableBalance, hasServerWallet } from '@/lib/server-wallet';
 import {
   FAUCET_CLAIM_BAN,
   confirmClaim,
@@ -35,15 +35,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid session address' }, { status: 400 });
   }
 
-  const wallet = await getServerWallet();
-  if (address === wallet.address) {
+  const { address: faucetAddress, balance } = await getServerWalletSpendableBalance();
+  if (address === faucetAddress) {
     return NextResponse.json({ error: 'Nice try' }, { status: 400 });
   }
 
-  // Make sure the faucet can actually pay before reserving a claim slot
-  // (donations arrive as receivables, so claim pending first).
-  await wallet.receiveAll().catch(() => []);
-  const balance = await wallet.getBalance().catch(() => '0');
+  // Donations arrive as receivables — already pocketed above for the balance check.
   if (parseFloat(balance) < parseFloat(FAUCET_CLAIM_BAN)) {
     return NextResponse.json(
       { error: 'The faucet is empty right now. Check back later!' },
@@ -60,6 +57,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const wallet = await getServerWallet();
     const hash = await wallet.send(address, FAUCET_CLAIM_BAN);
     await confirmClaim(reservation.claimId, hash).catch(() => {
       // The payout went through; a failed confirm only loses the hash record.
