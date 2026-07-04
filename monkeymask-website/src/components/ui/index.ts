@@ -6,6 +6,7 @@ export * from './Card';
 export * from './Separator';
 export * from './Badge';
 export * from './Alert';
+export * from './SiteAlert';
 export * from './Textarea';
 export * from './StatusBox';
 
