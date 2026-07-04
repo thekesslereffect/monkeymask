@@ -1,3 +1,5 @@
+import { ensurePngBlob } from './renderPromoShot';
+
 /**
  * Copy a PNG blob to the clipboard. Safari/iOS requires clipboard.write to be
  * called synchronously from the click handler with a ClipboardItem whose value
@@ -7,29 +9,30 @@ export function copyImageToClipboard(
   blobPromise: Promise<Blob | null>,
   filename: string,
 ): Promise<'copied' | 'shared'> {
+  const pngPromise = blobPromise.then(async (blob) => {
+    if (!blob) throw new Error('Failed to render image');
+    return ensurePngBlob(blob);
+  });
+
   if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
     return navigator.clipboard
       .write([
         new ClipboardItem({
-          'image/png': blobPromise.then((blob) => {
-            if (!blob) throw new Error('Failed to render image');
-            return blob;
-          }),
+          'image/png': pngPromise,
         }),
       ])
       .then(() => 'copied' as const)
-      .catch(() => copyImageFallback(blobPromise, filename));
+      .catch(() => copyImageFallback(pngPromise, filename));
   }
 
-  return copyImageFallback(blobPromise, filename);
+  return copyImageFallback(pngPromise, filename);
 }
 
 async function copyImageFallback(
-  blobPromise: Promise<Blob | null>,
+  pngPromise: Promise<Blob>,
   filename: string,
 ): Promise<'copied' | 'shared'> {
-  const blob = await blobPromise;
-  if (!blob) throw new Error('Failed to render image');
+  const blob = await pngPromise;
 
   // Some browsers reject promises in ClipboardItem — retry with a resolved blob.
   if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
