@@ -18,6 +18,16 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }
 
+function readStyle(el: HTMLElement | null): string {
+  return el?.getAttribute('style') ?? '';
+}
+
+function writeStyle(el: HTMLElement | null, style: string) {
+  if (!el) return;
+  if (style) el.setAttribute('style', style);
+  else el.removeAttribute('style');
+}
+
 /** Ensure clipboard/download consumers always get a PNG, not SVG. */
 export async function ensurePngBlob(blob: Blob): Promise<Blob> {
   if (blob.type === 'image/png') return blob;
@@ -47,45 +57,62 @@ export async function ensurePngBlob(blob: Blob): Promise<Blob> {
 }
 
 /**
- * Rasterize a promo shot at design size. Uses SnapDOM with dpr: 1 so mobile
- * devicePixelRatio does not stack on top of the 2× scale (which misaligns shadows).
- * Briefly moves the export host into the viewport so WebKit paints shadows.
+ * Rasterize the on-screen promo shot at design size.
+ *
+ * Captures the same DOM node as the preview (no second tree). Temporarily
+ * removes the responsive CSS scale and parks the node in the viewport so
+ * fonts, shadows, and layout match what you see.
  */
 export async function renderPromoShot(
   node: HTMLElement,
   width: number,
   height: number,
 ): Promise<Blob | null> {
-  const host = node.parentElement;
-  if (!host) return null;
+  // PromoShot structure: wrap > frame > shot(node)
+  const frame = node.parentElement;
+  const wrap = frame?.parentElement ?? null;
 
-  const savedHostStyle = host.getAttribute('style') ?? '';
+  const saved = {
+    node: readStyle(node),
+    frame: readStyle(frame),
+    wrap: readStyle(wrap),
+  };
 
-  host.setAttribute(
-    'style',
+  // Full-size, unscaled, in-viewport (near-invisible) for a faithful paint.
+  writeStyle(
+    wrap,
     [
       'position:fixed',
       'left:0',
       'top:0',
       `width:${width}px`,
       `height:${height}px`,
+      'max-width:none',
+      'overflow:visible',
       'z-index:-1',
       'opacity:0.01',
       'pointer-events:none',
-      'overflow:visible',
     ].join(';'),
   );
-
-  await waitForPaint();
+  writeStyle(frame, `width:${width}px;height:${height}px;max-width:none;overflow:visible`);
+  writeStyle(
+    node,
+    `width:${width}px;height:${height}px;transform:none;transform-origin:top left`,
+  );
 
   try {
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+    await waitForPaint();
+
     const { snapdom } = await import('@zumer/snapdom');
-    // toBlob() can return SVG on some browsers; rasterize explicitly to PNG.
     const canvas = await snapdom.toCanvas(node, SNAPDOM_OPTS);
     return canvasToPngBlob(canvas);
   } finally {
-    if (savedHostStyle) host.setAttribute('style', savedHostStyle);
-    else host.removeAttribute('style');
+    writeStyle(node, saved.node);
+    writeStyle(frame, saved.frame);
+    writeStyle(wrap, saved.wrap);
   }
 }
 

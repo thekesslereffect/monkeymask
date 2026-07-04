@@ -21,6 +21,32 @@ function Dots({ color = 'rgba(0,0,0,0.06)' }: { color?: string }) {
   );
 }
 
+/**
+ * Soft brand glow. Uses a radial-gradient (not CSS filter: blur) so DOM capture
+ * exporters render the same soft falloff as the on-page preview.
+ */
+function Glow({
+  className = '',
+  color = BANANO,
+  size,
+}: {
+  className?: string;
+  color?: string;
+  size: number;
+}) {
+  return (
+    <div
+      className={`pointer-events-none absolute ${className}`}
+      style={{
+        width: size,
+        height: size,
+        background: `radial-gradient(circle, ${color} 0%, transparent 68%)`,
+        opacity: 0.55,
+      }}
+    />
+  );
+}
+
 function Pill({
   icon,
   children,
@@ -30,14 +56,16 @@ function Pill({
   children: React.ReactNode;
   tone?: 'yellow' | 'green';
 }) {
+  // shrink-0 + nowrap: export capture can measure fonts a hair wider than the
+  // scaled preview, which otherwise flex-shrinks pills and wraps their labels.
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-lg font-bold text-foreground shadow-sm">
+    <div className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-black/10 bg-white px-4 py-2 text-lg font-bold text-foreground shadow-sm">
       <Icon
         icon={icon}
-        className="size-5"
+        className="size-5 shrink-0"
         style={{ color: tone === 'green' ? BANANO_GREEN : '#d9a800' }}
       />
-      {children}
+      <span>{children}</span>
     </div>
   );
 }
@@ -77,10 +105,7 @@ export function HeroShot() {
   return (
     <div className="relative flex h-[900px] w-[1600px] items-center overflow-hidden bg-white font-figtree">
       <Dots />
-      <div
-        className="pointer-events-none absolute -right-40 -top-40 size-[700px] rounded-full opacity-40 blur-[120px]"
-        style={{ background: BANANO }}
-      />
+      <Glow className="-right-40 -top-40" size={700} />
       <div className="relative z-10 flex w-full items-center gap-10 px-24">
         <div className="w-[720px] shrink-0">
           <Wordmark />
@@ -100,7 +125,7 @@ export function HeroShot() {
             Self-custody, zero-fee, instant payments, plus NFTs, BNS names and one-tap dApp sign-in.
             Right in your browser.
           </p>
-          <div className="mt-10 flex flex-wrap gap-3">
+          <div className="mt-10 flex flex-nowrap gap-3">
             <Pill icon="lucide:zap">Instant &amp; feeless</Pill>
             <Pill icon="lucide:shield-check" tone="green">
               Self-custody
@@ -271,10 +296,7 @@ export function InBrowserShot() {
   return (
     <div className="relative flex h-[900px] w-[1600px] items-center justify-center overflow-hidden bg-[#f6f6f7] font-figtree">
       <Dots />
-      <div
-        className="pointer-events-none absolute -left-32 top-[-120px] size-[560px] rounded-full opacity-45 blur-[120px]"
-        style={{ background: BANANO }}
-      />
+      <Glow className="-left-32 top-[-120px]" size={560} />
       <div className="relative z-10 w-[1360px]">
         <BrowserFrame url="monkey.market" className="w-full">
           <div className="relative h-[560px] bg-white p-16">
@@ -322,10 +344,7 @@ export function BentoShot() {
   return (
     <div className="relative flex h-[900px] w-[1600px] flex-col justify-center overflow-hidden bg-white px-24 font-figtree">
       <Dots />
-      <div
-        className="pointer-events-none absolute -right-40 -bottom-40 size-[560px] rounded-full opacity-40 blur-[120px]"
-        style={{ background: BANANO }}
-      />
+      <Glow className="-right-40 -bottom-40" size={560} />
       <div className="relative z-10 flex items-end justify-between">
         <div>
           <Wordmark />
@@ -470,10 +489,7 @@ export function OpenSourceShot() {
   return (
     <div className="relative flex h-[900px] w-[1600px] items-center overflow-hidden bg-white font-figtree">
       <Dots />
-      <div
-        className="pointer-events-none absolute -right-32 top-1/2 size-[520px] -translate-y-1/2 rounded-full opacity-45 blur-[120px]"
-        style={{ background: BANANO }}
-      />
+      <Glow className="-right-32 top-1/2 -translate-y-1/2" size={520} />
       <div className="relative z-10 flex w-full items-center gap-16 px-24">
         <div className="w-[720px] shrink-0">
           <Wordmark />
@@ -486,7 +502,7 @@ export function OpenSourceShot() {
             Install @monkeymask/react and @monkeymask/wallet-standard. Wrap once, wire hooks,
             connect, send, mint. No repo clone required.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-nowrap gap-3">
             <Pill icon="lucide:package">npm published</Pill>
             <Pill icon="lucide:code" tone="green">
               React hooks
@@ -557,10 +573,7 @@ export function FeatureTrioShot() {
   return (
     <div className="relative flex h-[900px] w-[1600px] flex-col items-center overflow-hidden bg-white font-figtree">
       <Dots />
-      <div
-        className="pointer-events-none absolute left-1/2 top-[-260px] size-[640px] -translate-x-1/2 rounded-full opacity-40 blur-[120px]"
-        style={{ background: BANANO }}
-      />
+      <Glow className="left-1/2 top-[-260px] -translate-x-1/2" size={640} />
       <div className="relative z-10 mt-20 text-center">
         <h2 className="font-nunito text-6xl font-extrabold tracking-tight text-foreground">
           Everything a Banano
@@ -775,10 +788,7 @@ export function SpendingSessionWideShot() {
   return (
     <div className="relative flex h-[900px] w-[1600px] items-center overflow-hidden bg-white font-figtree">
       <Dots />
-      <div
-        className="pointer-events-none absolute -left-32 top-1/2 size-[520px] -translate-y-1/2 rounded-full opacity-45 blur-[120px]"
-        style={{ background: BANANO }}
-      />
+      <Glow className="-left-32 top-1/2 -translate-y-1/2" size={520} />
       <div className="relative z-10 flex w-full items-center gap-14 px-24">
         <div className="w-[760px] shrink-0">
           <Wordmark />

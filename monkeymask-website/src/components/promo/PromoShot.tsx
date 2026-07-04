@@ -11,6 +11,8 @@ type ShotState = 'idle' | 'working' | 'copied' | 'shared' | 'downloaded' | 'erro
  * A fixed-size promotional "shot" that renders at exact export dimensions and
  * scales down responsively to fit the page. Provides Download PNG + Copy image
  * so the images can be dropped straight into an X or Reddit post.
+ *
+ * Preview and export share one DOM tree so the PNG matches what you see.
  */
 export function PromoShot({
   width,
@@ -27,7 +29,7 @@ export function PromoShot({
   children: React.ReactNode;
   className?: string;
 }) {
-  const exportRef = useRef<HTMLDivElement>(null);
+  const shotRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [state, setState] = useState<ShotState>('idle');
@@ -43,7 +45,7 @@ export function PromoShot({
   }, [width]);
 
   const render = useCallback(async (): Promise<Blob | null> => {
-    const node = exportRef.current;
+    const node = shotRef.current;
     if (!node) return null;
     return renderPromoShot(node, width, height);
   }, [width, height]);
@@ -125,13 +127,14 @@ export function PromoShot({
         </div>
       </div>
 
-      {/* On-screen preview — scaled to fit */}
-      <div ref={wrapRef} className="w-full max-w-full overflow-hidden rounded-2xl">
+      {/* Single DOM tree: scaled for preview, unscaled during export capture */}
+      <div ref={wrapRef} className="w-full max-w-full">
         <div
           className="overflow-hidden"
           style={{ width: width * scale, height: height * scale, maxWidth: '100%' }}
         >
           <div
+            ref={shotRef}
             style={{
               width,
               height,
@@ -139,19 +142,8 @@ export function PromoShot({
               transformOrigin: 'top left',
             }}
           >
-            <div style={{ width, height }}>{children}</div>
+            {children}
           </div>
-        </div>
-      </div>
-
-      {/* Off-screen export target — full size, no transform, overflow visible */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed overflow-visible"
-        style={{ left: -(width + 200), top: 0, width, height, zIndex: -1 }}
-      >
-        <div ref={exportRef} style={{ width, height, overflow: 'visible' }}>
-          {children}
         </div>
       </div>
     </div>
