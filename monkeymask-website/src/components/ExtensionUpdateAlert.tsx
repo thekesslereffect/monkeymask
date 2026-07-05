@@ -1,7 +1,7 @@
 import { SiteAlert } from '@/components/ui/SiteAlert';
 
 /** Flip to false once v0.2.1 is live on the Chrome Web Store. */
-export const EXTENSION_UPDATE_ALERT_ENABLED = true;
+export const EXTENSION_UPDATE_ALERT_ENABLED = false;
 
 const REQUIRED_EXTENSION_VERSION = '0.2.1';
 
