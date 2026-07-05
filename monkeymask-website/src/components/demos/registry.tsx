@@ -81,18 +81,18 @@ export const DEMOS: DemoDef[] = [
     render: () => <NftGallery />,
   },
   {
-    id: 'rep-explorer',
-    title: 'Representative Explorer',
-    icon: 'mdi:vote',
-    blurb: 'Browse voting weight by representative and delegate to decentralize ORV.',
-    render: () => <RepExplorerDemo />,
-  },
-  {
     id: 'nft-gate',
     title: 'NFT Gating',
     icon: 'mdi:lock-open-variant-outline',
     blurb: 'Unlock content by proving you hold an NFT from a verified issuer (SIWB + on-chain check).',
     render: () => <NftGateDemo />,
+  },
+  {
+    id: 'rep-explorer',
+    title: 'Representative Explorer',
+    icon: 'mdi:vote',
+    blurb: 'Browse voting weight by representative and delegate to decentralize ORV.',
+    render: () => <RepExplorerDemo />,
   },
   {
     id: 'airdrop',

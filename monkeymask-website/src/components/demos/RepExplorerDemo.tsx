@@ -26,22 +26,38 @@ function truncateRep(account: string, head = 12, tail = 8): string {
 function RepLeaderboard({
   rows,
   loading,
+  selectedAccount,
   onSelect,
   className = '',
 }: {
   rows: RepLeaderboardRow[];
   loading: boolean;
+  selectedAccount: string;
   onSelect: (account: string) => void;
   className?: string;
 }) {
+  const selectedNorm = selectedAccount
+    ? normalizeRepresentativeAccount(selectedAccount)
+    : '';
+
   return (
     <div className={`space-y-2 overflow-y-auto ${className}`}>
-      {rows.map((row) => (
+      {rows.map((row) => {
+        const isSelected =
+          selectedNorm !== '' &&
+          normalizeRepresentativeAccount(row.account) === selectedNorm;
+
+        return (
         <button
           key={row.account}
           type="button"
           onClick={() => onSelect(row.account)}
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-left transition-colors hover:border-foreground/30"
+          aria-pressed={isSelected}
+          className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+            isSelected
+              ? 'border-foreground/40 bg-muted/50 ring-1 ring-foreground/15'
+              : 'border-border bg-background hover:border-foreground/30'
+          }`}
         >
           <div className="flex items-center justify-between gap-2">
             <span className="min-w-0 truncate font-mono text-sm text-foreground">
@@ -58,7 +74,8 @@ function RepLeaderboard({
           </div>
           <div className="text-xs text-muted-foreground">{row.weightBan} BAN</div>
         </button>
-      ))}
+        );
+      })}
       {!loading && rows.length === 0 && (
         <p className="py-4 text-center text-sm text-muted-foreground">No representatives loaded</p>
       )}
@@ -161,14 +178,19 @@ export function RepExplorerDemo() {
     try {
       const exclude = new Set<string>();
       if (publicKey) exclude.add(publicKey);
+      if (currentRep) exclude.add(currentRep);
       const suggested = await suggestDecentralizedRepresentative(exclude);
       if (!suggested) {
-        setError('No online representative under 1% network weight found');
+        setError(
+          currentRep
+            ? 'No other online representative under 1% network weight found — pick one from the list'
+            : 'No online representative under 1% network weight found',
+        );
         return;
       }
+      // Suggestion includes online/weight metadata — no need to reload the list.
       setTargetRep(suggested.account);
       setSuggestedMeta(suggested);
-      await loadNetwork();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Suggest failed');
     } finally {
@@ -176,7 +198,14 @@ export function RepExplorerDemo() {
     }
   };
 
-  const repChanged = targetRep.trim() !== (currentRep ?? '');
+  const repChanged =
+    normalizeRepresentativeAccount(targetRep) !==
+    normalizeRepresentativeAccount(currentRep ?? '');
+
+  const handleSelectRep = (account: string) => {
+    setTargetRep(account);
+    setSuggestedMeta(null);
+  };
 
   const handleChange = async () => {
     if (!connected || !targetRep.startsWith('ban_') || !repChanged) return;
@@ -200,7 +229,10 @@ export function RepExplorerDemo() {
   const targetRepMeta = (() => {
     const rep = targetRep.trim();
     if (!rep.startsWith('ban_')) return null;
-    const inList = rows.find((row) => row.account === rep);
+    const repNorm = normalizeRepresentativeAccount(rep);
+    const inList = rows.find(
+      (row) => normalizeRepresentativeAccount(row.account) === repNorm,
+    );
     if (inList) {
       return {
         online: inList.online,
@@ -208,7 +240,9 @@ export function RepExplorerDemo() {
         weightBan: inList.weightBan,
       };
     }
-    if (suggestedMeta?.account === rep) return suggestedMeta;
+    if (suggestedMeta?.account === rep || normalizeRepresentativeAccount(suggestedMeta?.account ?? '') === repNorm) {
+      return suggestedMeta;
+    }
     const normalized = normalizeRepresentativeAccount(rep);
     return {
       online: onlineAccounts.some((a) => normalizeRepresentativeAccount(a) === normalized),
@@ -313,7 +347,8 @@ export function RepExplorerDemo() {
         <RepLeaderboard
           rows={rows}
           loading={loading}
-          onSelect={setTargetRep}
+          selectedAccount={targetRep}
+          onSelect={handleSelectRep}
           className="min-h-[16rem] max-h-[28rem] flex-1 lg:max-h-[32rem]"
         />
       </DemoSection>
